@@ -604,6 +604,7 @@ void CPlugin::MyPreInitialize()
 	m_bShowSongTime		= false;
 	m_bShowSongLen		= false;
 	m_fShowRatingUntilThisTime = -1.0f;
+	m_fShowCalmUntilThisTime = -1.0f;	// SURI
 	// SURI: calm motion
 	m_fAnimPresetStart = 0;
 	m_fCalmStepFps = 60.0f;
@@ -4531,9 +4532,11 @@ void CPlugin::DrawInfoCard(RECT* pCard, int* upper_right_corner_y, int xL, int x
     const bool showName   = m_bShowPresetInfo;
     const bool showRating = m_bShowRating || GetTime() < m_fShowRatingUntilThisTime;
     const bool showFps    = m_bShowFPS;
-    const bool showLock   = (showName || showRating || showFps) && (m_bPresetLockedByUser || m_bPresetLockedByCode);   // SURI: with any of F4/F5/F6
+    const bool showCalm   = GetTime() < m_fShowCalmUntilThisTime;   // SURI: 2.5 s after a calm command
+    const bool showAny    = showName || showRating || showFps || showCalm;
+    const bool showLock   = showAny && (m_bPresetLockedByUser || m_bPresetLockedByCode);   // SURI: with any of F4/F5/F6
     LPD3DXFONT fTitle = GetUiFont(UIF_TITLE), fMeta = GetUiFont(UIF_META), fStars = GetUiFont(UIF_STARS);
-    if (!(showName || showRating || showFps) || !fTitle || !fMeta || !fStars)
+    if (!showAny || !fTitle || !fMeta || !fStars)
         return;
 
     const int padX = UiPx(20), padY = UiPx(14), lineGap = UiPx(4), itemGap = UiPx(16);
@@ -4562,6 +4565,12 @@ void CPlugin::DrawInfoCard(RECT* pCard, int* upper_right_corner_y, int xL, int x
         swprintf(buf, 32, fmt, (int)(GetFps() + 0.5f));
         add(fMeta, buf, CARD_TEXT_2, itemGap);
     }
+    // SURI: the values in use this frame (blended during a preset change)
+    add(fMeta, SensitivityLabel(m_calm.sensitivity), CARD_TEXT_2, itemGap);
+    if (m_calm.speed != 1.0f)
+        add(fMeta, SpeedLabel(m_calm.speed), CARD_TEXT_2, itemGap);
+    if (m_calm.antiFlicker != AntiFlicker::Off)
+        add(fMeta, AntiFlickerLabel(m_calm.antiFlicker), CARD_TEXT_2, itemGap);
     if (showLock)
         add(fMeta, LoadResString(IDS_UI_LOCKED), CARD_TEXT_2, itemGap);
 
@@ -6031,6 +6040,7 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 			default:                     cs.antiFlicker = AntiFlicker::Strong; msg = AntiFlickerLabel(cs.antiFlicker); break;
 			}
 			const bool saved = SaveCalmToPreset();
+			m_fShowCalmUntilThisTime = GetTime() + 2.5f;	// SURI: show the info card with the values
 			m_pState->m_calmSlew.Reset();
 			m_pOldState->m_calmSlew.Reset();
 			for (int i = 0; i < 6; i++)

@@ -490,6 +490,7 @@ public:
         bool		m_bShowSongTime;
         bool		m_bShowSongLen;
         float		m_fShowRatingUntilThisTime;
+        float		m_fShowCalmUntilThisTime;   // SURI: info card shown until then after a calm command
 
         #define ERR_ALL    0
         #define ERR_INIT   1  //specifically, loading a preset
