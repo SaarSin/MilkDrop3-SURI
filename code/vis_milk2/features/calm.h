@@ -75,3 +75,39 @@ public:
 private:
     float m_t = 0;
 };
+
+// Calm meter (phase 15): measures the final image and the preset's own motion. Only measures;
+// nothing here changes a setting.
+struct CalmStats {
+    float flashesPerSec = 0;     // pairs of opposite luminance swings >= 0.1 in the last second, worst of whole frame / 4 quadrants
+    float motionPct = 0;         // warp-mesh motion: % of screen width per second (from the mesh, not the image)
+    float changePct = 0;         // mean |pixel change| per 60-fps frame, % (shown for information)
+    float bassCorrelation = 0;   // filled by the renderer hook (Task 9); stays 0 here
+};
+
+// Fed from a small luminance grid (values 0..1, up to 64x64) once per step. No D3D, no heap.
+class FlickerMeter {
+public:
+    void  AddFrame(const float* luma, int w, int h, float dtSec);   // out-of-range w*h is ignored; dt clamped to [0.0001, 0.25]
+    void  Reset();
+    float FlashesPerSec() const { return m_flashes; }
+    float ChangePct() const { return m_change; }
+private:
+    static const int kRegions = 5;            // whole frame + 4 quadrants
+    static const int kMaxPix = 64 * 64;
+    static const int kMaxEvents = 128;
+    float m_prev[kMaxPix];
+    bool  m_hasPrev = false;
+    float m_extreme[kRegions] = {};
+    int   m_dir[kRegions] = {};               // +1 rising, -1 falling, 0 unknown
+    float m_events[kRegions][kMaxEvents];     // times of luminance transitions
+    int   m_nEvents[kRegions] = {};
+    float m_t = 0;
+    float m_flashes = 0;
+    float m_change = 0;
+};
+
+// Mean sqrt(du^2 + dv^2) over the warp-mesh vertices; du/dv = (u - u0, v - v0) in texture units.
+// Non-finite entries are skipped; null pointers or n <= 0 give 0.
+// motionPct = MeshMotion * steps/s * 100, smoothed over 0.5 s by the caller.
+float MeshMotion(const float* du, const float* dv, int n);

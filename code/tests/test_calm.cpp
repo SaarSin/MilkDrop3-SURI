@@ -166,3 +166,49 @@ TEST(TestCalm_AnimClockNoJump) {
     c.Advance(-1.0f, 1.0f);
     CHECK(c.Now() == before);
 }
+
+TEST(TestCalm_FlickerMeterCountsStrobe) {
+    // black/white every 10 frames at 60 fps = 6 swings per second = 3 flashes per second
+    FlickerMeter m;
+    float img[16 * 9];
+    for (int f = 0; f < 120; f++) {
+        const float l = ((f / 10) % 2) ? 1.0f : 0.0f;
+        for (int i = 0; i < 16 * 9; i++) img[i] = l;
+        m.AddFrame(img, 16, 9, 1 / 60.f);
+    }
+    CHECK(m.FlashesPerSec() >= 2.5f && m.FlashesPerSec() <= 3.5f);
+    CHECK(m.ChangePct() > 5.0f);
+    m.Reset();
+    CHECK(m.FlashesPerSec() == 0.0f);
+    CHECK(m.ChangePct() == 0.0f);
+}
+TEST(TestCalm_FlickerMeterStillImage) {
+    FlickerMeter m;
+    float img[16 * 9];
+    for (int i = 0; i < 16 * 9; i++) img[i] = 0.4f;
+    for (int f = 0; f < 120; f++) m.AddFrame(img, 16, 9, 1 / 60.f);
+    CHECK(m.FlashesPerSec() == 0.0f);
+    CHECK(m.ChangePct() < 0.01f);
+}
+TEST(TestCalm_FlickerMeterIgnoresBadInput) {
+    FlickerMeter m;
+    float img[4] = {0, 1, 0, 1};
+    m.AddFrame(nullptr, 2, 2, 1 / 60.f);
+    m.AddFrame(img, 100, 100, 1 / 60.f);   // larger than 64x64
+    m.AddFrame(img, 0, 2, 1 / 60.f);
+    CHECK(m.FlashesPerSec() == 0.0f);
+    CHECK(m.ChangePct() == 0.0f);
+}
+TEST(TestCalm_MeshMotion) {
+    float du[100], dv[100];
+    for (int i = 0; i < 100; i++) { du[i] = 0.01f; dv[i] = 0; }
+    CHECK(Near(MeshMotion(du, dv, 100), 0.01f));
+    for (int i = 0; i < 100; i++) { du[i] = 0.006f; dv[i] = 0.008f; }
+    CHECK(Near(MeshMotion(du, dv, 100), 0.01f));
+    for (int i = 0; i < 100; i++) { du[i] = 0; dv[i] = 0; }
+    CHECK(MeshMotion(du, dv, 100) == 0.0f);
+    CHECK(MeshMotion(nullptr, dv, 100) == 0.0f);
+    CHECK(MeshMotion(du, dv, 0) == 0.0f);
+    du[0] = NAN; dv[1] = INFINITY; du[2] = 0.03f; dv[2] = 0.04f;
+    CHECK(Near(MeshMotion(du, dv, 3), 0.05f));   // non-finite entries are skipped, not averaged in
+}

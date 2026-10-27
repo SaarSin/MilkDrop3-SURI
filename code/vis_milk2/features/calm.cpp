@@ -229,3 +229,107 @@ void AnimClock::Advance(float dtSec, float speed)
 {
     m_t += Clamp(dtSec, 0.0f, 0.25f) * speed;
 }
+
+void FlickerMeter::Reset()
+{
+    m_hasPrev = false;
+    m_t = 0;
+    for (int r = 0; r < kRegions; r++) {
+        m_dir[r] = 0;
+        m_nEvents[r] = 0;
+        m_extreme[r] = 0;
+    }
+    m_flashes = 0;
+    m_change = 0;
+}
+
+void FlickerMeter::AddFrame(const float* luma, int w, int h, float dtSec)
+{
+    if (!luma || w < 2 || h < 2 || w > 64 || h > 64 || w * h > kMaxPix)
+        return;
+    const int n = w * h;
+    if (!(dtSec == dtSec)) dtSec = 1.0f / kRefFps;
+    dtSec = Clamp(dtSec, 0.0001f, 0.25f);
+    m_t += dtSec;
+
+    // region means: whole + 4 quadrants
+    float sum[kRegions] = {};
+    int   cnt[kRegions] = {};
+    float change = 0;
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++) {
+            const float l = luma[y * w + x];
+            const int q = 1 + (y >= h / 2 ? 2 : 0) + (x >= w / 2 ? 1 : 0);
+            sum[0] += l; cnt[0]++;
+            sum[q] += l; cnt[q]++;
+            if (m_hasPrev)
+                change += fabsf(l - m_prev[y * w + x]);
+            m_prev[y * w + x] = l;
+        }
+
+    // change per 60-fps frame, smoothed (tau 0.5 s)
+    if (m_hasPrev) {
+        const float perRefFrame = (change / n) / (dtSec * kRefFps) * 100.0f;
+        const float a = 1.0f - expf(-dtSec / 0.5f);
+        m_change += (perRefFrame - m_change) * a;
+    }
+
+    // flashes: a transition is a swing of >= 0.1 against the previous extreme
+    const float kSwing = 0.1f;
+    float worst = 0;
+    for (int r = 0; r < kRegions; r++) {
+        const float mean = sum[r] / (cnt[r] ? cnt[r] : 1);
+        bool turned = false;
+        if (!m_hasPrev) {
+            m_extreme[r] = mean;
+            m_dir[r] = 0;
+        } else if (m_dir[r] == 0) {
+            if (fabsf(mean - m_extreme[r]) >= kSwing) {  // first clear move sets the direction
+                m_dir[r] = (mean > m_extreme[r]) ? 1 : -1;
+                m_extreme[r] = mean;
+            }
+        } else if (m_dir[r] > 0) {
+            if (mean > m_extreme[r])
+                m_extreme[r] = mean;                     // still rising
+            else if (m_extreme[r] - mean >= kSwing)
+                turned = true;
+        } else {
+            if (mean < m_extreme[r])
+                m_extreme[r] = mean;                     // still falling
+            else if (mean - m_extreme[r] >= kSwing)
+                turned = true;
+        }
+        if (turned) {
+            m_dir[r] = -m_dir[r];
+            m_extreme[r] = mean;
+            if (m_nEvents[r] < kMaxEvents)
+                m_events[r][m_nEvents[r]++] = m_t;
+        }
+        // drop events older than one second
+        int keep = 0;
+        for (int i = 0; i < m_nEvents[r]; i++)
+            if (m_t - m_events[r][i] <= 1.0f)
+                m_events[r][keep++] = m_events[r][i];
+        m_nEvents[r] = keep;
+        const float flashes = m_nEvents[r] * 0.5f;       // two transitions = one flash
+        if (flashes > worst) worst = flashes;
+    }
+    m_flashes = worst;
+    m_hasPrev = true;
+}
+
+float MeshMotion(const float* du, const float* dv, int n)
+{
+    if (!du || !dv || n <= 0)
+        return 0;
+    double sum = 0;
+    int used = 0;
+    for (int i = 0; i < n; i++) {
+        const float a = du[i], b = dv[i];
+        if (!isfinite(a) || !isfinite(b))
+            continue;
+        sum += sqrtf(a * a + b * b);
+        used++;
+    }
+    return used ? (float)(sum / used) : 0.0f;
+}
