@@ -41,6 +41,16 @@ static const KeyBinding g_keyBindings[] = {
     { KeyScope::VKeyAlt, VK_RETURN, Cmd::ViewFullscreen },
     { KeyScope::VKeyAlt, VK_SHIFT, Cmd::ViewStretch },
     { KeyScope::VKeyAlt, VK_F4, Cmd::AppQuit },
+    // SURI: calm motion. The main-keyboard key comes first: it is the one shown in the menu.
+    { KeyScope::VKeyCtrl, VK_OEM_PLUS, Cmd::SensitivityUp },
+    { KeyScope::VKeyCtrl, VK_ADD, Cmd::SensitivityUp },
+    { KeyScope::VKeyCtrl, VK_OEM_MINUS, Cmd::SensitivityDown },
+    { KeyScope::VKeyCtrl, VK_SUBTRACT, Cmd::SensitivityDown },
+    { KeyScope::VKeyCtrl, '0', Cmd::CalmReset },
+    { KeyScope::VKeyCtrlShift, VK_OEM_PLUS, Cmd::SpeedUp },
+    { KeyScope::VKeyCtrlShift, VK_ADD, Cmd::SpeedUp },
+    { KeyScope::VKeyCtrlShift, VK_OEM_MINUS, Cmd::SpeedDown },
+    { KeyScope::VKeyCtrlShift, VK_SUBTRACT, Cmd::SpeedDown },
 };
 
 const KeyBinding* KeyBindings(size_t* count)
@@ -66,6 +76,8 @@ static std::wstring VKeyName(unsigned short vk)
     case VK_BACK:   return L"Backspace";
     case VK_RETURN: return L"Enter";
     case VK_SHIFT:  return L"Shift";
+    case VK_OEM_PLUS:  case VK_ADD:      return L"+";
+    case VK_OEM_MINUS: case VK_SUBTRACT: return L"-";
     }
     return std::wstring(1, (wchar_t)vk);
 }
@@ -75,6 +87,8 @@ std::wstring KeyLabel(const KeyBinding& b)
     switch (b.scope) {
     case KeyScope::Char:    return std::wstring(1, (wchar_t)b.key);
     case KeyScope::VKeyAlt: return L"Alt+" + VKeyName(b.key);
+    case KeyScope::VKeyCtrl:      return L"Ctrl+" + VKeyName(b.key);
+    case KeyScope::VKeyCtrlShift: return L"Ctrl+Shift+" + VKeyName(b.key);
     default:                return VKeyName(b.key);
     }
 }
@@ -158,6 +172,13 @@ CmdState QueryState(Cmd c, const AppSnapshot& s)
     case Cmd::MessagePrompt:        st.enabled = !s.textEditActive; break;
     case Cmd::SpriteRemoveSelected: st.enabled = s.selectedSprite >= 0; break;
     case Cmd::SpriteRemoveAll:      st.enabled = s.spriteCount > 0; break;
+    // SURI: calm motion changes the preset file, so it needs one and no open text prompt
+    case Cmd::SpeedUp: case Cmd::SpeedDown: case Cmd::SensitivityUp: case Cmd::SensitivityDown:
+    case Cmd::CalmReset:
+        st.enabled = s.hasPresetFile && !s.textEditActive; break;
+    case Cmd::AntiFlickerOff: case Cmd::AntiFlickerSoft: case Cmd::AntiFlickerStrong:
+        st.enabled = s.hasPresetFile && !s.textEditActive;
+        st.checked = s.antiFlicker == (int)((unsigned)c - (unsigned)Cmd::AntiFlickerOff); break;
     default: break;
     }
 

@@ -39,6 +39,12 @@ TEST(TestHelpText_EveryKeyListed) {
     size_t n = 0; const KeyBinding* b = KeyBindings(&n);
     for (size_t i = 0; i < n; i++) {
         std::wstring label = KeyLabel(b[i]);
+        // SURI: "Ctrl++" / "Ctrl+Shift+-" are listed as the row "Ctrl+ +/-" / "Ctrl+Shift+ +/-"
+        if (label.size() > 2 && label[0] == L'C' && (label.back() == L'+' || label.back() == L'-') && label[label.size() - 2] == L'+') {
+            std::wstring mod = label.substr(0, label.size() - 1);
+            if (!HelpHasKeyToken(mod) || !HelpHasKeyToken(L"+/-")) { printf("  missing key: %ls\n", label.c_str()); CHECK(!"key missing from help"); }
+            continue;
+        }
         if (!HelpHasKeyToken(label)) { printf("  missing key: %ls\n", label.c_str()); CHECK(!"key missing from help"); }
     }
     CHECK(HelpHasKeyToken(L"Right-click"));
@@ -97,4 +103,10 @@ TEST(TestHelpText_DesktopAndEffectsPages) {
     CHECK(d.find(L"tray") != std::wstring::npos);
     CHECK(d.find(L"Explorer") != std::wstring::npos);
     CHECK(HelpRowOnPage(L"Ctrl+Alt+Shift+D", 4));
+}
+TEST(TestHelpText_CalmKeys) {   // SURI: calm motion
+    std::wstring t = HelpText();
+    CHECK(t.find(L"Ctrl+ +/-\taudio sensitivity") != std::wstring::npos);
+    CHECK(t.find(L"Ctrl+Shift+ +/-\tspeed") != std::wstring::npos);
+    CHECK(t.find(L"Ctrl+0\tthis preset back to normal speed and sensitivity") != std::wstring::npos);
 }

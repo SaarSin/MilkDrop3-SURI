@@ -5336,6 +5336,15 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
         //         (passing some to the shell's key bindings and the rest to DefWindowProc)
 		//		note: regular hotkeys should be handled in HandleRegularKey.
 		{
+			// SURI: calm motion keys: Ctrl+[+/-/0] and Ctrl+Shift+[+/-]. Typing never gets here.
+			if ((GetKeyState(VK_CONTROL) & 0x8000) && !(GetKeyState(VK_MENU) & 0x8000))
+			{
+				const KeyScope scope = (GetKeyState(VK_SHIFT) & 0x8000) ? KeyScope::VKeyCtrlShift : KeyScope::VKeyCtrl;
+				Cmd ctrlCmd = LookupKey(scope, (unsigned)wParam);
+				if (ctrlCmd != Cmd::None && DispatchCommand(ctrlCmd, hWnd))
+					return 0; // we processed (or absorbed) the key
+			}
+
 			// SURI: Space, Backspace and F1 go through the command table
 			Cmd cmd = LookupKey(KeyScope::VKeyNormal, (unsigned)wParam);
 			if (cmd != Cmd::None && DispatchCommand(cmd, hWnd))
@@ -5996,6 +6005,43 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 		}
 		return true;
 
+	// SURI: calm motion: the current preset's own Speed / Sensitivity / Anti-flicker
+	case Cmd::SpeedUp:
+	case Cmd::SpeedDown:
+	case Cmd::SensitivityUp:
+	case Cmd::SensitivityDown:
+	case Cmd::CalmReset:
+	case Cmd::AntiFlickerOff:
+	case Cmd::AntiFlickerSoft:
+	case Cmd::AntiFlickerStrong:
+		{
+			if (!m_szCurrentPresetFile[0])
+				return false;
+			CalmSettings& cs = m_pState->m_calm;
+			std::wstring msg;
+			switch (c)
+			{
+			case Cmd::SpeedUp:         cs.speed = StepSpeed(cs.speed, +1);              msg = SpeedLabel(cs.speed); break;
+			case Cmd::SpeedDown:       cs.speed = StepSpeed(cs.speed, -1);              msg = SpeedLabel(cs.speed); break;
+			case Cmd::SensitivityUp:   cs.sensitivity = StepSensitivity(cs.sensitivity, +1); msg = SensitivityLabel(cs.sensitivity); break;
+			case Cmd::SensitivityDown: cs.sensitivity = StepSensitivity(cs.sensitivity, -1); msg = SensitivityLabel(cs.sensitivity); break;
+			case Cmd::CalmReset:       cs = CalmSettings();                             msg = L"Speed 100% \x00B7 Sensitivity 100%"; break;
+			case Cmd::AntiFlickerOff:    cs.antiFlicker = AntiFlicker::Off;    msg = AntiFlickerLabel(cs.antiFlicker); break;
+			case Cmd::AntiFlickerSoft:   cs.antiFlicker = AntiFlicker::Soft;   msg = AntiFlickerLabel(cs.antiFlicker); break;
+			default:                     cs.antiFlicker = AntiFlicker::Strong; msg = AntiFlickerLabel(cs.antiFlicker); break;
+			}
+			const bool saved = SaveCalmToPreset();
+			m_pState->m_calmSlew.Reset();
+			m_pOldState->m_calmSlew.Reset();
+			for (int i = 0; i < 6; i++)
+				m_audioSmooth[i].Reset();
+			if (saved)
+				AddError(&msg[0], 2.5f, ERR_NOTIFY, false);
+			else
+				{ wchar_t err[] = L"Couldn't save to the preset file"; AddError(err, 6.0f, ERR_MISC, false); }
+		}
+		return true;
+
 	case Cmd::MessageRandom:
 		{
 			ReadCustomMessages();	// pick up edits made since the start
@@ -6044,6 +6090,8 @@ AppSnapshot CPlugin::GetAppSnapshot() const
 	s.nowPlayingAvailable = m_songBox.State() != NowPlayingState::Unavailable;
 	s.nowPlayingOn       = m_bNowPlaying;
 	s.hasSongTitle       = m_szSongTitle[0] != 0;
+	s.antiFlicker        = (int)m_pState->m_calm.antiFlicker;   // SURI: calm motion
+	s.hasPresetFile      = m_szCurrentPresetFile[0] != 0;
 	// SURI: sprites (phase 9)
 	for (int i=0; i<NUM_TEX; i++)
 		if (m_texmgr.m_tex[i].pSurface)
