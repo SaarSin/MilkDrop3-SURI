@@ -36,6 +36,8 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <locale.h>
 #include "resource.h"
 #include <vector>
+#include <string>
+#include <math.h>
 #include <assert.h>
 #include "resstrings.h"
 
@@ -528,6 +530,7 @@ void CState::Default(DWORD ApplyFlags)
     if (ApplyFlags & STATE_GENERAL)
     {
         m_fRating				= 3.0f;
+        m_calm                  = CalmSettings();   // SURI
 	    m_fDecay				= 0.98f;	// 1.0 = none, 0.95 = heavy decay
 	    m_fGammaAdj				= 2.0f;		// 1.0 = reg; +2.0 = double, +3.0 = triple...
 	    m_fVideoEchoZoom		= 2.0f;
@@ -840,6 +843,15 @@ bool CState::Export(const wchar_t *szIniFile)
 	fprintf(fOut, "[preset00]\n");
 
 	fprintf(fOut, "%s=%.3f\n", "fRating",                m_fRating);
+	// SURI: calm motion settings; only the non-default ones are written
+	for (const CalmKey& k : CalmPresetKeys(m_calm))
+		if (!k.value.empty())
+		{
+			std::string n, v;
+			for (const wchar_t* p = k.name; *p; p++) n += (char)*p;
+			for (wchar_t c : k.value) v += (char)c;
+			fprintf(fOut, "%s=%s\n", n.c_str(), v.c_str());
+		}
 	fprintf(fOut, "%s=%.3f\n", "fGammaAdj",              m_fGammaAdj.eval(-1));
 	fprintf(fOut, "%s=%.3f\n", "fDecay",                 m_fDecay.eval(-1));
 	fprintf(fOut, "%s=%.3f\n", "fVideoEchoZoom",         m_fVideoEchoZoom.eval(-1));
@@ -1232,6 +1244,14 @@ bool CState::Import(const wchar_t *szIniFile, float fTime, CState* pOldState, DW
     if (ApplyFlags & STATE_GENERAL)
     {
         m_fRating				= GetFastFloat("fRating",m_fRating,f);
+        // SURI: calm motion settings; a missing key means the default
+        m_calm = CalmSettings();
+        {
+            float fSpeed = GetFastFloat("fCalmSpeed", NAN, f);
+            float fSens  = GetFastFloat("fCalmSensitivity", NAN, f);
+            float fAF    = GetFastFloat("nCalmAntiFlicker", NAN, f);
+            m_calm = ClampSettings(fSpeed, fSens, (fAF == fAF) ? (int)fAF : 0);
+        }
 	    m_fDecay                = GetFastFloat("fDecay",m_fDecay.eval(-1),f);
 	    m_fGammaAdj             = GetFastFloat("fGammaAdj" ,m_fGammaAdj.eval(-1),f);
 	    m_fVideoEchoZoom        = GetFastFloat("fVideoEchoZoom",m_fVideoEchoZoom.eval(-1),f);

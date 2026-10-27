@@ -3289,6 +3289,11 @@ void CPlugin::MyRenderFn(int redraw)
     //   be zero, and you can draw a new frame.  The flag is
     //   used to force a repaint when nothing else changed.
 
+    // SURI: calm motion: the effective settings of this frame (cross-fade while presets blend)
+    m_calm = (m_pState->m_bBlending && m_pOldState)
+        ? BlendCalm(m_pOldState->m_calm, m_pState->m_calm, m_pState->m_fBlendProgress)
+        : m_pState->m_calm;
+
     //   1. take care of timing/other paperwork/etc. for new frame
     if (!redraw)
     {
@@ -8923,6 +8928,18 @@ void CPlugin::RenamePresetFile(wchar_t *szOldFile, wchar_t *szNewFile)
 	}
 }
 
+
+// SURI: writes the calm settings of the current preset into its file; default values delete the key
+bool CPlugin::SaveCalmToPreset()
+{
+	if (!m_szCurrentPresetFile[0])
+		return false;
+	bool ok = true;
+	for (const CalmKey& k : CalmPresetKeys(m_pState->m_calm))
+		if (!WritePrivateProfileStringW(L"preset00", k.name, k.value.empty() ? NULL : k.value.c_str(), m_szCurrentPresetFile))
+			ok = false;
+	return ok;
+}
 
 void CPlugin::SetCurrentPresetRating(float fNewRating)
 {

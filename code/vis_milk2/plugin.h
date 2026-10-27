@@ -632,6 +632,7 @@ public:
 	    void		DeletePresetFile(wchar_t *szDelFile);
 	    void		RenamePresetFile(wchar_t *szOldFile, wchar_t *szNewFile);
 	    void		SetCurrentPresetRating(float fNewRating);
+	    bool		SaveCalmToPreset();   // SURI: writes m_pState->m_calm into the current preset file
 	    void		SeekToPreset(wchar_t cStartChar);
 	    bool		ReversePropagatePoint(float fx, float fy, float *fx2, float *fy2);
 	    int 		HandleRegularKey(WPARAM wParam);

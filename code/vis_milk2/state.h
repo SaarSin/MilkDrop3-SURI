@@ -241,6 +241,7 @@ public:
 	int                 m_nSprites;              // SURI: sprites saved with the preset (suri_sprite* keys)
 	SpriteDesc          m_sprites[kMaxPresetSprites];
 	float				m_fRating;		// 0..5
+	CalmSettings		m_calm;			// SURI: Speed / Sensitivity / Anti-flicker of this preset (stored in the preset file)
 	CalmSlew			m_calmSlew;		// SURI: anti-flicker history of this state's outputs (POD)
 	// post-processing:
 	CBlendableFloat		m_fGammaAdj;	// +0 -> +1.0 (double), +2.0 (triple)...
