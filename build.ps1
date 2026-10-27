@@ -94,6 +94,7 @@ if ($Package -or $StageOnly) {
     }
     Copy-Item -LiteralPath (Join-Path $root 'LICENSE.txt') -Destination $stage
     Copy-Item -LiteralPath (Join-Path $root 'content\PROVENANCE.md') -Destination $stage
+    Copy-Item -LiteralPath (Join-Path $root 'third_party\d3dx\LICENSE.txt') -Destination (Join-Path $stage 'D3DX9-LICENSE.txt')
     foreach ($d2 in 'data', 'docs') {
         Copy-Item -LiteralPath (Join-Path $root "code\resources\Milkdrop2\$d2") -Destination $m2 -Recurse
     }

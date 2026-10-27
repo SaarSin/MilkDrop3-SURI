@@ -2,11 +2,22 @@ MilkDrop 3.0.S (SURI build)
 ===========================
 
 This program is derived from MilkDrop 2 (Nullsoft) and MilkDrop3 / BeatDrop
-(Maxim Volskiy and contributors). Both are released under BSD-style licenses,
-reproduced below as they require.
+(Maxim Volskiy and contributors), as published at
+https://github.com/milkdrop2077/MilkDrop3 (commit 6b39088). Both are released
+under BSD-style licenses, reproduced below as they require. The changes made in
+this build (see CHANGES.md) are released under the same BSD 3-Clause terms,
+Copyright (c) 2026 SaarSin.
 
-Presets and textures in content/ come from the projectM community packs;
-see content/PROVENANCE.md.
+Third-party files that are not covered by the licenses below:
+
+* Presets and textures (content/, and plugins\Milkdrop2\presets and
+  \textures in the package) come from the public projectM community packs.
+  Their sources and projectM's notice about them are in content/PROVENANCE.md.
+
+* D3DX9_43.dll and D3DCompiler_43.dll are Microsoft runtime files from the
+  Microsoft.DXSDK.D3DX NuGet package. They are redistributed unmodified, as
+  that package's license allows, and remain under Microsoft's terms, included
+  in the package as D3DX9-LICENSE.txt.
 
 -------------------------------------------------------------------------------
 MilkDrop 2

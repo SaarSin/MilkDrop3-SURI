@@ -123,7 +123,9 @@ Everything below was added or changed on top of that commit. How each part was p
 ## Documentation
 
 - **New guides:** `code/resources/Milkdrop2/docs/user-guide.html` and `preset-authoring.html` are offline HTML guides that open from the Help menu.
-- **`LICENSE.txt`:** the MilkDrop 2 and MilkDrop3/BeatDrop licenses in one file.
+- **`LICENSE.txt`:** the MilkDrop 2 and MilkDrop3/BeatDrop licenses in one file, plus the license of this build's changes (BSD 3-Clause) and notes on the third-party files.
+- **`README.md`:** a new one, replacing upstream's README.
+- **The package** also includes `PROVENANCE.md` and Microsoft's D3DX license as `D3DX9-LICENSE.txt`.
 
 ## Work plans
 
