@@ -34,6 +34,8 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#include "evallib\compiler.h"
 #include "../ns-eel2/ns-eel.h"
 #include "utility.h"
+#include "features/sprite_layout.h"
+#include "features/title_anim.h"
 #include <assert.h>
 #include <math.h>
 
@@ -52,8 +54,6 @@ int g_title_font_sizes[] =
 	480, 512	/**/
 };
 
-//#define COMPILE_MULTIMON_STUBS 1
-//#include <multimon.h>
 
 // This function evaluates whether the floating-point
 // control Word is set to single precision/round to nearest/
@@ -63,33 +63,9 @@ int g_title_font_sizes[] =
 // location pointed to by pwOldCW.
 static void MungeFPCW( WORD *pwOldCW )
 {
-#if 0
-    BOOL ret = FALSE;
-    WORD wTemp, wSave;
-
-    __asm fstcw wSave
-    if (wSave & 0x300 ||            // Not single mode
-        0x3f != (wSave & 0x3f) ||   // Exceptions enabled
-        wSave & 0xC00)              // Not round to nearest mode
-    {
-        __asm
-        {
-            mov ax, wSave
-            and ax, not 300h    ;; single mode
-            or  ax, 3fh         ;; disable all exceptions
-            and ax, not 0xC00   ;; round to nearest mode
-            mov wTemp, ax
-            fldcw   wTemp
-        }
-        ret = TRUE;
-    }
-    if (pwOldCW) *pwOldCW = wSave;
-  //  return ret;
-#else
 	_controlfp(_PC_24, _MCW_PC); // single precision
 	_controlfp(_RC_NEAR, _MCW_RC); // round to nearest mode
 	_controlfp(_EM_ZERODIVIDE, _EM_ZERODIVIDE);  // disable divide-by-zero
-#endif
 }
 
 void RestoreFPCW(WORD wSave)
@@ -161,46 +137,6 @@ int GetNumToSpawn(float fTime, float fDeltaT, float fRate, float fRegularity, in
 
 bool CPlugin::OnResizeTextWindow()
 {
-	/*
-    if (!m_hTextWnd)
-		return false;
-
-	RECT rect;
-	GetClientRect(m_hTextWnd, &rect);
-
-	if (rect.right - rect.left != m_nTextWndWidth ||
-		rect.bottom - rect.top != m_nTextWndHeight)
-	{
-		m_nTextWndWidth = rect.right - rect.left;
-		m_nTextWndHeight = rect.bottom - rect.top;
-
-		// first, resize fonts if necessary
-		//if (!InitFont())
-			//return false;
-
-		// then resize the memory bitmap used for double buffering
-		if (m_memDC)
-		{
-			SelectObject(m_memDC, m_oldBM);	// delete our doublebuffer
-			DeleteObject(m_memDC);
-			DeleteObject(m_memBM);
-			m_memDC = NULL;
-			m_memBM = NULL;
-			m_oldBM = NULL;
-		}
-
-		HDC hdc = GetDC(m_hTextWnd);
-		if (!hdc) return false;
-
-		m_memDC = CreateCompatibleDC(hdc);
-		m_memBM = CreateCompatibleBitmap(hdc, rect.right - rect.left, rect.bottom - rect.top);
-		m_oldBM = (HBITMAP)SelectObject(m_memDC,m_memBM);
-
-		ReleaseDC(m_hTextWnd, hdc);
-
-		// save new window pos
-		WriteRealtimeConfig();
-	}*/
 
 	return true;
 }
@@ -209,14 +145,6 @@ bool CPlugin::OnResizeTextWindow()
 void CPlugin::ClearGraphicsWindow()
 {
 	// clear the window contents, to avoid a 1-pixel-thick border of noise that sometimes sticks around
-    /*
-	RECT rect;
-	GetClientRect(GetPluginWindow(), &rect);
-
-	HDC hdc = GetDC(GetPluginWindow());
-	FillRect(hdc, &rect, m_hBlackBrush);
-	ReleaseDC(GetPluginWindow(), hdc);
-    */
 }
 
 /*
@@ -245,7 +173,6 @@ bool CPlugin::RenderStringToTitleTexture()	// m_szSongMessage
     // Remember the original backbuffer and zbuffer
     LPDIRECT3DSURFACE9 pBackBuffer=NULL;//, pZBuffer=NULL;
     lpDevice->GetRenderTarget( 0, &pBackBuffer );
-    //lpDevice->GetDepthStencilSurface( &pZBuffer );
 
     // set render target to m_lpDDSTitle
     {
@@ -255,11 +182,9 @@ bool CPlugin::RenderStringToTitleTexture()	// m_szSongMessage
         if (m_lpDDSTitle->GetSurfaceLevel(0, &pNewTarget) != D3D_OK)
         {
             SafeRelease(pBackBuffer);
-            //SafeRelease(pZBuffer);
             return false;
         }
         lpDevice->SetRenderTarget(0, pNewTarget);
-         //lpDevice->SetDepthStencilSurface( NULL );
         pNewTarget->Release();
 
 	    lpDevice->SetTexture(0, NULL);
@@ -286,22 +211,6 @@ bool CPlugin::RenderStringToTitleTexture()	// m_szSongMessage
         lpDevice->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, verts, sizeof(WFVERTEX));
     }
 
-    /*// 1. clip title if too many chars
-	if (m_supertext.bIsSongTitle)
-	{
-		// truncate song title if too long; don't clip custom messages, though!
-		int clip_chars = 32;
-        int user_title_size = GetFontHeight(SONGTITLE_FONT);
-
-        #define MIN_CHARS 8         // max clip_chars *for BIG FONTS*
-        #define MAX_CHARS 64        // max clip chars *for tiny fonts*
-        float t = (user_title_size-10)/(float)(128-10);
-        t = min(1,max(0,t));
-        clip_chars = (int)(MAX_CHARS - (MAX_CHARS-MIN_CHARS)*t);
-
-		if ((int)strlen(szTextToDraw) > clip_chars+3)
-			lstrcpy(&szTextToDraw[clip_chars], "...");
-	}*/
 
     bool ret = true;
 
@@ -324,9 +233,6 @@ bool CPlugin::RenderStringToTitleTexture()	// m_szSongMessage
 
         // limit the size of the font used:
 
-        //int user_title_size = GetFontHeight(SONGTITLE_FONT);
-        //while (g_title_font_sizes[hi] > user_title_size*2 && hi>4)
-        //    hi--;
 
         RECT temp;
 	    while (1)//(lo < hi-1)
@@ -399,41 +305,45 @@ bool CPlugin::RenderStringToTitleTexture()	// m_szSongMessage
     else // song title
     {
         wchar_t* str = m_supertext.szTextW;
+        LPD3DXFONT font = m_d3dx_title_font_doublesize;
+        LPD3DXFONT fitFont = NULL;   // SURI: smaller font for a title that is too wide
 
         // clip the text manually...
         // NOTE: DT_END_ELLIPSIS CAUSES NOTHING TO DRAW, IF YOU USE W/D3DX9!
-        int h;
-        int max_its = 6;
-        int it = 0;
-        while (it < max_its)
+        int h = 0;
+        if (str[0])
         {
-            it++;
-
-            if (!str[0])
-                break;
-
             RECT temp = rect;
-            h = m_d3dx_title_font_doublesize->DrawTextW(NULL, str, -1, &temp, DT_SINGLELINE | DT_CALCRECT /*| DT_NOPREFIX | DT_END_ELLIPSIS*/, 0xFFFFFFFF);
-            if (temp.right-temp.left <= m_nTitleTexSizeX)
-                break;
+            h = font->DrawTextW(NULL, str, -1, &temp, DT_SINGLELINE | DT_CALCRECT /*| DT_NOPREFIX | DT_END_ELLIPSIS*/, 0xFFFFFFFF);
+            int width = temp.right - temp.left;
 
-			// 11/01/2009 DO - disabled as it was causing to users 'random' titles against
-			// what is expected so we now just work on the ellipse at the end approach which
-
-            // manually clip the text... chop segments off the front
-            /*wchar_t* p = wcsstr(str, L" - ");
-            if (p)
+            // SURI: a long title gets a smaller font that fills the width (down to 35%), and is
+            // only cut when even that is too wide; the quad scales up again, so it uses the screen
+            int avail = m_nTitleTexSizeX * 97 / 100;
+            float scale = FitTitleScale(width, avail, 0.35f);
+            if (scale < 1.0f && m_nTitleFontPx > 0 &&
+                D3DXCreateFontW(lpDevice, max(6, (int)(m_nTitleFontPx * scale)), 0,
+                                m_fontinfo[SONGTITLE_FONT].bBold ? 900 : 400, 1, m_fontinfo[SONGTITLE_FONT].bItalic,
+                                DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH,
+                                m_fontinfo[SONGTITLE_FONT].szFace, &fitFont) == D3D_OK)
             {
-                str = p+3;
-                continue;
-            }*/
+                font = fitFont;
+                temp = rect;
+                h = font->DrawTextW(NULL, str, -1, &temp, DT_SINGLELINE | DT_CALCRECT, 0xFFFFFFFF);
+                width = temp.right - temp.left;
+            }
 
-            // no more stuff to chop off the front; chop off the end w/ ...
-            int len = wcslen(str);
-            float fPercentToKeep = 0.91f * m_nTitleTexSizeX / (float)(temp.right-temp.left);
-            if (len > 8)
-                lstrcpyW( &str[ (int)(len*fPercentToKeep) ], L"...");
-            break;
+            if (width > m_nTitleTexSizeX)
+            {
+                // still too wide: chop off the end w/ ... (never between a surrogate pair)
+                int len = wcslen(str);
+                float fPercentToKeep = 0.91f * m_nTitleTexSizeX / (float)width;
+                int cut = (int)(len*fPercentToKeep);
+                if (cut > 0 && cut < len && str[cut] >= 0xDC00 && str[cut] <= 0xDFFF)
+                    cut--;
+                if (len > 8)
+                    lstrcpyW( &str[cut], L"...");
+            }
         }
 
         // now actually draw it
@@ -444,15 +354,14 @@ bool CPlugin::RenderStringToTitleTexture()	// m_szSongMessage
         temp.bottom = m_nTitleTexSizeY/2 + h/2;
 
         // NOTE: DT_END_ELLIPSIS CAUSES NOTHING TO DRAW, IF YOU USE W/D3DX9!
-	    m_supertext.nFontSizeUsed = m_d3dx_title_font_doublesize->DrawTextW(NULL, str, -1, &temp, DT_SINGLELINE /*| DT_NOPREFIX | DT_END_ELLIPSIS*/ | DT_CENTER , 0xFFFFFFFF);
+	    m_supertext.nFontSizeUsed = font->DrawTextW(NULL, str, -1, &temp, DT_SINGLELINE /*| DT_NOPREFIX | DT_END_ELLIPSIS*/ | DT_CENTER , 0xFFFFFFFF);
+        SafeRelease(fitFont);
     }
 
     // Change the rendertarget back to the original setup
     lpDevice->SetTexture(0, NULL);
     lpDevice->SetRenderTarget( 0, pBackBuffer );
-	 //lpDevice->SetDepthStencilSurface( pZBuffer );
     SafeRelease(pBackBuffer);
-    //SafeRelease(pZBuffer);
 
 	return ret;
 }
@@ -653,7 +562,6 @@ void CPlugin::RunPerFrameEquations(int code)
         *pState->var_pv_pixelsy     = (double)GetHeight();
         *pState->var_pv_aspectx     = (double)m_fInvAspectX;
         *pState->var_pv_aspecty     = (double)m_fInvAspectY;
-        //*pState->var_pv_monitor     = *pState->var_pf_monitor;
 
 		// execute once-per-frame expressions:
 #ifndef _NO_EXPR_
@@ -677,15 +585,6 @@ void CPlugin::RunPerFrameEquations(int code)
         *pState->var_pf_gamma     = max(0    , min(    8, *pState->var_pf_gamma    ));
         *pState->var_pf_echo_zoom = max(0.001, min( 1000, *pState->var_pf_echo_zoom));
 
-		/*
-        if (m_pState->m_bRedBlueStereo || m_bAlways3D)
-		{
-			// override wave colors
-			*pState->var_pf_wave_r = 0.35f*(*pState->var_pf_wave_r) + 0.65f;
-			*pState->var_pf_wave_g = 0.35f*(*pState->var_pf_wave_g) + 0.65f;
-			*pState->var_pf_wave_b = 0.35f*(*pState->var_pf_wave_b) + 0.65f;
-		}
-        */
 	}
 
 	if (m_pState->m_bBlending)
@@ -788,7 +687,7 @@ void CPlugin::RenderFrame(int bRedraw)
 	    // randomly spawn Song Title, if time
 	    if (m_fTimeBetweenRandomSongTitles > 0 &&
 		    !m_supertext.bRedrawSuperText &&
-		    GetTime() >= m_supertext.fStartTime + m_supertext.fDuration + 1.0f/GetFps())
+		    GetTime() >= SuperTextEndTime() + 1.0f/GetFps())
 	    {
 		    int n = GetNumToSpawn(GetTime(), fDeltaT, 1.0f/m_fTimeBetweenRandomSongTitles, 0.5f, m_nSongTitlesSpawned);
 		    if (n > 0)
@@ -801,7 +700,7 @@ void CPlugin::RenderFrame(int bRedraw)
 	    // randomly spawn Custom Message, if time
 	    if (m_fTimeBetweenRandomCustomMsgs > 0 &&
 		    !m_supertext.bRedrawSuperText &&
-		    GetTime() >= m_supertext.fStartTime + m_supertext.fDuration + 1.0f/GetFps())
+		    GetTime() >= SuperTextEndTime() + 1.0f/GetFps())
 	    {
 		    int n = GetNumToSpawn(GetTime(), fDeltaT, 1.0f/m_fTimeBetweenRandomCustomMsgs, 0.5f, m_nCustMsgsSpawned);
 		    if (n > 0)
@@ -835,12 +734,7 @@ void CPlugin::RenderFrame(int bRedraw)
 		    }
 		    else
 		    {
-			    /*
-			    float halflife_modified = m_fHardCutHalflife*0.5f;
-			    //thresh = (thresh - 1.5f)*0.99f + 1.5f;
-			    float k = -0.69315f / halflife_modified;*/
 			    float k = -1.3863f / (m_fHardCutHalflife*GetFps());
-			    //float single_frame_multiplier = powf(2.7183f, k / GetFps());
 			    float single_frame_multiplier = expf(k);
 			    m_fHardCutThresh = (m_fHardCutThresh - m_fHardCutLoudnessThresh)*single_frame_multiplier + m_fHardCutLoudnessThresh;
 		    }
@@ -882,14 +776,11 @@ void CPlugin::RenderFrame(int bRedraw)
     // Remember the original backbuffer and zbuffer
     LPDIRECT3DSURFACE9 pBackBuffer=NULL;//, pZBuffer=NULL;
     lpDevice->GetRenderTarget( 0, &pBackBuffer );
-    //lpDevice->GetDepthStencilSurface( &pZBuffer );
 
     // set up render state
     {
         DWORD texaddr = (*m_pState->var_pf_wrap > m_fSnapPoint) ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP;
         lpDevice->SetRenderState(D3DRS_WRAP0, 0);//D3DWRAPCOORD_0|D3DWRAPCOORD_1|D3DWRAPCOORD_2|D3DWRAPCOORD_3);
-        //lpDevice->SetRenderState(D3DRS_WRAP0, (*m_pState->var_pf_wrap) ? D3DWRAP_U|D3DWRAP_V|D3DWRAP_W : 0);
-        //lpDevice->SetRenderState(D3DRS_WRAP1, (*m_pState->var_pf_wrap) ? D3DWRAP_U|D3DWRAP_V|D3DWRAP_W : 0);
         lpDevice->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);//texaddr);
         lpDevice->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);//texaddr);
         lpDevice->SetSamplerState(0, D3DSAMP_ADDRESSW, D3DTADDRESS_WRAP);//texaddr);
@@ -955,7 +846,6 @@ void CPlugin::RenderFrame(int bRedraw)
         if (m_lpVS[0]->GetSurfaceLevel(0, &pNewTarget) != D3D_OK)
             return;
         lpDevice->SetRenderTarget(0, pNewTarget );
-         //lpDevice->SetDepthStencilSurface( NULL );
         pNewTarget->Release();
 
 	    lpDevice->SetTexture(0, NULL);
@@ -974,7 +864,6 @@ void CPlugin::RenderFrame(int bRedraw)
         if (m_lpVS[0]->GetSurfaceLevel(0, &pNewTarget) != D3D_OK)
             return;
         lpDevice->SetRenderTarget(0, pNewTarget );
-		 //lpDevice->SetDepthStencilSurface( NULL );
         pNewTarget->Release();
 
         lpDevice->Clear(0, NULL, D3DCLEAR_TARGET, 0x00000000, 1.0f, 0);
@@ -986,7 +875,6 @@ void CPlugin::RenderFrame(int bRedraw)
         if (m_lpVS[1]->GetSurfaceLevel(0, &pNewTarget) != D3D_OK)
             return;
         lpDevice->SetRenderTarget(0, pNewTarget );
-		 //lpDevice->SetDepthStencilSurface( NULL );
         pNewTarget->Release();
     }
 
@@ -1039,8 +927,6 @@ void CPlugin::RenderFrame(int bRedraw)
         }
         else if (!bOldPresetUsesWarpShader && !bNewPresetUsesWarpShader)
         {
-	        //WarpedBlit_NoShaders(0, false, false,   true, true);
-	        //WarpedBlit_NoShaders(1, true,  false,   true, false);
 
             // special case - all the blending just happens in the vertex UV's, so just pretend there's no blend.
 	        WarpedBlit_NoShaders(1, false, false, false, false);
@@ -1056,11 +942,24 @@ void CPlugin::RenderFrame(int bRedraw)
 	DrawWave(mysound.fWave[0], mysound.fWave[1]);
 	DrawSprites();
 
-	float fProgress = (GetTime() - m_supertext.fStartTime) / m_supertext.fDuration;
+	// SURI: where the supertext is on its timeline. A now-playing song title holds and fades
+	// out on top instead of being burned in (title_anim.h); custom messages are unchanged.
+	TitlePhase superPhase;
+	if (m_supertext.bIsSongTitle)
+		superPhase = SongTitlePhase(GetTime() - m_supertext.fStartTime, m_supertext.fDuration,
+		                            m_supertext.fHoldTime, m_supertext.fOutFadeTime);
+	else
+	{
+		float p = (GetTime() - m_supertext.fStartTime) / m_supertext.fDuration;
+		superPhase.visible  = true;
+		superPhase.burnIn   = p >= 1.0f;
+		superPhase.progress = p;
+		superPhase.alpha    = 1.0f;
+	}
 
 	// if song title animation just ended, burn it into the VS:
 	if (m_supertext.fStartTime >= 0 &&
-		fProgress >= 1.0f &&
+		superPhase.visible && superPhase.burnIn &&
 		!m_supertext.bRedrawSuperText)
 	{
 		ShowSongTitleAnim(m_nTexSizeX, m_nTexSizeY, 1.0f);
@@ -1069,9 +968,7 @@ void CPlugin::RenderFrame(int bRedraw)
     // Change the rendertarget back to the original setup
     lpDevice->SetTexture(0, NULL);
     lpDevice->SetRenderTarget(0,  pBackBuffer );
-	 //lpDevice->SetDepthStencilSurface( pZBuffer );
     SafeRelease(pBackBuffer);
-    //SafeRelease(pZBuffer);
 
     // show it to the user [composite shader]
     if (!m_pState->m_bBlending)
@@ -1123,8 +1020,9 @@ void CPlugin::RenderFrame(int bRedraw)
 	if (m_supertext.fStartTime >= 0 &&
 		!m_supertext.bRedrawSuperText)
 	{
-		ShowSongTitleAnim(GetWidth(), GetHeight(), min(fProgress, 0.9999f));
-        if (fProgress >= 1.0f)
+		if (superPhase.visible)
+			ShowSongTitleAnim(GetWidth(), GetHeight(), min(superPhase.progress, 0.9999f), superPhase.alpha);
+        if (!superPhase.visible || superPhase.burnIn)
             m_supertext.fStartTime = -1.0f;	// 'off' state
 	}
 
@@ -1135,22 +1033,6 @@ void CPlugin::RenderFrame(int bRedraw)
 	m_lpVS[0] = m_lpVS[1];
 	m_lpVS[1] = pTemp;
 
-    /*
-    // FIXME - remove EnforceMaxFPS() if never used
-    //EnforceMaxFPS(!(m_nLoadingPreset==1 || m_nLoadingPreset==2 || m_nLoadingPreset==4 || m_nLoadingPreset==5));  // this call just turns it on or off; doesn't do it now...
-    //EnforceMaxFPS(!(m_nLoadingPreset==2 || m_nLoadingPreset==5));  // this call just turns it on or off; doesn't do it now...
-
-    // FIXME - remove this stuff, and change 'm_last_raw_time' in pluginshell (and others) back to private.
-    static float fOldTime = 0;
-    float fNewTime = (float)((double)m_last_raw_time/(double)m_high_perf_timer_freq.QuadPart);
-    float dt = fNewTime-fOldTime;
-    if (m_nLoadingPreset != 0) {
-        char buf[256];
-        sprintf(buf, "m_nLoadingPreset==%d: dt=%d ms\n", m_nLoadingPreset, (int)(dt*1000) );
-        OutputDebugString(buf);
-    }
-    fOldTime = fNewTime;
-    */
 }
 
 void CPlugin::DrawMotionVectors()
@@ -1179,30 +1061,6 @@ void CPlugin::DrawMotionVectors()
 
 		if (nX > 0 && nY > 0)
 		{
-			/*
-			float dx2 = m_fMotionVectorsTempDx;//(*m_pState->var_pf_mv_dx) * 0.05f*GetTime();		// 0..1 range
-			float dy2 = m_fMotionVectorsTempDy;//(*m_pState->var_pf_mv_dy) * 0.05f*GetTime();		// 0..1 range
-			if (GetFps() > 2.0f && GetFps() < 300.0f)
-			{
-				dx2 += (float)(*m_pState->var_pf_mv_dx) * 0.05f / GetFps();
-				dy2 += (float)(*m_pState->var_pf_mv_dy) * 0.05f / GetFps();
-			}
-			if (dx2 > 1.0f) dx2 -= (int)dx2;
-			if (dy2 > 1.0f) dy2 -= (int)dy2;
-			if (dx2 < 0.0f) dx2 = 1.0f - (-dx2 - (int)(-dx2));
-			if (dy2 < 0.0f) dy2 = 1.0f - (-dy2 - (int)(-dy2));
-			// hack: when there is only 1 motion vector on the screem, to keep it in
-			//       the center, we gradually migrate it toward 0.5.
-			dx2 = dx2*0.995f + 0.5f*0.005f;
-			dy2 = dy2*0.995f + 0.5f*0.005f;
-			// safety catch
-			if (dx2 < 0 || dx2 > 1 || dy2 < 0 || dy2 > 1)
-			{
-				dx2 = 0.5f;
-				dy2 = 0.5f;
-			}
-			m_fMotionVectorsTempDx = dx2;
-			m_fMotionVectorsTempDy = dy2;*/
 			float dx2 = (float)(*m_pState->var_pf_mv_dx);
 			float dy2 = (float)(*m_pState->var_pf_mv_dy);
 
@@ -1211,8 +1069,6 @@ void CPlugin::DrawMotionVectors()
 			if (dy < 0) dy = 0;
 			if (dx > 1) dx = 1;
 			if (dy > 1) dy = 1;
-			//dx = dx * 1.0f/(float)nX;
-			//dy = dy * 1.0f/(float)nY;
 			float inv_texsize = 1.0f/(float)m_nTexSizeX;
 			float min_len = 1.0f*inv_texsize;
 
@@ -1238,7 +1094,6 @@ void CPlugin::DrawMotionVectors()
 					int n = 0;
 					for (x=0; x<nX; x++)
 					{
-						//float fx = (x + 0.25f)/(float)(nX + dx + 0.25f - 1.0f);
 						float fx = (x + 0.25f)/(float)(nX + dx + 0.25f - 1.0f);
 
 						// now move by offset
@@ -1248,10 +1103,6 @@ void CPlugin::DrawMotionVectors()
 						{
 							float fx2, fy2;
 							ReversePropagatePoint(fx, fy, &fx2, &fy2);	// NOTE: THIS IS REALLY A REVERSE-PROPAGATION
-							//fx2 = fx*2 - fx2;
-							//fy2 = fy*2 - fy2;
-							//fx2 = fx + 1.0f/(float)m_nTexSize;
-							//fy2 = 1-(fy + 1.0f/(float)m_nTexSize);
 
 							// enforce minimum trail lengths:
 							{
@@ -1287,11 +1138,6 @@ void CPlugin::DrawMotionVectors()
 							v[n+1].x = fx2 * 2.0f - 1.0f;
 							v[n+1].y = fy2 * 2.0f - 1.0f;
 
-							// actually, project it in the reverse direction
-							//v[n+1].x = v[n].x*2.0f - v[n+1].x;// + dx*2;
-							//v[n+1].y = v[n].y*2.0f - v[n+1].y;// + dy*2;
-							//v[n].x += dx*2;
-							//v[n].y += dy*2;
 
 							n += 2;
 						}
@@ -1307,134 +1153,12 @@ void CPlugin::DrawMotionVectors()
 	}
 }
 
-/*
-void CPlugin::UpdateSongInfo()
-{
-	if (m_bShowSongTitle || m_bSongTitleAnims)
-	{
-		char szOldSongMessage[512];
-		lstrcpy(szOldSongMessage, m_szSongMessage);
-
-		if (::GetWindowText(m_hWndParent, m_szSongMessage, sizeof(m_szSongMessage)))
-		{
-			// remove ' - Winamp' at end
-			if (strlen(m_szSongMessage) > 9)
-			{
-				int check_pos = strlen(m_szSongMessage) - 9;
-				if (lstrcmp(" - Winamp", (char *)(m_szSongMessage + check_pos)) == 0)
-					m_szSongMessage[check_pos] = 0;
-			}
-
-			// remove ' - Winamp [Paused]' at end
-			if (strlen(m_szSongMessage) > 18)
-			{
-				int check_pos = strlen(m_szSongMessage) - 18;
-				if (lstrcmp(" - Winamp [Paused]", (char *)(m_szSongMessage + check_pos)) == 0)
-					m_szSongMessage[check_pos] = 0;
-			}
-
-			// remove song # and period from beginning
-			char *p = m_szSongMessage;
-			while (*p >= '0' && *p <= '9') p++;
-			if (*p == '.' && *(p+1) == ' ')
-			{
-				p += 2;
-				int pos = 0;
-				while (*p != 0)
-				{
-					m_szSongMessage[pos++] = *p;
-					p++;
-				}
-				m_szSongMessage[pos++] = 0;
-			}
-
-			// fix &'s for display
-			/*
-			{
-				int pos = 0;
-				int len = strlen(m_szSongMessage);
-				while (m_szSongMessage[pos])
-				{
-					if (m_szSongMessage[pos] == '&')
-					{
-						for (int x=len; x>=pos; x--)
-							m_szSongMessage[x+1] = m_szSongMessage[x];
-						len++;
-						pos++;
-					}
-					pos++;
-				}
-			}*/
-			/*
-			if (m_bSongTitleAnims &&
-				((lstrcmp(szOldSongMessage, m_szSongMessage) != 0) || (GetFrame()==0)))
-			{
-				// launch song title animation
-				LaunchSongTitleAnim();
-
-				/*
-				m_supertext.bRedrawSuperText = true;
-				m_supertext.bIsSongTitle = true;
-				lstrcpy(m_supertext.szText, m_szSongMessage);
-				lstrcpy(m_supertext.nFontFace, m_szTitleFontFace);
-				m_supertext.fFontSize   = (float)m_nTitleFontSize;
-				m_supertext.bBold       = m_bTitleFontBold;
-				m_supertext.bItal       = m_bTitleFontItalic;
-				m_supertext.fX          = 0.5f;
-				m_supertext.fY          = 0.5f;
-				m_supertext.fGrowth     = 1.0f;
-				m_supertext.fDuration   = m_fSongTitleAnimDuration;
-				m_supertext.nColorR     = 255;
-				m_supertext.nColorG     = 255;
-				m_supertext.nColorB     = 255;
-
-				m_supertext.fStartTime  = GetTime();
-				*/
-/*			}
-		}
-		else
-		{
-			sprintf(m_szSongMessage, "<couldn't get song title>");
-		}
-	}
-
-	m_nTrackPlaying = SendMessage(m_hWndParent,WM_USER, 0, 125);
-
-	// append song time
-	if (m_bShowSongTime && m_nSongPosMS >= 0)
-	{
-		float time_s = m_nSongPosMS*0.001f;
-
-		int minutes = (int)(time_s/60);
-		time_s -= minutes*60;
-		int seconds = (int)time_s;
-		time_s -= seconds;
-		int dsec = (int)(time_s*100);
-
-		sprintf(m_szSongTime, "%d:%02d.%02d", minutes, seconds, dsec);
-	}
-
-	// append song length
-	if (m_bShowSongLen && m_nSongLenMS > 0)
-	{
-		int len_s = m_nSongLenMS/1000;
-		int minutes = len_s/60;
-		int seconds = len_s - minutes*60;
-
-		char buf[512];
-		sprintf(buf, " / %d:%02d", minutes, seconds);
-		lstrcat(m_szSongTime, buf);
-	}
-}
-*/
 
 bool CPlugin::ReversePropagatePoint(float fx, float fy, float *fx2, float *fy2)
 {
-	//float fy = y/(float)nMotionVectorsY;
 	int   y0 = (int)(fy*m_nGridY);
 	float dy = fy*m_nGridY - y0;
 
-	//float fx = x/(float)nMotionVectorsX;
 	int   x0 = (int)(fx*m_nGridX);
 	float dx = fx*m_nGridX - x0;
 
@@ -1443,10 +1167,6 @@ bool CPlugin::ReversePropagatePoint(float fx, float fy, float *fx2, float *fy2)
 
 	if (x0 < 0) return false;
 	if (y0 < 0) return false;
-	//if (x1 < 0) return false;
-	//if (y1 < 0) return false;
-	//if (x0 > m_nGridX) return false;
-	//if (y0 > m_nGridY) return false;
 	if (x1 > m_nGridX) return false;
 	if (y1 > m_nGridY) return false;
 
@@ -1521,7 +1241,6 @@ void CPlugin::BlurPasses()
         LPDIRECT3DSURFACE9 pBackBuffer=NULL;//, pZBuffer=NULL;
         lpDevice->GetRenderTarget( 0, &pBackBuffer );
 
-        //lpDevice->SetFVF( MYVERTEX_FORMAT );
         lpDevice->SetVertexShader( m_BlurShaders[0].vs.ptr );
         lpDevice->SetVertexDeclaration(m_pMyVertDecl);
         lpDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
@@ -1767,13 +1486,6 @@ void CPlugin::ComputeGridAlphaValues()
 					*pState->var_pv_dy		= *pState->var_pf_dy;
 					*pState->var_pv_sx		= *pState->var_pf_sx;
 					*pState->var_pv_sy		= *pState->var_pf_sy;
-					//*pState->var_pv_time		= *pState->var_pv_time;		// (these are all now initialized
-					//*pState->var_pv_bass		= *pState->var_pv_bass;		//  just once per frame)
-					//*pState->var_pv_mid		= *pState->var_pv_mid;
-					//*pState->var_pv_treb		= *pState->var_pv_treb;
-					//*pState->var_pv_bass_att	= *pState->var_pv_bass_att;
-					//*pState->var_pv_mid_att	= *pState->var_pv_mid_att;
-					//*pState->var_pv_treb_att	= *pState->var_pv_treb_att;
 
 #ifndef _NO_EXPR_
 					NSEEL_code_execute(pState->m_pp_codehandle);
@@ -1797,10 +1509,6 @@ void CPlugin::ComputeGridAlphaValues()
 				float fZoom2Inv = 1.0f/fZoom2;
 				float u =  m_verts[n].x*m_fAspectX*0.5f*fZoom2Inv + 0.5f;
 				float v = -m_verts[n].y*m_fAspectY*0.5f*fZoom2Inv + 0.5f;
-                    //float u_orig = u;
-                    //float v_orig = v;
-                    //m_verts[n].tr = u_orig + texel_offset_x;
-                    //m_verts[n].ts = v_orig + texel_offset_y;
 
 				// stretch on X, Y:
 				u = (u - fCX)/fSX + fCX;
@@ -1813,7 +1521,6 @@ void CPlugin::ComputeGridAlphaValues()
 					v += fWarp*0.0035f*cosf(fWarpTime*0.375f - fWarpScaleInv*(m_verts[n].x*f[2] + m_verts[n].y*f[1]));
 					u += fWarp*0.0035f*cosf(fWarpTime*0.753f - fWarpScaleInv*(m_verts[n].x*f[1] - m_verts[n].y*f[2]));
 					v += fWarp*0.0035f*sinf(fWarpTime*0.825f + fWarpScaleInv*(m_verts[n].x*f[0] + m_verts[n].y*f[3]));
-				//}
 
 				// rotation:
 				float u2 = u - fCX;
@@ -1911,8 +1618,6 @@ void CPlugin::WarpedBlit_NoShaders(int nPass, bool bAlphaBlend, bool bFlipAlpha,
 	// decay
 	float fDecay = (float)(*m_pState->var_pf_decay);
 
-	//if (m_pState->m_bBlending)
-	//	fDecay = fDecay*(fCosineBlend) + (1.0f-fCosineBlend)*((float)(*m_pOldState->var_pf_decay));
 
 	if (m_n16BitGamma > 0 &&
         (GetBackBufFormat()==D3DFMT_R5G6B5 || GetBackBufFormat()==D3DFMT_X1R5G5B5 || GetBackBufFormat()==D3DFMT_A1R5G5B5 || GetBackBufFormat()==D3DFMT_A4R4G4B4) &&
@@ -1995,94 +1700,6 @@ void CPlugin::WarpedBlit_NoShaders(int nPass, bool bAlphaBlend, bool bFlipAlpha,
             lpDevice->DrawPrimitiveUP( D3DPT_TRIANGLELIST, prims_queued, tempv, sizeof(MYVERTEX) );
     }
 
-    /*
-    if (!bCullTiles)
-    {
-        assert(!bAlphaBlend); //not handled yet
-
-        // draw normally - just a full triangle strip for each half-row of cells
-        // (even if we are blending, it is between two pre-pixel-shader presets,
-        //  so the blend all happens exclusively in the per-vertex equations.)
-	    for (int strip=0; strip<m_nGridY*2; strip++)
-	    {
-		    int index = strip * (m_nGridX+2);
-
-		    for (poly=0; poly<m_nGridX+2; poly++)
-		    {
-			    int ref_vert = m_indices_strip[index];
-			    m_verts_temp[poly].x = m_verts[ref_vert].x;
-			    m_verts_temp[poly].y = -m_verts[ref_vert].y;
-			    m_verts_temp[poly].z = m_verts[ref_vert].z;
-			    m_verts_temp[poly].tu = m_verts[ref_vert].tu;
-			    m_verts_temp[poly].tv = m_verts[ref_vert].tv;
-		        //m_verts_temp[poly].Diffuse = cDecay;      this is done just once - see jsut above
-			    index++;
-		    }
-            lpDevice->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, m_nGridX, (void*)m_verts_temp, sizeof(MYVERTEX));
-	    }
-    }
-    else
-    {
-        //   we're blending to/from a new pixel-shader enabled preset;
-        //   only draw the cells needed!  (an optimization)
-        int nAlphaTestValue = 0;
-        if (bFlipCulling)
-            nAlphaTestValue = 1-nAlphaTestValue;
-
-        int idx[2048];
-	    for (int y=0; y<m_nGridY; y++)
-	    {
-            // copy verts & flip sign on Y
-            int ref_vert = y*(m_nGridX+1);
-		    for (int i=0; i<(m_nGridX+1)*2; i++)
-		    {
-			    m_verts_temp[i].x  =  m_verts[ref_vert].x;
-			    m_verts_temp[i].y  = -m_verts[ref_vert].y;
-			    m_verts_temp[i].z  =  m_verts[ref_vert].z;
-			    m_verts_temp[i].tu =  m_verts[ref_vert].tu;
-			    m_verts_temp[i].tv =  m_verts[ref_vert].tv;
-		        m_verts_temp[i].Diffuse = (cDecay & 0x00FFFFFF) | (m_verts[ref_vert].Diffuse & 0xFF000000);
-                ref_vert++;
-            }
-
-            // create (smart) indices
-            int count = 0;
-            int nVert = 0;
-            bool bWasNeeded;
-            ref_vert = (y)*(m_nGridX+1);
-            DWORD d1 = (m_verts[ref_vert           ].Diffuse >> 24);
-            DWORD d2 = (m_verts[ref_vert+m_nGridX+1].Diffuse >> 24);
-            if (nAlphaTestValue)
-                bWasNeeded = (d1 < 255) || (d2 < 255);
-            else
-                bWasNeeded = (d1 > 0) || (d2 > 0);
-            for (i=0; i<m_nGridX; i++)
-            {
-                bool bIsNeeded;
-                DWORD d1 = (m_verts[ref_vert+1           ].Diffuse >> 24);
-                DWORD d2 = (m_verts[ref_vert+1+m_nGridX+1].Diffuse >> 24);
-                if (nAlphaTestValue)
-                    bIsNeeded = (d1 < 255) || (d2 < 255);
-                else
-                    bIsNeeded = (d1 > 0) || (d2 > 0);
-
-                if (bIsNeeded || bWasNeeded)
-                {
-                    idx[count++] = nVert;
-                    idx[count++] = nVert+1;
-                    idx[count++] = nVert+m_nGridX+1;
-                    idx[count++] = nVert+m_nGridX+1;
-                    idx[count++] = nVert+1;
-                    idx[count++] = nVert+m_nGridX+2;
-                }
-                bWasNeeded = bIsNeeded;
-
-                nVert++;
-                ref_vert++;
-            }
-            lpDevice->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, (m_nGridX+1)*2, count/3, (void*)idx, D3DFMT_INDEX32, (void*)m_verts_temp, sizeof(MYVERTEX));
-	    }
-    }/**/
 
     lpDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 }
@@ -2105,12 +1722,7 @@ void CPlugin::WarpedBlit_Shaders(int nPass, bool bAlphaBlend, bool bFlipAlpha, b
         return;
     }
 
-    //float fBlend = m_pState->m_fBlendProgress;//max(0,min(1,(m_pState->m_fBlendProgress*1.6f - 0.3f)));
-    //if (nPassOverride==0)
-    //    fBlend = 1-fBlend;  // <-- THIS IS THE KEY - FLIPS THE ALPHAS AND EVERYTHING ELSE JUST WORKS.
-    //bool  bBlending = m_pState->m_bBlending;//(fBlend >= 0.0001f && fBlend <= 0.9999f);
 
-	//lpDevice->SetTexture(0, m_lpVS[0]);
     lpDevice->SetVertexShader( NULL );
     lpDevice->SetFVF( MYVERTEX_FORMAT );
 
@@ -2218,8 +1830,6 @@ void CPlugin::DrawCustomShapes()
     if (!lpDevice)
         return;
 
-    //lpDevice->SetTexture(0, m_lpVS[0]);//NULL);
-    //lpDevice->SetVertexShader( SPRITEVERTEX_FORMAT );
 
 	int num_reps = (m_pState->m_bBlending) ? 2 : 1;
 	for (int rep=0; rep<num_reps; rep++)
@@ -2233,33 +1843,6 @@ void CPlugin::DrawCustomShapes()
         {
             if (pState->m_shape[i].enabled)
             {
-                /*
-                int bAdditive = 0;
-                int nSides = 3;//3 + ((int)GetTime() % 8);
-                int bThickOutline = 0;
-                float x = 0.5f + 0.1f*cosf(GetTime()*0.8f+1);
-                float y = 0.5f + 0.1f*sinf(GetTime()*0.8f+1);
-                float rad = 0.15f + 0.07f*sinf(GetTime()*1.1f+3);
-                float ang = GetTime()*1.5f;
-
-                // inside colors
-                float r = 1;
-                float g = 0;
-                float b = 0;
-                float a = 0.4f;//0.1f + 0.1f*sinf(GetTime()*0.31f);
-
-                // outside colors
-                float r2 = 0;
-                float g2 = 1;
-                float b2 = 0;
-                float a2 = 0;
-
-                // border colors
-                float border_r = 1;
-                float border_g = 1;
-                float border_b = 1;
-                float border_a = 0.5f;
-                */
 
                 for (int instance=0; instance<pState->m_shape[i].instances; instance++)
                 {
@@ -2274,16 +1857,6 @@ void CPlugin::DrawCustomShapes()
 			        #endif
 
                     // save changes to t1-t8 this frame
-                    /*
-		            pState->m_shape[i].t_values_after_init_code[0] = *pState->m_shape[i].var_pf_t1;
-		            pState->m_shape[i].t_values_after_init_code[1] = *pState->m_shape[i].var_pf_t2;
-		            pState->m_shape[i].t_values_after_init_code[2] = *pState->m_shape[i].var_pf_t3;
-		            pState->m_shape[i].t_values_after_init_code[3] = *pState->m_shape[i].var_pf_t4;
-		            pState->m_shape[i].t_values_after_init_code[4] = *pState->m_shape[i].var_pf_t5;
-		            pState->m_shape[i].t_values_after_init_code[5] = *pState->m_shape[i].var_pf_t6;
-		            pState->m_shape[i].t_values_after_init_code[6] = *pState->m_shape[i].var_pf_t7;
-		            pState->m_shape[i].t_values_after_init_code[7] = *pState->m_shape[i].var_pf_t8;
-                    */
 
                     int sides = (int)(*pState->m_shape[i].var_pf_sides);
                     if (sides<3) sides=3;
@@ -2620,18 +2193,7 @@ void CPlugin::DrawCustomWaves()
                     }
 
 
-
                     // save changes to t1-t8 this frame
-                    /*
-		            pState->m_wave[i].t_values_after_init_code[0] = *pState->m_wave[i].var_pp_t1;
-		            pState->m_wave[i].t_values_after_init_code[1] = *pState->m_wave[i].var_pp_t2;
-		            pState->m_wave[i].t_values_after_init_code[2] = *pState->m_wave[i].var_pp_t3;
-		            pState->m_wave[i].t_values_after_init_code[3] = *pState->m_wave[i].var_pp_t4;
-		            pState->m_wave[i].t_values_after_init_code[4] = *pState->m_wave[i].var_pp_t5;
-		            pState->m_wave[i].t_values_after_init_code[5] = *pState->m_wave[i].var_pp_t6;
-		            pState->m_wave[i].t_values_after_init_code[6] = *pState->m_wave[i].var_pp_t7;
-		            pState->m_wave[i].t_values_after_init_code[7] = *pState->m_wave[i].var_pp_t8;
-                    */
 
                     // 3. smooth it
                     WFVERTEX v2[2048];
@@ -2692,33 +2254,11 @@ void CPlugin::DrawWave(float *fL, float *fR)
 	int i;
 	WFVERTEX v1[576+1], v2[576+1];
 
-    /*
-	m_lpD3DDev->SetRenderState(D3DRENDERSTATE_SHADEMODE, D3DSHADE_GOURAUD); //D3DSHADE_FLAT
-	m_lpD3DDev->SetRenderState(D3DRENDERSTATE_SPECULARENABLE, FALSE);
-	m_lpD3DDev->SetRenderState(D3DRENDERSTATE_CULLMODE, D3DCULL_NONE);
-	if (m_D3DDevDesc.dpcTriCaps.dwRasterCaps & D3DPRASTERCAPS_DITHER)
-		m_lpD3DDev->SetRenderState(D3DRENDERSTATE_DITHERENABLE, TRUE);
-	m_lpD3DDev->SetRenderState(D3DRENDERSTATE_ZENABLE, D3DZB_FALSE);
-	m_lpD3DDev->SetRenderState(D3DRENDERSTATE_LIGHTING, FALSE);
-	m_lpD3DDev->SetRenderState(D3DRENDERSTATE_COLORVERTEX, TRUE);
-	m_lpD3DDev->SetRenderState(D3DRENDERSTATE_FILLMODE, D3DFILL_WIREFRAME);  // vs. SOLID
-	m_lpD3DDev->SetRenderState(D3DRENDERSTATE_AMBIENT, D3DCOLOR_RGBA_01(1,1,1,1));
-
-	hr = m_lpD3DDev->SetTexture(0, NULL);
-	if (hr != D3D_OK)
-	{
-		//dumpmsg("Draw(): ERROR: SetTexture");
-		//IdentifyD3DError(hr);
-	}
-    */
 
 	lpDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
 	lpDevice->SetRenderState(D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA);
 	lpDevice->SetRenderState(D3DRS_DESTBLEND, (*m_pState->var_pf_wave_additive) ? D3DBLEND_ONE : D3DBLEND_INVSRCALPHA);
 
-	//float cr = m_pState->m_waveR.eval(GetTime());
-	//float cg = m_pState->m_waveG.eval(GetTime());
-	//float cb = m_pState->m_waveB.eval(GetTime());
 	float cr = (float)(*m_pState->var_pf_wave_r);
 	float cg = (float)(*m_pState->var_pf_wave_g);
 	float cb = (float)(*m_pState->var_pf_wave_b);
@@ -2726,15 +2266,6 @@ void CPlugin::DrawWave(float *fL, float *fR)
 	float cy = (float)(*m_pState->var_pf_wave_y); // note: it was backwards (top==1) in the original milkdrop, so we keep it that way!
 	float fWaveParam = (float)(*m_pState->var_pf_wave_mystery);
 
-	/*if (m_pState->m_bBlending)
-	{
-		cr = cr*(m_pState->m_fBlendProgress) + (1.0f-m_pState->m_fBlendProgress)*((float)(*m_pOldState->var_pf_wave_r));
-		cg = cg*(m_pState->m_fBlendProgress) + (1.0f-m_pState->m_fBlendProgress)*((float)(*m_pOldState->var_pf_wave_g));
-		cb = cb*(m_pState->m_fBlendProgress) + (1.0f-m_pState->m_fBlendProgress)*((float)(*m_pOldState->var_pf_wave_b));
-		cx = cx*(m_pState->m_fBlendProgress) + (1.0f-m_pState->m_fBlendProgress)*((float)(*m_pOldState->var_pf_wave_x));
-		cy = cy*(m_pState->m_fBlendProgress) + (1.0f-m_pState->m_fBlendProgress)*((float)(*m_pOldState->var_pf_wave_y));
-		fWaveParam = fWaveParam*(m_pState->m_fBlendProgress) + (1.0f-m_pState->m_fBlendProgress)*((float)(*m_pOldState->var_pf_wave_mystery));
-	}*/
 
 	if (cr < 0) cr = 0;
 	if (cg < 0) cg = 0;
@@ -2782,11 +2313,8 @@ void CPlugin::DrawWave(float *fL, float *fR)
 		int   nBreak = -1;
 
         float fWaveParam2 = fWaveParam;
-        //std::string fWaveParam; // kill its scope
         if ((wave==0 || wave==1 || wave==4) && (fWaveParam2 < -1 || fWaveParam2 > 1))
         {
-            //fWaveParam2 = max(fWaveParam2, -1.0f);
-            //fWaveParam2 = min(fWaveParam2,  1.0f);
             fWaveParam2 = fWaveParam2*0.5f + 0.5f;
             fWaveParam2 -= floorf(fWaveParam2);
             fWaveParam2 = fabsf(fWaveParam2);
@@ -2810,7 +2338,6 @@ void CPlugin::DrawWave(float *fL, float *fR)
 				alpha *= ((mysound.imm_rel[0] + mysound.imm_rel[1] + mysound.imm_rel[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
 			if (alpha < 0) alpha = 0;
 			if (alpha > 1) alpha = 1;
-			//color = D3DCOLOR_RGBA_01(cr, cg, cb, alpha);
 
 			{
 				float inv_nverts_minus_one = 1.0f/(float)(nVerts-1);
@@ -2828,7 +2355,6 @@ void CPlugin::DrawWave(float *fL, float *fR)
 					}
 					v[i].x = rad*cosf(ang) *m_fAspectY + fWavePosX;		// 0.75 = adj. for aspect ratio
 					v[i].y = rad*sinf(ang) *m_fAspectX + fWavePosY;
-					//v[i].Diffuse = color;
 				}
 			}
 
@@ -2849,7 +2375,6 @@ void CPlugin::DrawWave(float *fL, float *fR)
 				alpha *= ((mysound.imm_rel[0] + mysound.imm_rel[1] + mysound.imm_rel[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
 			if (alpha < 0) alpha = 0;
 			if (alpha > 1) alpha = 1;
-			//color = D3DCOLOR_RGBA_01(cr, cg, cb, alpha);
 
 			nVerts /= 2;
 
@@ -2859,7 +2384,6 @@ void CPlugin::DrawWave(float *fL, float *fR)
 				float ang = fL[i+32] * 1.57f + GetTime()*2.3f;
 				v[i].x = rad*cosf(ang) *m_fAspectY + fWavePosX;		// 0.75 = adj. for aspect ratio
 				v[i].y = rad*sinf(ang) *m_fAspectX + fWavePosY;
-				//v[i].Diffuse = color;//(D3DCOLOR_RGBA_01(cr, cg, cb, alpha*min(1, max(0, fL[i])));
 			}
 
 			break;
@@ -2881,13 +2405,11 @@ void CPlugin::DrawWave(float *fL, float *fR)
 				alpha *= ((mysound.imm_rel[0] + mysound.imm_rel[1] + mysound.imm_rel[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
 			if (alpha < 0) alpha = 0;
 			if (alpha > 1) alpha = 1;
-			//color = D3DCOLOR_RGBA_01(cr, cg, cb, alpha);
 
 			for (i=0; i<nVerts; i++)
 			{
 				v[i].x = fR[i   ] *m_fAspectY + fWavePosX;//((pR[i] ^ 128) - 128)/90.0f * ASPECT; // 0.75 = adj. for aspect ratio
 				v[i].y = fL[i+32] *m_fAspectX + fWavePosY;//((pL[i+32] ^ 128) - 128)/90.0f;
-				//v[i].Diffuse = color;
 			}
 
 			break;
@@ -2910,13 +2432,11 @@ void CPlugin::DrawWave(float *fL, float *fR)
 				alpha *= ((mysound.imm_rel[0] + mysound.imm_rel[1] + mysound.imm_rel[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
 			if (alpha < 0) alpha = 0;
 			if (alpha > 1) alpha = 1;
-			//color = D3DCOLOR_RGBA_01(cr, cg, cb, alpha);
 
 			for (i=0; i<nVerts; i++)
 			{
 				v[i].x = fR[i   ] *m_fAspectY + fWavePosX;//((pR[i] ^ 128) - 128)/90.0f * ASPECT; // 0.75 = adj. for aspect ratio
 				v[i].y = fL[i+32] *m_fAspectX + fWavePosY;//((pL[i+32] ^ 128) - 128)/90.0f;
-				//v[i].Diffuse = color;
 			}
 			break;
 		case 4:
@@ -2927,24 +2447,11 @@ void CPlugin::DrawWave(float *fL, float *fR)
 
 			sample_offset = (NUM_WAVEFORM_SAMPLES-nVerts)/2;//mysound.GoGoAlignatron(nVerts + 25);	// only call this once nVerts is final!
 
-			/*
-			if (treble_rel > treb_thresh_for_wave6)
-			{
-				//alpha = 1.0f;
-				treb_thresh_for_wave6 = treble_rel * 1.025f;
-			}
-			else
-			{
-				alpha *= 0.2f;
-				treb_thresh_for_wave6 *= 0.996f;		// fixme: make this fps-independent
-			}
-			*/
 
 			if (m_pState->m_bModWaveAlphaByVolume)
 				alpha *= ((mysound.imm_rel[0] + mysound.imm_rel[1] + mysound.imm_rel[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
 			if (alpha < 0) alpha = 0;
 			if (alpha > 1) alpha = 1;
-			//color = D3DCOLOR_RGBA_01(cr, cg, cb, alpha);
 
 			{
 				float w1 = 0.45f + 0.5f*(fWaveParam2*0.5f + 0.5f);		// 0.1 - 0.9
@@ -2957,7 +2464,6 @@ void CPlugin::DrawWave(float *fL, float *fR)
 					v[i].x = -1.0f + 2.0f*(i*inv_nverts) + fWavePosX;
 					v[i].y = fL[i+sample_offset]*0.47f + fWavePosY;//((pL[i] ^ 128) - 128)/270.0f;
 					v[i].x += fR[i+25+sample_offset]*0.44f;//((pR[i+25] ^ 128) - 128)/290.0f;
-					//v[i].Diffuse = color;
 
 					// momentum
 					if (i>1)
@@ -2967,16 +2473,6 @@ void CPlugin::DrawWave(float *fL, float *fR)
 					}
 				}
 
-				/*
-				// center on Y
-				float avg_y = 0;
-				for (i=0; i<nVerts; i++)
-					avg_y += v[i].y;
-				avg_y /= (float)nVerts;
-				avg_y *= 0.5f;		// damp the movement
-				for (i=0; i<nVerts; i++)
-					v[i].y -= avg_y;
-				*/
 			}
 
 			break;
@@ -2996,7 +2492,6 @@ void CPlugin::DrawWave(float *fL, float *fR)
 				alpha *= ((mysound.imm_rel[0] + mysound.imm_rel[1] + mysound.imm_rel[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
 			if (alpha < 0) alpha = 0;
 			if (alpha > 1) alpha = 1;
-			//color = D3DCOLOR_RGBA_01(cr, cg, cb, alpha);
 
 			{
 				float cos_rot = cosf(GetTime()*0.3f);
@@ -3008,7 +2503,6 @@ void CPlugin::DrawWave(float *fL, float *fR)
 					float y0 = (fR[i]*fR[i] - fL[i+32]*fL[i+32]);
 					v[i].x = (x0*cos_rot - y0*sin_rot)*m_fAspectY + fWavePosX;
 					v[i].y = (x0*sin_rot + y0*cos_rot)*m_fAspectX + fWavePosY;
-					//v[i].Diffuse = color;
 				}
 			}
 
@@ -3041,7 +2535,6 @@ void CPlugin::DrawWave(float *fL, float *fR)
 				alpha *= ((mysound.imm_rel[0] + mysound.imm_rel[1] + mysound.imm_rel[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
 			if (alpha < 0) alpha = 0;
 			if (alpha > 1) alpha = 1;
-			//color = D3DCOLOR_RGBA_01(cr, cg, cb, alpha);
 
 			{
 				float ang = 1.57f*fWaveParam2;	// from -PI/2 to PI/2
@@ -3050,10 +2543,6 @@ void CPlugin::DrawWave(float *fL, float *fR)
 
 				float edge_x[2], edge_y[2];
 
-				//edge_x[0] = fWavePosX - dx*3.0f;
-				//edge_y[0] = fWavePosY - dy*3.0f;
-				//edge_x[1] = fWavePosX + dx*3.0f;
-				//edge_y[1] = fWavePosY + dy*3.0f;
 				edge_x[0] = fWavePosX*cosf(ang + 1.57f) - dx*3.0f;
 				edge_y[0] = fWavePosX*sinf(ang + 1.57f) - dy*3.0f;
 				edge_x[1] = fWavePosX*cosf(ang + 1.57f) + dx*3.0f;
@@ -3122,7 +2611,6 @@ void CPlugin::DrawWave(float *fL, float *fR)
 					{
 						v[i].x = edge_x[0] + dx*i + perp_dx*0.25f*fL[i + sample_offset];
 						v[i].y = edge_y[0] + dy*i + perp_dy*0.25f*fL[i + sample_offset];
-						//v[i].Diffuse = color;
 					}
 				else if (wave == 8)
 					//256 verts
@@ -3131,7 +2619,6 @@ void CPlugin::DrawWave(float *fL, float *fR)
 						float f = 0.1f*logf(mysound.fSpecLeft[i*2] + mysound.fSpecLeft[i*2+1]);
 						v[i].x = edge_x[0] + dx*i + perp_dx*f;
 						v[i].y = edge_y[0] + dy*i + perp_dy*f;
-						//v[i].Diffuse = color;
 					}
 				else
 				{
@@ -3140,17 +2627,13 @@ void CPlugin::DrawWave(float *fL, float *fR)
 					{
 						v[i].x = edge_x[0] + dx*i + perp_dx*(0.25f*fL[i + sample_offset] + sep);
 						v[i].y = edge_y[0] + dy*i + perp_dy*(0.25f*fL[i + sample_offset] + sep);
-						//v[i].Diffuse = color;
 					}
 
-					//D3DPRIMITIVETYPE primtype = (*m_pState->var_pf_wave_usedots) ? D3DPT_POINTLIST : D3DPT_LINESTRIP;
-					//m_lpD3DDev->DrawPrimitive(primtype, D3DFVF_LVERTEX, (LPVOID)v, nVerts, NULL);
 
 					for (i=0; i<nVerts; i++)
 					{
 						v[i+nVerts].x = edge_x[0] + dx*i + perp_dx*(0.25f*fR[i + sample_offset] - sep);
 						v[i+nVerts].y = edge_y[0] + dy*i + perp_dy*(0.25f*fR[i + sample_offset] - sep);
-						//v[i+nVerts].Diffuse = color;
 					}
 
 					nBreak = nVerts;
@@ -3253,7 +2736,6 @@ void CPlugin::DrawWave(float *fL, float *fR)
 
 	// draw primitives
 	{
-		//D3DPRIMITIVETYPE primtype = (*m_pState->var_pf_wave_usedots) ? D3DPT_POINTLIST : D3DPT_LINESTRIP;
 		float x_inc = 2.0f / (float)m_nTexSizeX;
 		float y_inc = 2.0f / (float)m_nTexSizeY;
 		int drawing_its = ((*m_pState->var_pf_wave_thick || *m_pState->var_pf_wave_usedots) && (m_nTexSizeX >= 512)) ? 4 : 1;
@@ -3338,8 +2820,6 @@ void CPlugin::DrawSprites()
 		v3[3].y = 0.0f;
 		v3[4].y = 0.0f + fHalfSize;
 		v3[5].y = v3[1].y;
-		//v3[0].tu = 0;	v3[1].tu = 1;	v3[2].tu = 0;	v3[3].tu = 1;
-		//v3[0].tv = 1;	v3[1].tv = 1;	v3[2].tv = 0;	v3[3].tv = 0;
 
 		lpDevice->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, 4, (LPVOID)v3, sizeof(WFVERTEX));
 
@@ -3404,30 +2884,6 @@ void CPlugin::DrawSprites()
 	}
 }
 
-/*
-bool CPlugin::SetMilkdropRenderTarget(LPDIRECTDRAWSURFACE7 lpSurf, int w, int h, char *szErrorMsg)
-{
-	HRESULT hr = m_lpD3DDev->SetRenderTarget(0, lpSurf, 0);
-	if (hr != D3D_OK)
-	{
-		//if (szErrorMsg && szErrorMsg[0]) dumpmsg(szErrorMsg);
-		//IdentifyD3DError(hr);
-		return false;
-	}
-
-	//DDSURFACEDESC2 ddsd;
-	//ddsd.dwSize = sizeof(ddsd);
-	//lpSurf->GetSurfaceDesc(&ddsd);
-
-	D3DVIEWPORT7 viewData;
-	ZeroMemory(&viewData, sizeof(D3DVIEWPORT7));
-	viewData.dwWidth  = w;	// not: in windowed mode, when lpSurf is the back buffer, chances are good that w,h are smaller than the full surface size (since real size is fullscreen, but we're only using a portion of it as big as the window).
-	viewData.dwHeight = h;
-	hr = m_lpD3DDev->SetViewport(&viewData);
-
-	return true;
-}
-*/
 
 void CPlugin::DrawUserSprites()	// from system memory, to back buffer.
 {
@@ -3439,10 +2895,6 @@ void CPlugin::DrawUserSprites()	// from system memory, to back buffer.
     lpDevice->SetVertexShader( NULL );
     lpDevice->SetFVF( SPRITEVERTEX_FORMAT );
 
-    //lpDevice->SetRenderState(D3DRS_WRAP0, 0);
-    //lpDevice->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
-    //lpDevice->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
-    //lpDevice->SetSamplerState(0, D3DSAMP_ADDRESSW, D3DTADDRESS_WRAP);
 
     // reset these to the standard safe mode:
     lpDevice->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
@@ -3453,21 +2905,6 @@ void CPlugin::DrawUserSprites()	// from system memory, to back buffer.
     lpDevice->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE );
     lpDevice->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
 
-    /*
-	lpDevice->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD); //D3DSHADE_GOURAUD
-	lpDevice->SetRenderState(D3DRS_SPECULARENABLE, FALSE);
-	lpDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
-	if (m_D3DDevDesc.dpcTriCaps.dwRasterCaps & D3DPRASTERCAPS_DITHER)
-		lpDevice->SetRenderState(D3DRS_DITHERENABLE, TRUE);
-	lpDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_FALSE);
-	lpDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
-	lpDevice->SetRenderState(D3DRS_COLORVERTEX, TRUE);
-	lpDevice->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);  // vs. wireframe
-	lpDevice->SetRenderState(D3DRS_AMBIENT, D3DCOLOR_RGBA_01(1,1,1,1));
-	lpDevice->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTFG_LINEAR );
-	lpDevice->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTFN_LINEAR );
-	lpDevice->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTFP_LINEAR );
-    */
 
 	for (int iSlot=0; iSlot < NUM_TEX; iSlot++)
 	{
@@ -3501,7 +2938,6 @@ void CPlugin::DrawUserSprites()	// from system memory, to back buffer.
             // Remember the original backbuffer and zbuffer
             LPDIRECT3DSURFACE9 pBackBuffer=NULL;//, pZBuffer=NULL;
             lpDevice->GetRenderTarget( 0, &pBackBuffer );
-            //lpDevice->GetDepthStencilSurface( &pZBuffer );
 
 			if (/*bKillSprite &&*/ bBurnIn)
 			{
@@ -3513,7 +2949,6 @@ void CPlugin::DrawUserSprites()	// from system memory, to back buffer.
                 if (m_lpVS[1]->GetSurfaceLevel(0, &pNewTarget) != D3D_OK)
                     return;
                 lpDevice->SetRenderTarget(0, pNewTarget );
-				 //lpDevice->SetDepthStencilSurface( NULL );
                 pNewTarget->Release();
 
 	            lpDevice->SetTexture(0, NULL);
@@ -3526,18 +2961,6 @@ void CPlugin::DrawUserSprites()	// from system memory, to back buffer.
 			SPRITEVERTEX v3[4];
 			ZeroMemory(v3, sizeof(SPRITEVERTEX)*4);
 
-            /*
-            int dest_w, dest_h;
-            {
-                LPDIRECT3DSURFACE9 pRT;
-                lpDevice->GetRenderTarget( 0, &pRT );
-
-                D3DSURFACE_DESC desc;
-                pRT->GetDesc(&desc);
-                dest_w = desc.Width;
-                dest_h = desc.Height;
-                pRT->Release();
-            }*/
 
 			float x   = min(1000.0f, max(-1000.0f, (float)(*m_texmgr.m_tex[iSlot].var_x) * 2.0f - 1.0f ));
 			float y   = min(1000.0f, max(-1000.0f, (float)(*m_texmgr.m_tex[iSlot].var_y) * 2.0f - 1.0f ));
@@ -3549,60 +2972,39 @@ void CPlugin::DrawUserSprites()	// from system memory, to back buffer.
 			float repeatx = min(100.0f, max(0.01f, (float)(*m_texmgr.m_tex[iSlot].var_repeatx) ));
 			float repeaty = min(100.0f, max(0.01f, (float)(*m_texmgr.m_tex[iSlot].var_repeaty) ));
 
-			int blendmode = min(4, max(0, ((int)(*m_texmgr.m_tex[iSlot].var_blendmode))));
+			// SURI: user overrides from the sprite editor, applied after the EEL code.
+			x  += m_texmgr.m_tex[iSlot].userDx;
+			y  += m_texmgr.m_tex[iSlot].userDy;
+			sx *= m_texmgr.m_tex[iSlot].userScale;
+			sy *= m_texmgr.m_tex[iSlot].userScale;
+
+			int blendmode = (m_texmgr.m_tex[iSlot].userBlend >= 0)
+				? min(5, m_texmgr.m_tex[iSlot].userBlend)
+				: min(5, max(0, ((int)(*m_texmgr.m_tex[iSlot].var_blendmode))));
 			float r = min(1.0f, max(0.0f, ((float)(*m_texmgr.m_tex[iSlot].var_r))));
 			float g = min(1.0f, max(0.0f, ((float)(*m_texmgr.m_tex[iSlot].var_g))));
 			float b = min(1.0f, max(0.0f, ((float)(*m_texmgr.m_tex[iSlot].var_b))));
 			float a = min(1.0f, max(0.0f, ((float)(*m_texmgr.m_tex[iSlot].var_a))));
 
-			// set x,y coords
-			v3[0+flipx].x = -sx;
-			v3[1-flipx].x =  sx;
-			v3[2+flipx].x = -sx;
-			v3[3-flipx].x =  sx;
-			v3[0+flipy*2].y = -sy;
-			v3[1+flipy*2].y = -sy;
-			v3[2-flipy*2].y =  sy;
-			v3[3-flipy*2].y =  sy;
-
-			// first aspect ratio: adjust for non-1:1 images
+			// x,y coords: flip, image aspect, rotation, translation and screen aspect
+			// (shared with the sprite editor's hit test; see features/sprite_layout.h).
 			{
-				float aspect = m_texmgr.m_tex[iSlot].img_h / (float)m_texmgr.m_tex[iSlot].img_w;
-
-				if (aspect < 1)
-					for (k=0; k<4; k++) v3[k].y *= aspect;		// wide image
-				else
-					for (k=0; k<4; k++) v3[k].x /= aspect;		// tall image
-			}
-
-			// 2D rotation
-			{
-				float cos_rot = cosf(rot);
-				float sin_rot = sinf(rot);
+				SpriteXform xf;
+				xf.x = x;
+				xf.y = y;
+				xf.sx = sx;
+				xf.sy = sy;
+				xf.rot = rot;
+				xf.flipx = (flipx != 0);
+				xf.flipy = (flipy != 0);
+				float imgAspect = m_texmgr.m_tex[iSlot].img_h / (float)m_texmgr.m_tex[iSlot].img_w;
+				float screenAspect = GetWidth() / (float)(GetHeight());
+				SpriteCorners(xf, imgAspect, screenAspect, m_spriteQuad[iSlot]);
 				for (k=0; k<4; k++)
 				{
-					float x2 = v3[k].x*cos_rot - v3[k].y*sin_rot;
-					float y2 = v3[k].x*sin_rot + v3[k].y*cos_rot;
-					v3[k].x = x2;
-					v3[k].y = y2;
+					v3[k].x = m_spriteQuad[iSlot][k][0];
+					v3[k].y = m_spriteQuad[iSlot][k][1];
 				}
-			}
-
-			// translation
-			for (k=0; k<4; k++)
-			{
-				v3[k].x += x;
-				v3[k].y += y;
-			}
-
-			// second aspect ratio: normalize to width of screen
-			{
-				float aspect = GetWidth() / (float)(GetHeight());
-
-				if (aspect > 1)
-					for (k=0; k<4; k++) v3[k].y *= aspect;
-				else
-					for (k=0; k<4; k++) v3[k].x /= aspect;
 			}
 
 			// third aspect ratio: adjust for burn-in
@@ -3645,6 +3047,7 @@ void CPlugin::DrawUserSprites()	// from system memory, to back buffer.
 			// 2   additive   r,g,b=modulate     a=modulate    D3DBLEND_ONE      D3DBLEND_ONE
 			// 3   srccolor   r,g,b=no effect    a=no effect   SRCCOLOR          INVSRCCOLOR
 			// 4   colorkey   r,g,b=modulate     a=no effect
+			// 5   imgalpha   r,g,b=modulate     a=image*a     SRCALPHA          INVSRCALPHA
 			switch(blendmode)
 			{
 			case 0:
@@ -3685,8 +3088,6 @@ void CPlugin::DrawUserSprites()	// from system memory, to back buffer.
 			case 1:
 				// decal
 				lpDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
-				//lpDevice->SetRenderState(D3DRS_SRCBLEND,  D3DBLEND_ONE);
-				//lpDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO);
 				for (k=0; k<4; k++) v3[k].Diffuse = D3DCOLOR_RGBA_01(r*a,g*a,b*a,1);
 				break;
 			case 2:
@@ -3706,10 +3107,6 @@ void CPlugin::DrawUserSprites()	// from system memory, to back buffer.
 			case 4:
 				// color keyed texture: use the alpha value in the texture to
 				//  determine which texels get drawn.
-				/*lpDevice->SetRenderState(D3DRS_ALPHAREF, 0);
-				lpDevice->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_NOTEQUAL);
-				lpDevice->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE);
-                */
 
                 lpDevice->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
 	            lpDevice->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
@@ -3726,6 +3123,20 @@ void CPlugin::DrawUserSprites()	// from system memory, to back buffer.
 				lpDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 				for (k=0; k<4; k++) v3[k].Diffuse = D3DCOLOR_RGBA_01(r,g,b,a);
 				break;
+			case 5:
+				// SURI: image transparency: the file's alpha (png/gif) times 'a'.
+				lpDevice->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+				lpDevice->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
+				lpDevice->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_TEXTURE);
+				lpDevice->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+				lpDevice->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+				lpDevice->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+				lpDevice->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+				lpDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+				lpDevice->SetRenderState(D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA);
+				lpDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+				for (k=0; k<4; k++) v3[k].Diffuse = D3DCOLOR_RGBA_01(r,g,b,a);
+				break;
 			}
 
 			lpDevice->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, (LPVOID)v3, sizeof(SPRITEVERTEX));
@@ -3735,10 +3146,12 @@ void CPlugin::DrawUserSprites()	// from system memory, to back buffer.
                 // Change the rendertarget back to the original setup
                 lpDevice->SetTexture(0, NULL);
                 lpDevice->SetRenderTarget( 0, pBackBuffer );
-				 //lpDevice->SetDepthStencilSurface( pZBuffer );
 			    lpDevice->SetTexture(0, m_texmgr.m_tex[iSlot].pSurface);
 
 				// undo aspect ratio changes (that were used to fit it to VS1):
+				// SURI: only when they were made (bKillSprite && bBurnIn above); otherwise the sprite on
+				// screen was stretched and no longer matched m_spriteQuad (the mouse hit test).
+				if (bKillSprite)
 				{
 					float aspect = GetWidth()/(float)(GetHeight()*4.0f/3.0f);
 					if (aspect < 1.0f)
@@ -3751,7 +3164,6 @@ void CPlugin::DrawUserSprites()	// from system memory, to back buffer.
 			}
 
             SafeRelease(pBackBuffer);
-            //SafeRelease(pZBuffer);
 
 			if (bKillSprite)
 			{
@@ -3820,8 +3232,6 @@ void CPlugin::ApplyShaderParams(CShaderParams* p, LPD3DXCONSTANTTABLE pCT, CStat
 {
     LPDIRECT3DDEVICE9 lpDevice = GetDevice();
 
-    //if (p->texbind_vs      >= 0) lpDevice->SetTexture( p->texbind_vs   , m_lpVS[0]   );
-    //if (p->texbind_noise   >= 0) lpDevice->SetTexture( p->texbind_noise, m_pTexNoise );
 
     // bind textures
     for (int i=0; i<sizeof(p->m_texture_bindings)/sizeof(p->m_texture_bindings[0]); i++)
@@ -4014,7 +3424,6 @@ void CPlugin::ShowToUser_NoShaders()//int bRedraw, int nPassOverride)
 	v3[2].y = -fOnePlusInvHeight;
 	v3[3].y = -fOnePlusInvHeight;
 
-	//float aspect = GetWidth() / (float)(GetHeight()/(ASPECT)/**4.0f/3.0f*/);
 	float aspect = GetWidth() / (float)(GetHeight()*m_fInvAspectY/**4.0f/3.0f*/);
     float x_aspect_mult = 1.0f;
     float y_aspect_mult = 1.0f;
@@ -4203,8 +3612,6 @@ void CPlugin::ShowToUser_NoShaders()//int bRedraw, int nPassOverride)
 		{
 			// square root filter
 
-			//lpDevice->SetRenderState(D3DRS_COLORVERTEX, FALSE);       //?
-			//lpDevice->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_FLAT); //?
 
 			lpDevice->SetTexture(0, NULL);
 			lpDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
@@ -4231,8 +3638,6 @@ void CPlugin::ShowToUser_NoShaders()//int bRedraw, int nPassOverride)
 		{
 			// squaring filter
 
-			//lpDevice->SetRenderState(D3DRS_COLORVERTEX, FALSE);          //?
-			//lpDevice->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_FLAT);    //?
 
 			lpDevice->SetTexture(0, NULL);
 			lpDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
@@ -4241,9 +3646,6 @@ void CPlugin::ShowToUser_NoShaders()//int bRedraw, int nPassOverride)
 			lpDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_DESTCOLOR);
             lpDevice->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, (void*)v3, sizeof(SPRITEVERTEX));
 
-			//lpDevice->SetRenderState(D3DRS_SRCBLEND,  D3DBLEND_DESTCOLOR);
-			//lpDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
-			//lpDevice->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, (void*)v3, sizeof(SPRITEVERTEX));
 
 		}
 
@@ -4252,8 +3654,6 @@ void CPlugin::ShowToUser_NoShaders()//int bRedraw, int nPassOverride)
 			(GetCaps()->DestBlendCaps & D3DPBLENDCAPS_INVDESTCOLOR)
 			)
 		{
-			//lpDevice->SetRenderState(D3DRS_COLORVERTEX, FALSE);        //?
-			//lpDevice->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_FLAT);  //?
 
 			lpDevice->SetTexture(0, NULL);
 			lpDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
@@ -4271,8 +3671,6 @@ void CPlugin::ShowToUser_NoShaders()//int bRedraw, int nPassOverride)
 			(GetCaps()->SrcBlendCaps  & D3DPBLENDCAPS_INVDESTCOLOR )
 			)
 		{
-			//lpDevice->SetRenderState(D3DRS_COLORVERTEX, FALSE);        //?
-			//lpDevice->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_FLAT);  //?
 
 			lpDevice->SetTexture(0, NULL);
 			lpDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
@@ -4292,7 +3690,6 @@ void CPlugin::ShowToUser_Shaders(int nPass, bool bAlphaBlend, bool bFlipAlpha, b
     if (!lpDevice)
         return;
 
-	//lpDevice->SetTexture(0, m_lpVS[1]);
     lpDevice->SetVertexShader( NULL );
     lpDevice->SetFVF( MYVERTEX_FORMAT );
     lpDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
@@ -4381,10 +3778,7 @@ void CPlugin::ShowToUser_Shaders(int nPass, bool bAlphaBlend, bool bFlipAlpha, b
                             alpha10*(1-dx)*(  dy) +
                             alpha11*(  dx)*(  dy);
                     alpha /= 255.0f;
-                    //if (bFlipAlpha)
-                    //    alpha = 1-alpha;
 
-                    //alpha = (m_verts[y*(m_nGridX+1) + x].Diffuse >> 24) / 255.0f;
                 }
                 p->Diffuse = D3DCOLOR_RGBA_01(col[0],col[1],col[2],alpha);
             }
@@ -4474,7 +3868,7 @@ void CPlugin::ShowToUser_Shaders(int nPass, bool bAlphaBlend, bool bFlipAlpha, b
     RestoreShaderParams();
 }
 
-void CPlugin::ShowSongTitleAnim(int w, int h, float fProgress)
+void CPlugin::ShowSongTitleAnim(int w, int h, float fProgress, float fAlpha)
 {
 	int i,x,y;
 
@@ -4511,23 +3905,12 @@ void CPlugin::ShowSongTitleAnim(int w, int h, float fProgress)
         //fixme
 		if (fProgress < 1.0f)//(w!=h)	// regular render-to-backbuffer
 		{
-            //float aspect = w/(float)(h*4.0f/3.0f);
-  			//fSizeY *= aspect;
 		}
 		else 	// final render-to-VS0
 		{
-			//float aspect = GetWidth()/(float)(GetHeight()*4.0f/3.0f);
-			//if (aspect < 1.0f)
-			//{
-			//	fSizeX *= aspect;
-			//	fSizeY *= aspect;
-			//}
 
-            //fSizeY *= -1;
 		}
 
-		//if (fSizeX > 0.92f) fSizeX = 0.92f;
-		//if (fSizeY > 0.92f) fSizeY = 0.92f;
 		i = 0;
 		float vert_clip = VERT_CLIP;//1.0f;//0.45f;	// warning: visible clipping has been observed at 0.4!
 		for (y=0; y<8; y++)
@@ -4578,21 +3961,11 @@ void CPlugin::ShowSongTitleAnim(int w, int h, float fProgress)
         //fixme
 		if (fProgress < 1.0f)//w!=h)	// regular render-to-backbuffer
 		{
-			//float aspect = w/(float)(h*4.0f/3.0f);
-			//fSizeY *= aspect;
 		}
 		else 	// final render-to-VS0
 		{
-			//float aspect = GetWidth()/(float)(GetHeight()*4.0f/3.0f);
-			//if (aspect < 1.0f)
-			//{
-			//	fSizeX *= aspect;
-			//	fSizeY *= aspect;
-			//}
-            //fSizeY *= -1;
 		}
 
-		//if (fSize > 0.92f) fSize = 0.92f;
 		i = 0;
 		float vert_clip = VERT_CLIP;//0.67f;	// warning: visible clipping has been observed at 0.5 (for very short strings) and even 0.6 (for wingdings)!
 		for (y=0; y<8; y++)
@@ -4652,7 +4025,6 @@ void CPlugin::ShowSongTitleAnim(int w, int h, float fProgress)
 	//for (i=0; i<128; i++)
 	//	v3[i].y *= -1.0f;
 	for (i=0; i<128; i++)
-		//v3[i].y /= ASPECT_Y;
         v3[i].y *= m_fInvAspectY;
 
 	for (int it=0; it<2; it++)
@@ -4665,6 +4037,7 @@ void CPlugin::ShowSongTitleAnim(int w, int h, float fProgress)
 				t = powf(fProgress, 0.3f)*1.0f;
 			else
 				t = CosineInterp(min(1.0f, (fProgress/m_supertext.fFadeTime)));
+			t *= fAlpha;	// SURI: song-title fade-out; both passes scale, so text and shadow fade into the image
 
 			if (it==0)
 				v3[0].Diffuse = D3DCOLOR_RGBA_01(t,t,t,t);

@@ -30,163 +30,65 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __NULLSOFT_DX8_PLUGIN_SHELL_DEFINES_H__
 #define __NULLSOFT_DX8_PLUGIN_SHELL_DEFINES_H__ 1
 
-// APPNAME should be something like "MyPlugin 1.0".
-// This is the name that will appear in Winamp's list of installed plugins.
-// Try to include the version number with the name.
-// Note: to change the name of the *file* (DLL) that the plugin is
-//   compiled to, go to Project Settings -> Link tab -> and change the
-//   'output file name'.  Don't forget to do it for both Debug AND
-//   Release builds!
-#define SHORTNAME        "MilkDrop 2" // used as window caption for both MilkDrop and the config panel.  avoid numbers or punctuation; when 'integrate with winamp' option is enabled, these characters don't always work with all skins.
-#define LONGNAME         "MilkDrop v2.25c" // appears at bottom of config panel
-#define LONGNAMEW        L"MilkDrop v2.25c" // appears at bottom of config panel
+#define MILKDROP_VERSION_STR  "3.0.S"   // product version shown in the window title and exe properties
+#define MILKDROP_VERSION_STRW L"3.0.S"
 
-// INT_VERSION is the major version #, multipled by 100 (ie. version 1.02
-// would be 102).  If the app goes to read in the INI file and sees that
-// the INI file is from an older version of your plugin, it will ignore
-// their old settings and reset them to the defaults for the new version;
-// but that only works if you keep this value up-to-date.  ***To disable this
-// behavior, just always leave this at 100. ***
+// INT_VERSION / INT_SUBVERSION are written to milk2.ini.  When MilkDrop reads an ini
+// file written by an older version, it ignores the old settings and uses the defaults.
 #define INT_VERSION     200
-// INT_SUBVERSION is the minor version #, counting up from 0 as you do
-// mini-releases.  If the plugin goes to read the old INI file and sees that
-// the major version # is the same but the minor version # is not, it will,
-// again, ignore their old settings and reset them to the defaults for the
-// new version.  ***To disable this behavior, just always leave this at 0. ***
 #define INT_SUBVERSION  5      //straight=0, a=1, b=2, ...
 
-// SUBDIR puts milkdrop's documentation, INI file, presets folder, etc.
-// in a subdir underneath Winamp\Plugins.
-#define SUBDIR  L"Milkdrop2\\"   //""
+// SUBDIR is the folder (under <exe folder>\plugins\) that holds data, docs, presets and textures.
+#define SUBDIR  L"Milkdrop2\\"
 
-// INIFILE is the name of the .INI file that will save the user's
-// config panel settings.  Do not include a path; just give the filename.
-// The actual file will be stored in the WINAMP\PLUGINS directory,
-// OR POSSIBLY c:\application data\...(user)...\winamp\plugins!!! - if
-// they have sep. settings for each user!
-#define INIFILE         L"milk2.ini"      //*** DO NOT PUT IN A SUBDIR because on save, if dir doesn't already exist,
-                                         //     it won't be able to save the INI file.
-#define MSG_INIFILE     L"milk2_msg.ini"  //*** could be in c:\program files\winamp\plugins, or in
-#define IMG_INIFILE     L"milk2_img.ini"  //                c:\application data\...user...\winamp\plugins !!
-#define ADAPTERSFILE	L"milk2_adapters.txt"
+// settings, custom messages and sprites; these files live next to MilkDrop3.exe.
+#define INIFILE         L"milk2.ini"
+#define MSG_INIFILE     L"milk2_msg.ini"
+#define IMG_INIFILE     L"milk2_img.ini"
 
-// DOCFILE is the name of the documentation file that you'll write
-// for your users.  Do not include a path; just give the filename.
-// When a user clicks the 'View Docs' button on the config panel,
-// the plugin will try to display this file, located in the
-// WINAMP\PLUGINS directory.
-//
-// ***Note that the button will be invisible (on the config panel)
-// at runtime if this string is empty.***
-#define DOCFILE         SUBDIR L"docs\\milkdrop.html"     // set this to something like "myplugin.html"
-
-// PLUGIN_WEB_URL is the web address of the homepage for your plugin.
-// It should be a well-formed URL (http://...).  When a user clicks
-// the 'View Webpage' button on the config panel, the plugin will
-// launch their default browser to display this page.
-//
-// ***Note that the button will be invisible (on the config panel)
-// at runtime if this string is empty.***
-#define PLUGIN_WEB_URL  L"http://www.nullsoft.com/free/milkdrop/"   // set this to something like "http://www.myplugin.com/"
-
-// The following two strings - AUTHOR_NAME and COPYRIGHT - will be used
-// in a little box in the config panel, to identify the author & copyright
-// holder of the plugin.  Keep them short so they fit in the box.
-#define AUTHOR_NAME     L"Ryan Geiss"
-#define COPYRIGHT       L"(c) 2001-2013 Nullsoft, Inc."
-
-// CLASSNAME is the name of the window class that the plugin will
-// use.  You don't want this to overlap with any other plugins
-// or applications that are running, so change this to something
-// that will probably be unique.  For example, if your plugin was
-// called Libido, then "LibidoClass" would probably be a safe bet.
-#define CLASSNAME       L"MilkDrop2"
-
-// Here you can give names to the buttons (~tabs) along the top
-// of the config panel.  Each button, when clicked, will bring
-// up the corresponding 'property page' (embedded dialog),
-// IDD_PROPPAGE_1 through IDD_PROPPAGE_8.  If you want less than
-// 8 buttons to show up, just leave their names as blank.  For
-// full instructions on how to add a new tab/page, see
-// DOCUMENTATION.TXT.
-//#define CONFIG_PANEL_BUTTON_1 " Common Settings "	// nPage==1
-//#define CONFIG_PANEL_BUTTON_2 "  MORE SETTINGS  "	// nPage==2
-//#define CONFIG_PANEL_BUTTON_3 " Artist Tools "		// nPage==3
-//#define CONFIG_PANEL_BUTTON_4 " Transitions "		// nPage==4
-//#define CONFIG_PANEL_BUTTON_5 ""                    // nPage==5
-//#define CONFIG_PANEL_BUTTON_6 ""                    // nPage==6
-//#define CONFIG_PANEL_BUTTON_7 ""                    // nPage==7
-//#define CONFIG_PANEL_BUTTON_8 ""                    // nPage==8
-// As if 2.0e, these strings are defined in the stringtable of the dll
-// and otherwise work the same as these header defines.
-// (The equivelent of "" in these is a single space now)
-
-// adjust the defaults for the 4 built-in fonts here.
-// (note: if you want the font to be available on 98 + ME + 2k + XP, use one of the following...)
-//     arial
-//     courier 10-12-15
-//     courier new
-//     comic san[s] ms
-//     lucida console
-//     ms sans serif
-//     ms serif
-//     small fonts
-//     symbol 8-10-12-14-18-24
-//     tahoma
-//     times new roman
-//     verdana
-//     webdings
-#define SIMPLE_FONT_DEFAULT_FACE L"Courier" //"MS Sans Serif"  - changed to Courier because menus + code FAR more legible!
+// defaults for the 4 built-in fonts
+#define SIMPLE_FONT_DEFAULT_FACE L"Segoe UI"   // SURI: was Courier
 #define SIMPLE_FONT_DEFAULT_SIZE 24
 #define SIMPLE_FONT_DEFAULT_BOLD 0
 #define SIMPLE_FONT_DEFAULT_ITAL 0
-#define SIMPLE_FONT_DEFAULT_AA   0
-#define DECORATIVE_FONT_DEFAULT_FACE L"Arial"
+#define SIMPLE_FONT_DEFAULT_AA   1   // SURI: was 0
+#define DECORATIVE_FONT_DEFAULT_FACE L"Segoe UI"   // SURI: was Arial
 #define DECORATIVE_FONT_DEFAULT_SIZE 24
 #define DECORATIVE_FONT_DEFAULT_BOLD 0
 #define DECORATIVE_FONT_DEFAULT_ITAL 0
 #define DECORATIVE_FONT_DEFAULT_AA   1
-#define HELPSCREEN_FONT_DEFAULT_FACE L"Courier"
+#define HELPSCREEN_FONT_DEFAULT_FACE L"Segoe UI"   // SURI: was Courier
 #define HELPSCREEN_FONT_DEFAULT_SIZE 24
 #define HELPSCREEN_FONT_DEFAULT_BOLD 0
 #define HELPSCREEN_FONT_DEFAULT_ITAL 0
-#define HELPSCREEN_FONT_DEFAULT_AA   0
-#define PLAYLIST_FONT_DEFAULT_FACE L"Arial"
+#define HELPSCREEN_FONT_DEFAULT_AA   1   // SURI: was 0
+#define PLAYLIST_FONT_DEFAULT_FACE L"Segoe UI"   // SURI: was Arial
 #define PLAYLIST_FONT_DEFAULT_SIZE 24
 #define PLAYLIST_FONT_DEFAULT_BOLD 0
 #define PLAYLIST_FONT_DEFAULT_ITAL 0
-#define PLAYLIST_FONT_DEFAULT_AA   0
+#define PLAYLIST_FONT_DEFAULT_AA   1   // SURI: was 0
 
-// automatically add extra fonts to the config panel
-// by simply #defining them here, UP TO A MAX OF 5 EXTRA FONTS.
+// extra fonts, UP TO A MAX OF 5.
 // access the font by calling GetFont(EXTRA_1) for extra font #1,
 // GetExtraFont(EXTRA_2) for extra font #2, and so on.
 #define NUM_EXTRA_FONTS 2  // <- don't exceed 5 here!
 #define TOOLTIP_FONT EXTRA_1
-//#define EXTRA_FONT_1_NAME         "Tooltips"
-// defined in the stringtable resources now since 2.0e
-#define EXTRA_FONT_1_DEFAULT_FACE L"Arial"
+#define EXTRA_FONT_1_DEFAULT_FACE L"Segoe UI"   // SURI: was Arial
 #define EXTRA_FONT_1_DEFAULT_SIZE 14
 #define EXTRA_FONT_1_DEFAULT_BOLD 0
 #define EXTRA_FONT_1_DEFAULT_ITAL 0
-#define EXTRA_FONT_1_DEFAULT_AA   0
+#define EXTRA_FONT_1_DEFAULT_AA   1   // SURI: was 0
 #define SONGTITLE_FONT EXTRA_2
-//#define EXTRA_FONT_2_NAME         "Animated Songtitles"
-// defined in the stringtable resources now since 2.0e
 #define EXTRA_FONT_2_DEFAULT_FACE L"Times New Roman"
 #define EXTRA_FONT_2_DEFAULT_SIZE 18
 #define EXTRA_FONT_2_DEFAULT_BOLD 0
 #define EXTRA_FONT_2_DEFAULT_ITAL 1
 #define EXTRA_FONT_2_DEFAULT_AA   1
 
-#define WINDOWCAPTION   SHORTNAME   // the caption that will appear on the plugin window
-#define DLLDESC         LONGNAME    // the desc. of this DLL, as it appears in Winamp's list of viz plugins
-#define MODULEDESC      LONGNAME    // the desc. of this viz module within the DLL (..this framework is set up for just 1 module per DLL)
-
 // Finally, a few parameters that will control how things are done
 // inside the plugin shell:
 #define NUM_WAVEFORM_SAMPLES         480   // RANGE: 32-576.  This is the # of samples of waveform data that you want.
-                                           //   Note that if it is less than 576, then VMS will do its best
+                                           //   Note that if it is less than 576, then MilkDrop will do its best
                                            //   to line up the waveforms from frame to frame for you, using
                                            //   the extra samples as 'squish' space.
                                            // Note: the more 'slush' samples you leave, the better the alignment
@@ -211,12 +113,24 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MENU_COLOR    0xFFCCCCCC
 #define MENU_HILITE_COLOR 0xFFFF4400
 #define DIR_COLOR     0xFF88CCFF
-#define TOOLTIP_COLOR 0xFFBBBBCC
+
+// SURI: on-screen "cards" (phase 6 design B). Fills are translucent; text on them is opaque.
+#define CARD_FILL_INFO   0xB8141022   // F4/F5/F6 info card
+#define CARD_FILL_TOAST  0xD1141022   // notifications
+#define CARD_FILL_PANEL  0xDB141022   // help, M menu, L browser
+#define CARD_BORDER      0x24FFFFFF
+#define CARD_TEXT        0xFFFFFFFF
+#define CARD_TEXT_2      0xFFC9C4DA   // secondary text
+#define CARD_ACCENT      0xFFB9A7F0   // active tab fill
+#define CARD_ACCENT_TEXT 0xFF1A1430   // text on CARD_ACCENT
+#define CARD_BAND        0x40B9A7F0   // selected row in a list
+#define CARD_KEYCAP      0x1AFFFFFF
+#define CARD_STAR        0xFFF3C969
+#define CARD_DOT_NOTIFY  0xFF8EE6A8
+#define CARD_DOT_ERROR   0xFFFF8A7A
 
 #define MAX_PRESETS_PER_PAGE 128
 
-//#define PRESS_F1_MSG                 "Press F1 for Help " // leave extra space @ end, so italicized fonts don't get clipped
-// defined in the stringtable resources now since 2.0e
 #define PRESS_F1_DUR                 3.0f // in seconds
 #define PRESS_F1_EXP                 10.0f // exponent for how quickly it accelerates to leave the screen. 1 = linear; >1 = stays & then dashes off @ end
 

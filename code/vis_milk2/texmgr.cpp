@@ -32,6 +32,9 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "support.h"
 #include "plugin.h"
 #include "utility.h"
+#include "features/sprite_layout.h"
+#include "features/image_load_win32.h"
+#include <vector>
 
 texmgr::texmgr()
 {
@@ -63,22 +66,51 @@ void texmgr::Init(LPDIRECT3DDEVICE9 lpDD)
 		m_tex[i].szFileName[0] = 0;
 		m_tex[i].m_codehandle = NULL;
 		m_tex[i].m_szExpr[0] = 0;
+		m_tex[i].colorkey = 0;
 		m_tex[i].tex_eel_ctx = NSEEL_VM_alloc();
+		ResetUserOverrides(i);
 	}
+}
+
+void texmgr::ResetUserOverrides(int iSlot)
+{
+	m_tex[iSlot].bOwnedByPreset = false;
+	m_tex[iSlot].userDx = 0.0f;
+	m_tex[iSlot].userDy = 0.0f;
+	m_tex[iSlot].userScale = 1.0f;
+	m_tex[iSlot].userBlend = -1;
 }
 
 int texmgr::LoadTex(wchar_t *szFilename, int iSlot, char *szInitCode, char *szCode, float time, int frame, unsigned int ck)
 {
 	if (iSlot < 0) return TEXMGR_ERR_BAD_INDEX;
 	if (iSlot >= NUM_TEX) return TEXMGR_ERR_BAD_INDEX;
-	
+
+	// SURI: TEXMGR_NO_COLORKEY = no colour key (D3DX ColorKey 0 disables keying)
+	unsigned int storedCk = (ck == TEXMGR_NO_COLORKEY) ? TEXMGR_NO_COLORKEY : (ck & 0xFFFFFFu);
+	D3DCOLOR d3dxCk = (ck == TEXMGR_NO_COLORKEY) ? 0 : (0xFF000000 | ck);
+
 	// first, if this texture is already loaded, just add another instance.
+	// SURI: only with the same colour key, since the key is baked into the texture's alpha.
 	bool bTextureInstanced = false;
 	{
 		for (int x=0; x<NUM_TEX; x++)
-			if (m_tex[x].pSurface && _wcsicmp(m_tex[x].szFileName, szFilename)==0)
+			if (m_tex[x].pSurface && _wcsicmp(m_tex[x].szFileName, szFilename)==0 && m_tex[x].colorkey == storedCk)
 			{
-				memcpy(&m_tex[iSlot], &m_tex[x], sizeof(td_tex));
+				if (x == iSlot)
+				{
+					// same slot, same image: drop the old code, keep the texture.
+					FreeCode(iSlot);
+				}
+				else
+				{
+					// SURI: keep this slot's own EEL context; sharing the other slot's
+					// context would mix their variables (and free it twice in Finish).
+					NSEEL_VMCTX ownCtx = m_tex[iSlot].tex_eel_ctx;
+					FreeCode(iSlot);
+					memcpy(&m_tex[iSlot], &m_tex[x], sizeof(td_tex));
+					m_tex[iSlot].tex_eel_ctx = ownCtx;
+				}
 				m_tex[iSlot].m_szExpr[0] = 0;
 				m_tex[iSlot].m_codehandle  = 0;
 
@@ -95,25 +127,61 @@ int texmgr::LoadTex(wchar_t *szFilename, int iSlot, char *szInitCode, char *szCo
 		wcscpy(m_tex[iSlot].szFileName, szFilename);
 
         D3DXIMAGE_INFO info;
-        HRESULT hr = D3DXCreateTextureFromFileExW(
-          m_lpDD,
-          szFilename,
-          D3DX_DEFAULT,
-          D3DX_DEFAULT,
-          D3DX_DEFAULT, // create a mip chain
-          0,
-          D3DFMT_UNKNOWN,
-          D3DPOOL_DEFAULT,
-          D3DX_DEFAULT,
-          D3DX_DEFAULT,
-          0xFF000000 | ck,
-          &info,
-          NULL,
-          &m_tex[iSlot].pSurface
-        );
+        HRESULT hr;
+        // SURI: only .gif needs GDI+; every other extension (also ones ImageKindFromPath does not
+        // know, as old milk2_img.ini entries may use) goes to D3DX as before.
+        SpriteImageKind kind = ImageKindFromPath(szFilename);
+        if (kind == SpriteImageKind::Gif)
+        {
+            // SURI: D3DX cannot read GIF; GDI+ re-encodes the first frame as PNG in memory.
+            // Same parameters as the file path below, so colorkey/pool/mips behave the same.
+            std::vector<unsigned char> png;
+            hr = LoadGifAsPngInMemory(szFilename, &png);
+            if (SUCCEEDED(hr))
+                hr = D3DXCreateTextureFromFileInMemoryEx(
+                  m_lpDD,
+                  &png[0],
+                  (UINT)png.size(),
+                  D3DX_DEFAULT,
+                  D3DX_DEFAULT,
+                  D3DX_DEFAULT, // create a mip chain
+                  0,
+                  D3DFMT_UNKNOWN,
+                  D3DPOOL_DEFAULT,
+                  D3DX_DEFAULT,
+                  D3DX_DEFAULT,
+                  d3dxCk,
+                  &info,
+                  NULL,
+                  &m_tex[iSlot].pSurface
+                );
+            else if (hr != E_OUTOFMEMORY)
+                hr = D3DXERR_INVALIDDATA;
+        }
+        else
+        {
+            hr = D3DXCreateTextureFromFileExW(
+              m_lpDD,
+              szFilename,
+              D3DX_DEFAULT,
+              D3DX_DEFAULT,
+              D3DX_DEFAULT, // create a mip chain
+              0,
+              D3DFMT_UNKNOWN,
+              D3DPOOL_DEFAULT,
+              D3DX_DEFAULT,
+              D3DX_DEFAULT,
+              d3dxCk,
+              &info,
+              NULL,
+              &m_tex[iSlot].pSurface
+            );
+        }
         
         if (hr != D3D_OK)
         {
+            m_tex[iSlot].pSurface = NULL;
+            m_tex[iSlot].szFileName[0] = 0;
             switch(hr)
             {
             case E_OUTOFMEMORY:
@@ -126,10 +194,12 @@ int texmgr::LoadTex(wchar_t *szFilename, int iSlot, char *szInitCode, char *szCo
 
         m_tex[iSlot].img_w = info.Width;
 		m_tex[iSlot].img_h = info.Height;
+		m_tex[iSlot].colorkey = storedCk;	// SURI
 	}
 	
 	m_tex[iSlot].fStartTime = time;
 	m_tex[iSlot].nStartFrame = frame;
+	ResetUserOverrides(iSlot);
 	
 	int ret = TEXMGR_ERR_SUCCESS;
 
@@ -143,7 +213,6 @@ int texmgr::LoadTex(wchar_t *szFilename, int iSlot, char *szInitCode, char *szCo
 	if (!RecompileExpressions(iSlot))
 		ret |= TEXMGR_WARN_ERROR_IN_REG_CODE;
 	
-	//g_dumpmsg("texmgr: success");
     
 	return ret;
 }
@@ -167,8 +236,10 @@ void texmgr::KillTex(int iSlot)
 		m_tex[iSlot].pSurface = NULL;
 	}
 	m_tex[iSlot].szFileName[0] = 0;
+	m_tex[iSlot].colorkey = 0;	// SURI
 
 	FreeCode(iSlot);
+	ResetUserOverrides(iSlot);
 }
 
 void texmgr::StripLinefeedCharsAndComments(char *src, char *dest)
@@ -255,6 +326,17 @@ bool texmgr::RecompileExpressions(int iSlot)
 	char buf[sizeof(m_tex[iSlot].m_szExpr)];
 	StripLinefeedCharsAndComments(expr, buf);
 
+	// SURI: compile the code (the compile step was missing, so sprite init/per-frame code
+	// never ran). A single line such as "x=0.5;y=0.5;" compiles the same as ini lines.
+	if (buf[0])
+	{
+		#ifndef _NO_EXPR_
+			m_tex[iSlot].m_codehandle = NSEEL_code_compile(m_tex[iSlot].tex_eel_ctx, buf);
+			if (!m_tex[iSlot].m_codehandle)
+				return false;
+		#endif
+	}
+
 	return true;
 }
 
@@ -308,5 +390,4 @@ void texmgr::RegisterBuiltInVariables(int iSlot)
 	m_tex[iSlot].var_done        = NSEEL_VM_regvar(eel_ctx, "done"); 
 	m_tex[iSlot].var_burn        = NSEEL_VM_regvar(eel_ctx, "burn"); 
 
-//	resetVars(NULL);
 }

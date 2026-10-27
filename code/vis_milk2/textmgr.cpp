@@ -424,7 +424,6 @@ void CTextManager::DrawNow()
                 bRTT = 0;
                 break;
             }
-			//m_lpDevice->SetDepthStencilSurface( ??? );
             pNewTarget->Release();
 
 	        m_lpDevice->SetTexture(0, NULL);
@@ -628,7 +627,6 @@ void CTextManager::DrawNow()
             {
                 m_lpDevice->SetTexture(0, NULL);
                 m_lpDevice->SetRenderTarget( 0, pBackBuffer );//, pZBuffer );
-				//m_lpDevice->SetDepthStencilSurface( pZBuffer );
             }
 
             // 5. blit text surface to backbuffer
@@ -655,9 +653,6 @@ void CTextManager::DrawNow()
             }
         
             DWORD oldblend[3];
-            //m_lpDevice->GetTextureStageState(0, D3DTSS_MAGFILTER, &oldblend[0]);
-            //m_lpDevice->GetTextureStageState(1, D3DTSS_MINFILTER, &oldblend[1]);
-            //m_lpDevice->GetTextureStageState(2, D3DTSS_MIPFILTER, &oldblend[2]);
 			m_lpDevice->GetSamplerState(0, D3DSAMP_MAGFILTER, &oldblend[0]); 
 			m_lpDevice->GetSamplerState(1, D3DSAMP_MINFILTER, &oldblend[1]); 
 			m_lpDevice->GetSamplerState(2, D3DSAMP_MIPFILTER, &oldblend[2]); 
@@ -675,7 +670,6 @@ void CTextManager::DrawNow()
         }
 
         SafeRelease(pBackBuffer);
-        //SafeRelease(pZBuffer);
 
 	    m_lpDevice->SetTexture(0, NULL);
 	    m_lpDevice->SetTexture(1, NULL);
@@ -684,9 +678,6 @@ void CTextManager::DrawNow()
         m_lpDevice->SetPixelShader( NULL );
         m_lpDevice->SetFVF( SPRITEVERTEX_FORMAT );
         
-        //D3DXMATRIX ident;    
-        //D3DXMatrixIdentity(&ident);
-        //m_lpDevice->SetTransform(D3DTS_PROJECTION, &ident);
     }
 
     // flip:

@@ -84,8 +84,9 @@ int8_t GetChannelSample(const BYTE *pData, int BlockOffset, int ChannelOffset, c
 //   pwfx->nBlockAlign;        /* ANY block size of data */
 //   pwfx->wBitsPerSample;     /* 16 or 32 number of bits per sample of mono data */
 
-void SetAudioBuf(const BYTE *pData, const UINT32 nNumFramesToRead, const WAVEFORMATEX *pwfx, const bool bInt16) {
+void SetAudioBuf(const BYTE *pData, const UINT32 nNumFramesToRead, const WAVEFORMATEX *pwfx) {
     int BlockOffset;
+    const bool bInt16 = (pwfx->wBitsPerSample == 16);
 
     int8_t LeftSample8;
     int8_t RightSample8;

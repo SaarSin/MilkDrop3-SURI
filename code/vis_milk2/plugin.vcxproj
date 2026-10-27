@@ -1,5 +1,14 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MilkDrop3 (SURI build) - modernized project file.
+  * Toolset v143 (Visual Studio 2022), Windows 10/11 SDK.
+  * D3DX9 comes from the official Microsoft.DXSDK.D3DX NuGet package, extracted
+    to third_party\d3dx (no legacy "DirectX SDK June 2010" install needed).
+  * Win32 (x86) only: the ns-eel2 expression compiler emits x86 machine code
+    via MSVC inline asm. See docs\PROJECT_STATUS.md.
+  * Output: <repo>\build\<Configuration>\ - a self-contained, runnable folder.
+-->
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -11,169 +20,107 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectName>BeatDrop</ProjectName>
+    <ProjectName>MilkDrop3</ProjectName>
     <ProjectGuid>{881FB534-7396-485A-ADC2-6FBEBED7A0F4}</ProjectGuid>
     <RootNamespace>vis_milk2</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+  <PropertyGroup Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
-    <TargetExt>.exe</TargetExt>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
-    <UseOfMfc>false</UseOfMfc>
-    <TargetExt>.exe</TargetExt>
+    <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <ImportGroup Label="ExtensionSettings">
-  </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+  <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
   </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
-  </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
-  <PropertyGroup>
-    <_ProjectFileVersion>14.0.25431.1</_ProjectFileVersion>
+  <PropertyGroup Label="UserMacros">
+    <RepoRoot>$(MSBuildProjectDirectory)\..\..\</RepoRoot>
+    <D3DXRoot>$(RepoRoot)third_party\d3dx\build\native\</D3DXRoot>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>.\Release\</OutDir>
-    <IntDir>.\Release\</IntDir>
+  <PropertyGroup>
+    <OutDir>$(RepoRoot)build\$(Configuration)\</OutDir>
+    <IntDir>$(RepoRoot)build\obj\$(Configuration)\</IntDir>
+    <TargetName>MilkDrop3</TargetName>
+    <TargetExt>.exe</TargetExt>
     <LinkIncremental>false</LinkIncremental>
     <GenerateManifest>false</GenerateManifest>
-    <IncludePath>$(DXSDK_DIR)Include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(DXSDK_DIR)\Lib\x86;$(LibraryPath)</LibraryPath>
-    <TargetName>MilkDrop 3</TargetName>
+    <IncludePath>$(D3DXRoot)include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(D3DXRoot)release\lib\x86;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>.\Debug\</OutDir>
-    <IntDir>.\Debug\</IntDir>
-    <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(DXSDK_DIR)Include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(DXSDK_DIR)\Lib\x86;$(LibraryPath)</LibraryPath>
-  </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <Midl>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MkTypLibCompatible>true</MkTypLibCompatible>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <TargetEnvironment>Win32</TargetEnvironment>
-      <TypeLibraryName>.\Release/plugin.tlb</TypeLibraryName>
-      <HeaderFileName />
-    </Midl>
+  <ItemDefinitionGroup>
     <ClCompile>
-      <Optimization>MinSpace</Optimization>
-      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
-      <FavorSizeOrSpeed>Neither</FavorSizeOrSpeed>
-      <OmitFramePointers>true</OmitFramePointers>
-      <AdditionalIncludeDirectories>..\..\musikcube\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;USE_VIS_HDR_HWND;STRSAFE_NO_DEPRECATE;NSEEL_REENTRANT_EXECUTION;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <StringPooling>true</StringPooling>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-      <FunctionLevelLinking>true</FunctionLevelLinking>
-      <ForceConformanceInForLoopScope>false</ForceConformanceInForLoopScope>
-      <PrecompiledHeader />
-      <PrecompiledHeaderOutputFile>.\Release/plugin.pch</PrecompiledHeaderOutputFile>
-      <AssemblerListingLocation>.\Release/</AssemblerListingLocation>
-      <ObjectFileName>.\Release/</ObjectFileName>
-      <ProgramDataBaseFileName>.\Release/</ProgramDataBaseFileName>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;USE_VIS_HDR_HWND;STRSAFE_NO_DEPRECATE;NSEEL_REENTRANT_EXECUTION;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WarningLevel>Level3</WarningLevel>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <CompileAs>Default</CompileAs>
-      <DisableSpecificWarnings>4996;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4996;4244;4267;4305;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <ConformanceMode>false</ConformanceMode>
+      <ForceConformanceInForLoopScope>false</ForceConformanceInForLoopScope>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <SDLCheck>false</SDLCheck>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>d3d9.lib;d3dx9.lib;Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
-      <IgnoreSpecificDefaultLibraries>
-      </IgnoreSpecificDefaultLibraries>
-      <DelayLoadDLLs>
-      </DelayLoadDLLs>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
-      <ProgramDatabaseFile>$(OutDir)$(ProjectName).pdb</ProgramDatabaseFile>
-      <OptimizeReferences>true</OptimizeReferences>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <SubSystem>Windows</SubSystem>
+      <AdditionalDependencies>d3d9.lib;d3dx9.lib;Shlwapi.lib;winmm.lib;ole32.lib;avrt.lib;dwmapi.lib;shcore.lib;wtsapi32.lib;windowsapp.lib;gdiplus.lib;comdlg32.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <DataExecutionPrevention />
-      <ImportLibrary>.\Release/vis_milk2.lib</ImportLibrary>
+      <DataExecutionPrevention>false</DataExecutionPrevention>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy $(TargetPath) $(SolutionDir)..\musikcube\bin\release\plugins\ /Y
-if not exist "$(SolutionDir)..\musikcube\bin\release\plugins\Milkdrop2" mkdir "$(SolutionDir)..\musikcube\bin\release\plugins\Milkdrop2"
-xcopy $(SolutionDir)resources\Milkdrop2\* $(SolutionDir)..\musikcube\bin\release\plugins\Milkdrop2 /Y /e</Command>
+      <Message>Staging runtime files (D3DX DLLs + Milkdrop2 data) next to the exe</Message>
+      <Command>xcopy /Y /Q "$(D3DXRoot)release\bin\x86\D3DX9_43.dll" "$(OutDir)"
+xcopy /Y /Q "$(D3DXRoot)release\bin\x86\D3DCompiler_43.dll" "$(OutDir)"
+xcopy /Y /Q /E /I "$(RepoRoot)code\resources\Milkdrop2" "$(OutDir)plugins\Milkdrop2"
+xcopy /Y /Q "$(RepoRoot)LICENSE.txt" "$(OutDir)"
+if exist "$(RepoRoot)content\presets" xcopy /Y /Q /E /I /D "$(RepoRoot)content\presets" "$(OutDir)plugins\Milkdrop2\presets"
+if exist "$(RepoRoot)content\textures" xcopy /Y /Q /E /I /D "$(RepoRoot)content\textures" "$(OutDir)plugins\Milkdrop2\textures"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <Midl>
-      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MkTypLibCompatible>true</MkTypLibCompatible>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <TargetEnvironment>Win32</TargetEnvironment>
-      <TypeLibraryName>.\Debug/plugin.tlb</TypeLibraryName>
-      <HeaderFileName />
-    </Midl>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Include;../Wasabi;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;USE_VIS_HDR_HWND;_CRT_SECURE_NO_WARNINGS;_CRT_NON_CONFORMING_SWPRINTFS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <ForceConformanceInForLoopScope>false</ForceConformanceInForLoopScope>
-      <PrecompiledHeader />
-      <PrecompiledHeaderOutputFile>.\Debug/plugin.pch</PrecompiledHeaderOutputFile>
-      <AssemblerListingLocation>.\Debug/</AssemblerListingLocation>
-      <ObjectFileName>.\Debug/</ObjectFileName>
-      <ProgramDataBaseFileName>.\Debug/</ProgramDataBaseFileName>
-      <BrowseInformation>true</BrowseInformation>
-      <WarningLevel>Level3</WarningLevel>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <CompileAs>Default</CompileAs>
-      <DisableSpecificWarnings>4996</DisableSpecificWarnings>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <Culture>0x0409</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>d3d9.lib;d3dx9.lib;Shlwapi.lib;user32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
-      <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <DelayLoadDLLs>
-      </DelayLoadDLLs>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>.\Debug/vis_milk2.pdb</ProgramDatabaseFile>
-      <RandomizedBaseAddress>false</RandomizedBaseAddress>
-      <DataExecutionPrevention />
-      <ImportLibrary>.\Debug/vis_milk2.lib</ImportLibrary>
-      <TargetMachine>MachineX86</TargetMachine>
-      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
-    <PostBuildEvent>
-      <Command>xcopy $(TargetPath) $(SolutionDir)..\musikcube\bin\debug\plugins\ /Y
-if not exist "$(SolutionDir)..\musikcube\bin\debug\plugins\Milkdrop2" mkdir "$(SolutionDir)..\musikcube\bin\debug\plugins\Milkdrop2"
-xcopy $(SolutionDir)resources\Milkdrop2\* $(SolutionDir)..\musikcube\bin\debug\plugins\Milkdrop2 /Y /e</Command>
-    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile>
+      <Optimization>MaxSpeed</Optimization>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <OmitFramePointers>true</OmitFramePointers>
+      <StringPooling>true</StringPooling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+    </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\audio\audiobuf.cpp" />
+    <ClCompile Include="..\audio\device-watch.cpp" />
     <ClCompile Include="..\audio\guid.cpp" />
     <ClCompile Include="..\audio\log.cpp" />
     <ClCompile Include="..\audio\loopback-capture.cpp" />
@@ -197,14 +144,53 @@ xcopy $(SolutionDir)resources\Milkdrop2\* $(SolutionDir)..\musikcube\bin\debug\p
     <ClCompile Include="texmgr.cpp" />
     <ClCompile Include="textmgr.cpp" />
     <ClCompile Include="utility.cpp" />
-    <ClCompile Include="wasabi.cpp" />
+    <ClCompile Include="resstrings.cpp" />
+    <ClCompile Include="features\commands.cpp" />
+    <ClCompile Include="features\context_menu.cpp" />
+    <ClCompile Include="features\context_menu_win32.cpp" />
+    <ClCompile Include="features\desktop_mode.cpp" />
+    <ClCompile Include="features\desktop_mode_win32.cpp" />
+    <ClCompile Include="features\shader_fx.cpp" />
+    <ClCompile Include="features\ui_scale.cpp" />
+    <ClCompile Include="features\now_playing.cpp" />
+    <ClCompile Include="features\title_anim.cpp" />
+    <ClCompile Include="features\messages.cpp" />
+    <ClCompile Include="features\sprite_layout.cpp" />
+    <ClCompile Include="features\sprite_preset.cpp" />
+    <ClCompile Include="features\drop_import.cpp" />
+    <ClCompile Include="features\playlist.cpp" />
+    <ClCompile Include="features\playlist_screen.cpp" />
+    <ClCompile Include="features\image_load_win32.cpp" />
+    <ClCompile Include="features\now_playing_winrt.cpp">
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <ConformanceMode>true</ConformanceMode>
+      <ForceConformanceInForLoopScope>true</ForceConformanceInForLoopScope>
+    </ClCompile>
+    <ClCompile Include="features\help_text.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="plugin_icon.ico" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="features\commands.h" />
+    <ClInclude Include="features\context_menu.h" />
+    <ClInclude Include="features\desktop_mode.h" />
+    <ClInclude Include="features\shader_fx.h" />
+    <ClInclude Include="features\ui_scale.h" />
+    <ClInclude Include="features\now_playing.h" />
+    <ClInclude Include="features\title_anim.h" />
+    <ClInclude Include="features\messages.h" />
+    <ClInclude Include="features\sprite_layout.h" />
+    <ClInclude Include="features\sprite_preset.h" />
+    <ClInclude Include="features\drop_import.h" />
+    <ClInclude Include="features\playlist.h" />
+    <ClInclude Include="features\playlist_screen.h" />
+    <ClInclude Include="features\image_load_win32.h" />
+    <ClInclude Include="features\now_playing_winrt.h" />
+    <ClInclude Include="features\help_text.h" />
     <ClInclude Include="..\audio\cleanup.h" />
     <ClInclude Include="..\audio\common.h" />
+    <ClInclude Include="..\audio\device-watch.h" />
     <ClInclude Include="..\audio\audiobuf.h" />
     <ClInclude Include="..\audio\log.h" />
     <ClInclude Include="..\audio\loopback-capture.h" />
@@ -225,15 +211,10 @@ xcopy $(SolutionDir)resources\Milkdrop2\* $(SolutionDir)..\musikcube\bin\debug\p
     <ClInclude Include="texmgr.h" />
     <ClInclude Include="textmgr.h" />
     <ClInclude Include="utility.h" />
-    <ClInclude Include="wasabi.h" />
+    <ClInclude Include="resstrings.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="plugin.rc" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="text1.bin" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-  </ImportGroup>
 </Project>

@@ -65,8 +65,6 @@ public:
     DXContext(LPDIRECT3DDEVICE9 device, D3DPRESENT_PARAMETERS* d3dpp, HWND hwnd, wchar_t* szIniFile);
     ~DXContext();
     BOOL StartOrRestartDevice(DXCONTEXT_PARAMS *pParams); // also serves as Init() function
-    void OnTrulyExiting() { m_truly_exiting = 1; }
-    void UpdateMonitorWorkRect();
     int  GetBitDepth() { return m_bpp; };
     inline D3DFORMAT GetZFormat() { return m_zFormat; };
     char* GetDriver() { return m_szDriver; };
@@ -106,27 +104,18 @@ protected:
     HMODULE m_hmod_d3d9, m_hmod_d3dx9;
     int  m_ordinal_adapter;
     HWND m_hwnd;
-    HWND m_hwnd_winamp;
     LONG_PTR m_uWindowLong;
     char m_szWindowCaption[512];
     wchar_t m_szIniFile[MAX_PATH];
     char m_szDriver[MAX_DEVICE_IDENTIFIER_STRING];
     char m_szDesc[MAX_DEVICE_IDENTIFIER_STRING];
     HINSTANCE m_hInstance;
-    int  m_minimize_winamp;
-    int  m_winamp_minimized;
-    int  m_truly_exiting;
     int  m_bpp;
 
     void WriteSafeWindowPos();
-    int GetWindowedModeAutoSize(int iteration);
-    BOOL TestDepth(int ordinal_adapter, D3DFORMAT fmt);
-    BOOL TestFormat(int ordinal_adapter, D3DFORMAT fmt);
-    int  CheckAndCorrectFullscreenDispMode(int ordinal_adapter, D3DDISPLAYMODE *pdm);
     void SetViewport();
     BOOL Internal_Init(DXCONTEXT_PARAMS *pParams, BOOL bFirstInit);
     void Internal_CleanUp();
-    void GetSnappedClientSize(); //windowed mode only
 };
 
 #define DXC_ERR_REGWIN    -2

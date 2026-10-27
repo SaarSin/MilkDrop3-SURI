@@ -94,7 +94,8 @@ public:
                     unsigned int wParam=0, unsigned int lParam=0);
 	void	SetParentPointer(CMilkMenu *pParentMenu) { m_pParentMenu = pParentMenu; }
 	LRESULT HandleKeydown(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);	
-	void	DrawMenu(RECT rect, int xR, int yB, int bCalcRect=0, RECT* pCalcRect=NULL);
+	void	DrawMenu(RECT rect, int bCalcRect=0, RECT* pCalcRect=NULL);   // SURI: xR / yB (old corner tooltip) removed
+	const wchar_t* GetCurToolTip();	// SURI: the hint for the current row (shown as the menu card's last line)
 	void	OnWaitStringAccept(wchar_t *szNewString);
     void    EnableItem(wchar_t* szName, bool bEnable);
     CMilkMenuItem* GetCurItem() // NOTE: ONLY WORKS IF AN *ITEM* IS HIGHLIGHTED; NOT A CHILD MENU

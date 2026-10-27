@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MilkDrop 3.0.S - User Guide</title>
+<meta name="description" content="How to run MilkDrop 3.0.S, every keyboard shortcut, presets, sprites, custom messages, settings and troubleshooting.">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<div class="layout">
+
+<aside class="sidebar" aria-label="Guide navigation">
+  <a class="brand" href="#top">
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="9" fill="#312e81"/><path d="M5 19c3 0 3-8 6-8s3 12 6 12 3-16 6-16 3 12 6 12" stroke="#22c55e" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>
+    <span><span class="brand-name">MilkDrop</span><br><span class="brand-ver">3.0.S</span></span>
+  </a>
+  <div class="doc-switch">
+    <a href="user-guide.html" aria-current="page">User Guide</a>
+    <a href="preset-authoring.html">Preset Authoring</a>
+  </div>
+  <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="toc">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    Contents
+  </button>
+  <nav id="toc">
+    <ul class="toc">
+      <li><a href="#start">Getting started</a></li>
+      <li><a href="#shortcuts">Keyboard &amp; mouse</a></li>
+      <li class="sub"><a href="#keys-window">Window &amp; display</a></li>
+      <li class="sub"><a href="#keys-presets">Presets</a></li>
+      <li class="sub"><a href="#keys-info">On-screen info</a></li>
+      <li class="sub"><a href="#keys-tweak">Live tweaks</a></li>
+      <li class="sub"><a href="#keys-sprites">Sprites &amp; messages</a></li>
+      <li class="sub"><a href="#keys-menus">Inside menus</a></li>
+      <li><a href="#effects">Effects</a></li>
+      <li><a href="#desktop">Desktop background</a></li>
+      <li><a href="#presets">Working with presets</a></li>
+      <li class="sub"><a href="#ratings">Ratings</a></li>
+      <li class="sub"><a href="#mashup">Shader locks &amp; mash-ups</a></li>
+      <li><a href="#playlist">Playlist</a></li>
+      <li class="sub"><a href="#drop">Drag &amp; drop presets</a></li>
+      <li><a href="#sprites">Sprites</a></li>
+      <li class="sub"><a href="#sprites-preset">Saving sprites with a preset</a></li>
+      <li><a href="#messages">Custom messages</a></li>
+      <li><a href="#nowplaying">Now playing</a></li>
+      <li><a href="#files">Files &amp; settings</a></li>
+      <li><a href="#trouble">Troubleshooting</a></li>
+      <li><a href="#known">Known limitations</a></li>
+      <li><a href="#about">About &amp; license</a></li>
+    </ul>
+  </nav>
+</aside>
+
+<main id="content">
+<span id="top"></span>
+
+<section class="hero">
+  <svg class="hero-wave" width="420" height="180" viewBox="0 0 420 180" aria-hidden="true"><path d="M0 120c35 0 35-80 70-80s35 110 70 110 35-140 70-140 35 120 70 120 35-70 70-70 35 50 70 50" stroke="#22c55e" stroke-width="4" fill="none"/><path d="M0 140c35 0 35-50 70-50s35 70 70 70 35-90 70-90 35 80 70 80 35-40 70-40" stroke="#818cf8" stroke-width="3" fill="none"/></svg>
+  <h1>User Guide</h1>
+  <p class="lead">MilkDrop turns whatever your computer is playing into a live, GPU-driven visual journey. This guide covers running it, every keyboard shortcut, and the files it uses.</p>
+  <div class="chips"><span class="chip">Windows 10 / 11</span><span class="chip">Direct3D 9</span><span class="chip">9,795 presets included</span><span class="chip">Works with any audio player</span></div>
+</section>
+
+<h2 id="start">Getting started <a class="anchor" href="#start" aria-label="Link to this section">#</a></h2>
+<div class="cards">
+  <div class="card"><span class="num">1</span><h3>Play some music</h3><p>Use any player: Spotify, a browser, VLC, a game. MilkDrop listens to your default playback device.</p></div>
+  <div class="card"><span class="num">2</span><h3>Run MilkDrop3.exe</h3><p>No installation. Keep the <code>plugins</code> folder next to the exe. Only one copy runs at a time: starting MilkDrop again brings the running copy forward.</p></div>
+  <div class="card"><span class="num">3</span><h3>Go fullscreen</h3><p>Double-click the picture or press <kbd>Alt</kbd>+<kbd>Enter</kbd>. Press <kbd>F1</kbd> for the built-in help.</p></div>
+</div>
+<p>MilkDrop captures the sound through <strong>WASAPI loopback</strong>: it records what goes to the <em>default playback device</em> in Windows (Settings, System, Sound, Output). To visualize a different device (for example headphones instead of speakers), make that device the default.</p>
+<div class="note"><strong>No sound, no motion</strong>Windows only delivers loopback audio while something is actually playing. With silence the visuals keep running, but they won't react to the beat.</div>
+
+<h2 id="shortcuts">Keyboard &amp; mouse <a class="anchor" href="#shortcuts" aria-label="Link to this section">#</a></h2>
+<p>Letter keys are case-sensitive where both are listed: lowercase decreases, <kbd>Shift</kbd>+letter increases. Use the digits at the top of the keyboard, not the numeric keypad.</p>
+<div id="keytables">
+  <div class="search">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <label for="keyfilter">Filter shortcuts</label>
+    <input id="keyfilter" type="search" placeholder="Filter shortcuts: try &quot;fullscreen&quot;, &quot;F3&quot; or &quot;sprite&quot;" data-filter="keytables" autocomplete="off">
+  </div>
+  <p class="empty" role="status">No shortcut matches that filter.</p>
+
+  <h3 id="keys-window">Window &amp; display</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td class="keys"><kbd>Alt</kbd>+<kbd>Enter</kbd> or double-click</td><td>Toggle fullscreen on the current monitor</td></tr>
+      <tr><td class="keys"><kbd>Alt</kbd>+<kbd>Shift</kbd></td><td>Stretch the window across all monitors (press again to restore)</td></tr>
+      <tr><td class="keys"><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd></td><td>Desktop background mode on / off (see <a href="#desktop">Desktop background</a>)</td></tr>
+      <tr><td class="keys"><kbd>F7</kbd></td><td>Always on top: on / off</td></tr>
+      <tr><td class="keys"><kbd>F2</kbd></td><td>Cycle the frame-rate limit: 30, 60, 90, 120, 144, 240, 360, unlimited</td></tr>
+      <tr><td class="keys"><kbd>Esc</kbd></td><td>Close the help screen or any open menu</td></tr>
+      <tr><td class="keys"><kbd>Alt</kbd>+<kbd>F4</kbd></td><td>Quit (settings are saved on exit)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 id="keys-presets">Presets</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td class="keys"><kbd>Space</kbd></td><td>Blend smoothly to the next preset</td></tr>
+      <tr><td class="keys"><kbd>H</kbd></td><td>Hard cut: switch to the next preset instantly</td></tr>
+      <tr><td class="keys"><kbd>Backspace</kbd></td><td>Go back to the previous preset</td></tr>
+      <tr><td class="keys"><kbd>`</kbd> or <kbd>~</kbd>, <kbd>Scroll Lock</kbd></td><td>Lock / unlock the current preset (stops automatic changes)</td></tr>
+      <tr><td class="keys"><kbd>F3</kbd></td><td>Cycle the time between automatic changes: 15, 30, 60, 120, 180 seconds, never</td></tr>
+      <tr><td class="keys"><kbd>R</kbd></td><td>Toggle random / sequential preset order (<kbd>Shift</kbd>+<kbd>R</kbd> works the same)</td></tr>
+      <tr><td class="keys"><kbd>L</kbd></td><td>Open the preset browser (see <a href="#keys-menus">Inside menus</a>)</td></tr>
+      <tr><td class="keys"><kbd>P</kbd></td><td>Open / close the Playlist screen: choose which presets play (see <a href="#playlist">Playlist</a>)</td></tr>
+      <tr><td class="keys">Drop a folder or <code>.milk</code> files on the window</td><td>Play them, and add the new ones to your library (see <a href="#drop">Drag &amp; drop presets</a>)</td></tr>
+      <tr><td class="keys"><kbd>S</kbd></td><td>Save the current preset under a new name</td></tr>
+      <tr><td class="keys"><kbd>M</kbd></td><td>Show / hide the preset-editing menu (see the <a href="preset-authoring.html">authoring guide</a>)</td></tr>
+      <tr><td class="keys"><kbd>+</kbd> / <kbd>-</kbd></td><td>Rate the current preset up / down (0 to 5)</td></tr>
+      <tr><td class="keys"><kbd>A</kbd></td><td>Mini mash-up: a random preset combined with the warp and composite shaders of two other random presets</td></tr>
+      <tr><td class="keys"><kbd>!</kbd></td><td>Swap in a random warp shader, keep everything else</td></tr>
+      <tr><td class="keys"><kbd>@</kbd></td><td>Swap in a random composite shader, keep everything else</td></tr>
+      <tr><td class="keys"><kbd>D</kbd></td><td>Cycle shader locks: composite locked, warp locked, both locked, none</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 id="keys-info">On-screen info</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td class="keys"><kbd>F1</kbd></td><td>Show / hide the help screen</td></tr>
+      <tr><td class="keys"><kbd>F4</kbd></td><td>Show / hide the preset name</td></tr>
+      <tr><td class="keys"><kbd>F5</kbd></td><td>Show / hide the frame rate (FPS)</td></tr>
+      <tr><td class="keys"><kbd>F6</kbd></td><td>Show / hide the preset rating</td></tr>
+      <tr><td class="keys"><kbd>N</kbd></td><td>Show / hide the debug monitor (the <code>monitor</code> value from preset code)</td></tr>
+      <tr><td class="keys"><kbd>F9</kbd></td><td>Show / hide the shader quick reference (while editing a shader)</td></tr>
+      <tr><td class="keys"><kbd>T</kbd></td><td>Show the current song again</td></tr>
+      <tr><td class="keys"><kbd>Ctrl</kbd>+<kbd>T</kbd></td><td>Hide the title animation or custom message on screen</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 id="keys-tweak">Live tweaks</h3>
+  <p>These change the current preset on the fly. Save with <kbd>S</kbd> to keep the result. Keys marked <span class="tag old">MD1</span> only affect older MilkDrop 1 presets; newer presets do the same work inside their composite shader.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr class="group-row"><td colspan="2">Motion</td></tr>
+      <tr><td class="keys"><kbd>i</kbd> / <kbd>I</kbd></td><td>Zoom in / out</td></tr>
+      <tr><td class="keys"><kbd>[</kbd> / <kbd>]</kbd></td><td>Push the motion left / right</td></tr>
+      <tr><td class="keys"><kbd>{</kbd> / <kbd>}</kbd></td><td>Push the motion up / down</td></tr>
+      <tr><td class="keys"><kbd>&lt;</kbd> / <kbd>&gt;</kbd></td><td>Rotate left / right</td></tr>
+      <tr><td class="keys"><kbd>o</kbd> / <kbd>O</kbd></td><td>Less / more warping</td></tr>
+      <tr class="group-row"><td colspan="2">Waveform</td></tr>
+      <tr><td class="keys"><kbd>w</kbd> / <kbd>W</kbd></td><td>Next / previous waveform type (8 types)</td></tr>
+      <tr><td class="keys"><kbd>j</kbd> / <kbd>J</kbd></td><td>Smaller / bigger waveform</td></tr>
+      <tr><td class="keys"><kbd>e</kbd> / <kbd>E</kbd></td><td>More transparent / more solid waveform</td></tr>
+      <tr class="group-row"><td colspan="2">Image</td></tr>
+      <tr><td class="keys"><kbd>g</kbd> / <kbd>G</kbd></td><td>Darker / brighter (gamma) <span class="tag old">MD1</span></td></tr>
+      <tr><td class="keys"><kbd>q</kbd> / <kbd>Q</kbd></td><td>Shrink / grow the video-echo layer <span class="tag old">MD1</span></td></tr>
+      <tr><td class="keys"><kbd>F</kbd></td><td>Flip the video-echo layer (4 orientations) <span class="tag old">MD1</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 id="keys-sprites">Sprites &amp; messages</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td class="keys"><kbd>K</kbd> then two digits</td><td>Launch sprite <code>00</code>-<code>99</code> from <code>milk2_img.ini</code> (see <a href="#sprites">Sprites</a>)</td></tr>
+      <tr><td class="keys"><kbd>Shift</kbd>+<kbd>K</kbd> then two digits</td><td>Remove every running sprite with that number</td></tr>
+      <tr><td class="keys"><kbd>Delete</kbd></td><td>Remove the newest sprite (or the custom message on screen)</td></tr>
+      <tr><td class="keys"><kbd>Shift</kbd>+<kbd>Delete</kbd></td><td>Remove the oldest sprite</td></tr>
+      <tr><td class="keys"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Delete</kbd>, <kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>Remove all sprites</td></tr>
+      <tr><td class="keys"><kbd>*</kbd></td><td>Clear a half-typed two-digit number</td></tr>
+      <tr><td class="keys"><kbd>Y</kbd> then two digits</td><td>Show custom message <code>00</code>-<code>99</code> from <code>milk2_msg.ini</code> (see <a href="#messages">Custom messages</a>)</td></tr>
+      <tr><td class="keys">Drag a sprite</td><td>Move it (the sprite under the mouse; anywhere else the window behaves as before)</td></tr>
+      <tr><td class="keys">Mouse wheel over a sprite</td><td>Make it bigger or smaller</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 id="keys-menus">Inside menus</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr class="group-row"><td colspan="2">Preset browser (L)</td></tr>
+      <tr><td class="keys"><kbd>↑</kbd> <kbd>↓</kbd> <kbd>PgUp</kbd> <kbd>PgDn</kbd> <kbd>Home</kbd> <kbd>End</kbd></td><td>Move through the list</td></tr>
+      <tr><td class="keys"><kbd>A</kbd>-<kbd>Z</kbd></td><td>Jump to the first preset starting with that letter</td></tr>
+      <tr><td class="keys"><kbd>Enter</kbd> or <kbd>Space</kbd></td><td>Load the preset, or open the folder (<code>..</code> goes up)</td></tr>
+      <tr><td class="keys"><kbd>Insert</kbd></td><td>Rename the selected preset</td></tr>
+      <tr><td class="keys"><kbd>Delete</kbd></td><td>Delete the selected preset from disk (asks first)</td></tr>
+      <tr><td class="keys"><kbd>Esc</kbd> <kbd>←</kbd> <kbd>→</kbd> <kbd>L</kbd></td><td>Close the browser</td></tr>
+      <tr class="group-row"><td colspan="2">Editing menu (M)</td></tr>
+      <tr><td class="keys"><kbd>↑</kbd> <kbd>↓</kbd></td><td>Select an item; on a value, increase / decrease it</td></tr>
+      <tr><td class="keys"><kbd>→</kbd> <kbd>Enter</kbd> <kbd>Space</kbd></td><td>Open the item or sub-menu</td></tr>
+      <tr><td class="keys"><kbd>←</kbd></td><td>Back to the previous menu</td></tr>
+      <tr><td class="keys"><kbd>PgUp</kbd> <kbd>PgDn</kbd> / <kbd>Shift</kbd>+<kbd>↑</kbd> <kbd>↓</kbd></td><td>Change a value faster / slower</td></tr>
+      <tr><td class="keys"><kbd>Enter</kbd> / <kbd>Esc</kbd></td><td>Keep / discard the new value</td></tr>
+      <tr class="group-row"><td colspan="2">Text and code editor</td></tr>
+      <tr><td class="keys"><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Apply the code (plain <kbd>Enter</kbd> adds a new line)</td></tr>
+      <tr><td class="keys"><kbd>Esc</kbd></td><td>Cancel editing</td></tr>
+      <tr><td class="keys"><kbd>Shift</kbd>+arrows / <kbd>Home</kbd> / <kbd>End</kbd></td><td>Select text</td></tr>
+      <tr><td class="keys"><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>X</kbd> / <kbd>V</kbd></td><td>Copy / cut / paste</td></tr>
+      <tr><td class="keys"><kbd>Ctrl</kbd>+<kbd>←</kbd> <kbd>→</kbd></td><td>Jump a word left / right</td></tr>
+      <tr><td class="keys"><kbd>Insert</kbd></td><td>Toggle insert / overwrite</td></tr>
+      <tr class="group-row"><td colspan="2">Mash-up screen (M, then "do a preset mash-up")</td></tr>
+      <tr><td class="keys"><kbd>1</kbd>-<kbd>5</kbd></td><td>Choose a slot: general, motion, waveforms &amp; shapes, warp shader, composite shader</td></tr>
+      <tr><td class="keys"><kbd>↑</kbd> <kbd>↓</kbd> <kbd>A</kbd>-<kbd>Z</kbd></td><td>Pick the preset that feeds the slot</td></tr>
+      <tr><td class="keys"><kbd>h</kbd> / <kbd>H</kbd></td><td>Random preset for this slot / for all slots</td></tr>
+      <tr><td class="keys"><kbd>Enter</kbd> / <kbd>Esc</kbd></td><td>Apply now / leave</td></tr>
+    </tbody>
+  </table></div>
+</div>
+
+<h2 id="effects">Effects <a class="anchor" href="#effects" aria-label="Link to this section">#</a></h2>
+<p>Effects change how the finished picture looks, whatever preset is playing. Right-click the picture (or press <kbd>Shift</kbd>+<kbd>F10</kbd>) and open the <strong>Effects</strong> submenu. Each effect is a check item: click it to switch it on, click again to switch it off. You can combine several.</p>
+<ul>
+  <li>There are 11 effects, plus <strong>Brightness</strong> and <strong>Contrast</strong> controls to make the picture lighter, darker, flatter or punchier.</li>
+  <li>Effects stay on when the preset changes, so you can pick a look and let the presets flow underneath it.</li>
+  <li>Effects are <strong>not saved into presets</strong>. When you press <kbd>S</kbd>, MilkDrop removes them first, so the saved file is the plain preset.</li>
+  <li>The menu has an item to clear every effect at once.</li>
+</ul>
+
+<h2 id="desktop">Desktop background <a class="anchor" href="#desktop" aria-label="Link to this section">#</a></h2>
+<p>Desktop mode puts the visuals behind your desktop icons, like an animated wallpaper. To switch it on, right-click the picture and choose <strong>View</strong>, <strong>Run as desktop background</strong>, or press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd>. The same keys switch it off again.</p>
+<ul>
+  <li>While the mode is on, MilkDrop shows an icon in the notification area (system tray). <strong>Right-click</strong> it for a short menu. <strong>Double-click</strong> it to return to a normal window.</li>
+  <li>The picture covers all of your monitors.</li>
+  <li>When you leave the mode or quit, your normal wallpaper comes back.</li>
+  <li>While the mode is on, keys and mouse clicks go to the desktop, not to MilkDrop. Use the tray icon or <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd>.</li>
+  <li>If another program already uses <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd>, MilkDrop says so when it starts; the menu item still works.</li>
+  <li>If Explorer restarts, MilkDrop restarts itself and returns to the desktop background within a few seconds.</li>
+  <li>Starting MilkDrop again brings the running copy forward. While it is on the desktop, it tells you to press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> to bring it back.</li>
+</ul>
+<div class="note"><strong>Your wallpaper settings</strong>MilkDrop never changes your wallpaper setting. A slideshow, Windows Spotlight or a different wallpaper on each monitor keeps working; when you leave the mode, Windows shows your wallpaper again.</div>
+
+<h2 id="presets">Working with presets <a class="anchor" href="#presets" aria-label="Link to this section">#</a></h2>
+<p>A <strong>preset</strong> is a small text file (<code>.milk</code>) describing motion, waveforms, shapes, and two pixel shaders. MilkDrop shows one preset at a time and blends to the next one every few seconds, or cuts hard on a loud beat.</p>
+<ul>
+  <li>Presets live in <code>plugins\Milkdrop2\presets\</code> next to the exe. Sub-folders show up in the browser (<kbd>L</kbd>), so you can sort presets into folders.</li>
+  <li>To add presets, drop them on the window (see <a href="#drop">Drag &amp; drop presets</a>), or copy <code>.milk</code> files (and any textures they ship with) into that folder.</li>
+  <li>To stay on a preset you like, lock it with <kbd>`</kbd> or <kbd>Scroll Lock</kbd>. Set the auto-change time with <kbd>F3</kbd>.</li>
+  <li>Presets your graphics card can't run (shader model too high) are hidden from the list.</li>
+</ul>
+
+<h3 id="ratings">Ratings</h3>
+<p>Each preset has a rating from 0 to 5. Higher-rated presets are picked more often at random, and a preset rated 0 is never picked at random. Press <kbd>F6</kbd> to see the rating and <kbd>+</kbd> / <kbd>-</kbd> to change it. The rating is saved into the preset file right away. To bring back a preset rated 0, open it with <kbd>L</kbd> and press <kbd>+</kbd>.</p>
+
+<h3 id="mashup">Shader locks &amp; mash-ups</h3>
+<p>Every preset has a <strong>warp shader</strong> (shapes how the picture moves and evolves) and a <strong>composite shader</strong> (the final look on screen). <kbd>D</kbd> locks one or both of them; while locked, loading a new preset keeps your locked shader and takes everything else from the new preset. That's a quick way to find new combinations. <kbd>A</kbd>, <kbd>!</kbd> and <kbd>@</kbd> do this randomly. The full mash-up screen in the <kbd>M</kbd> menu lets you build a preset from five parts of different presets. Save any result you like with <kbd>S</kbd>.</p>
+
+<h2 id="playlist">Playlist <a class="anchor" href="#playlist" aria-label="Link to this section">#</a></h2>
+<p>Normally every preset in your library can come up. The <strong>Playlist</strong> screen (<kbd>P</kbd>, or <strong>Preset &gt; Playlist...</strong> in the right-click menu) limits that to the presets you pick: <kbd>Space</kbd>, <kbd>H</kbd>, <kbd>Backspace</kbd> and the automatic changes then stay inside the playlist. It has two lists side by side: <em>Not playing</em> on the left and <em>Playing</em> on the right. At first everything is in <em>Playing</em>.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+  <tbody>
+    <tr><td class="keys"><kbd>Up</kbd> / <kbd>Down</kbd>, <kbd>Page Up</kbd> / <kbd>Page Down</kbd>, <kbd>Home</kbd> / <kbd>End</kbd></td><td>Move in the current list</td></tr>
+    <tr><td class="keys"><kbd>Tab</kbd></td><td>Switch between the two lists</td></tr>
+    <tr><td class="keys"><kbd>Right</kbd></td><td>Move the selected presets (or the one under the cursor) from <em>Not playing</em> to <em>Playing</em></td></tr>
+    <tr><td class="keys"><kbd>Left</kbd></td><td>Move them from <em>Playing</em> to <em>Not playing</em></td></tr>
+    <tr><td class="keys"><kbd>Shift</kbd>+<kbd>Up</kbd> / <kbd>Down</kbd></td><td>Select several rows</td></tr>
+    <tr><td class="keys"><kbd>Ctrl</kbd>+<kbd>Space</kbd></td><td>Select / unselect the row under the cursor</td></tr>
+    <tr><td class="keys"><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Select every row the list shows (after a search: only the matches)</td></tr>
+    <tr><td class="keys">Type</td><td>Search the current list (spaces are part of the search). <kbd>Backspace</kbd> deletes a letter.</td></tr>
+    <tr><td class="keys"><kbd>Esc</kbd></td><td>Clear the search; when there is none, close the screen</td></tr>
+    <tr><td class="keys"><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save the <em>Playing</em> list as an <code>.m3u</code> file (in <code>plugins\Milkdrop2\playlists\</code>)</td></tr>
+    <tr><td class="keys"><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Load an <code>.m3u</code> playlist; presets that are not in your library are skipped</td></tr>
+  </tbody>
+</table></div>
+<p>While the screen is open, keys only work on it; the preset keys come back when you close it. The playlist lasts until you quit MilkDrop: the next start plays everything again (load a saved <code>.m3u</code> to get it back). An empty <em>Playing</em> list means &quot;play all&quot;.</p>
+
+<h3 id="drop">Drag &amp; drop presets</h3>
+<p>Drag a folder or <code>.milk</code> files from Explorer onto the MilkDrop window:</p>
+<ul>
+  <li><strong>A folder</strong> gives the <code>.milk</code> files directly inside it (not those in its sub-folders).</li>
+  <li><strong>Images</strong> are not presets: the message <em>Images: load from settings</em> appears (use <strong>Sprites &gt; Load image...</strong>).</li>
+  <li>A preset is <strong>already in your library</strong> when <code>presets\</code> has a file with the same name and the same size. Those are used as they are; nothing is copied.</li>
+  <li><strong>New presets</strong> are listed first in a <em>new presets</em> window, all checked. <kbd>Up</kbd> / <kbd>Down</kbd> move, <kbd>Space</kbd> checks or unchecks one, <kbd>Ctrl</kbd>+<kbd>A</kbd> checks all (or none), <kbd>Enter</kbd> copies the checked ones into <code>presets\</code>, <kbd>Esc</kbd> skips all of them. A new preset whose name is taken by a different file gets a numbered name, for example <code>Galaxy (2).milk</code>; nothing is ever overwritten.</li>
+  <li><strong>Textures</strong> that a copied preset uses are copied too, when they sit next to it (or in a <code>textures</code> folder next to it), into <code>plugins\Milkdrop2\textures\</code>. A texture is never overwritten, and never copied when your presets would already find a texture with that name (any image type, in <code>textures\</code> or in <code>presets\</code>), so the presets you have keep looking the same. Those are counted in the message <em>N textures kept (name already used)</em>.</li>
+  <li><strong>One <code>.milk</code> file</strong> loads right away (after the new-presets window when it is new); your playlist does not change.</li>
+  <li><strong>A folder or several files</strong> become the playlist for this session, and their first preset starts. Open <kbd>P</kbd> to see or change it.</li>
+  <li>While a screen, menu or prompt is open, a drop is refused with <em>Close the open screen first</em>.</li>
+</ul>
+
+<h2 id="sprites">Sprites <a class="anchor" href="#sprites" aria-label="Link to this section">#</a></h2>
+<p>Sprites are images (PNG, GIF, JPG, BMP, TGA, DDS) drawn on top of the visuals: a logo, a photo, a sticker. All sprite commands are in the right-click menu under <strong>Sprites</strong>.</p>
+<h3 id="sprites-mouse">Add, move and resize</h3>
+<ul>
+  <li><strong>Sprites &gt; Load image...</strong> picks an image file and puts it in the middle of the screen. PNG and GIF files keep their transparent parts; black parts of the image stay black (no colour key).</li>
+  <li><strong>Drag</strong> a sprite with the left mouse button to move it. It follows the cursor exactly, in any window shape.</li>
+  <li>Turn the <strong>mouse wheel</strong> over a sprite to make it bigger or smaller. Over the visuals (not on a sprite) the wheel and the mouse do what they did before.</li>
+  <li>The last sprite you loaded, clicked or resized is the <em>selected</em> one. <strong>Sprites &gt; Blend</strong> changes how it is drawn: <em>Image transparency</em> (uses the PNG/GIF transparency, the default for loaded images), <em>Alpha blend</em>, <em>Decal</em>, <em>Additive</em>, <em>Colour mask</em> or <em>Colour key</em>. The current mode has a check mark.</li>
+  <li><strong>Sprites &gt; Remove selected</strong> and <strong>Remove all</strong> take sprites off the screen.</li>
+</ul>
+<h3 id="sprites-preset">Saving sprites with a preset</h3>
+<p>When you save a preset (<kbd>S</kbd>), the sprites on screen are saved in it: the image, where it is, its size, rotation, blend mode and colour key. They go into the <code>.milk</code> file as <code>suri_sprite...</code> lines after the other settings. From then on these sprites belong to that preset: when another preset loads they go away, and when that preset loads again they come back in the same place and at the same size. Sprites you add and don't save with a preset stay on screen when the preset changes. A preset without sprites is saved exactly as before.</p>
+<p>A sprite saved into a preset keeps its position, size, rotation, blend mode and colour key; it does not keep flips, colour or transparency changes made by code, or motion code. With <em>Image transparency</em> and colour key <code>0x000000</code>, a sprite has no colour key, so black parts of the image stay black (this is how images from <strong>Load image...</strong> are saved). With any other blend mode, or another colour key, that colour becomes transparent as in <code>milk2_img.ini</code>.</p>
+<p>Sprites stay on screen when you resize the window, maximise it, switch to full screen or desktop mode. A sprite from <code>milk2_img.ini</code> that moves by its code comes back as a still picture where it was at that moment.</p>
+<p>Sprites from <strong>Load image...</strong> and from presets are drawn on top of the visuals only; they are not painted into the picture, so moving one leaves no trail.</p>
+<p>Images inside the <code>plugins\Milkdrop2</code> folder are saved with a relative path, so the preset still works if you move the whole MilkDrop folder. Images elsewhere are saved with their full path. If an image is missing when the preset loads, you see one error message and the preset loads without that sprite.</p>
+<h3 id="sprites-ini">Sprites with code: milk2_img.ini</h3>
+<p>For sprites that move, fade, spin and react to the music, define up to 100 of them in <code>milk2_img.ini</code> next to the exe. <strong>Sprites &gt; Edit sprite list...</strong> creates the file with two examples (if it doesn't exist yet) and opens it in Notepad. Launch one with <kbd>K</kbd> and its two-digit number, or with <strong>Sprites &gt; Launch from list...</strong> and then the two digits (a short message asks for them).</p>
+<p>The <code>init_</code> and <code>code_</code> lines of these sprites now run as written, and each image is shown with its real aspect ratio. (In MilkDrop 2 a bug stretched sprites in windows that weren't 4:3; that is fixed.)</p>
+<pre><code><span class="c">; milk2_img.ini - sprite 00: a logo that pulses with the bass</span>
+[img00]
+<span class="c">; the image: relative to plugins\Milkdrop2\, or a full path</span>
+img=textures\logo.png
+<span class="c">; this color becomes transparent</span>
+colorkey=0x000000
+<span class="c">; init_ lines run once, when the sprite starts</span>
+init_1=x=0.5; y=0.5; a=0;
+<span class="c">; code_ lines run every frame</span>
+code_1=a = min(1, time*0.5);
+code_2=sx = 0.4 + 0.1*bass; sy = sx;
+code_3=rot = time*0.3;</code></pre>
+<p>Put comments on their own line, starting with <code>;</code>. A comment after a value on the same line becomes part of the value, and the line stops working.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Variable</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td class="name">x, y</td><td>Center position, 0..1 (0.5 = middle of the screen)</td></tr>
+    <tr><td class="name">sx, sy</td><td>Scale (1 = fit the screen)</td></tr>
+    <tr><td class="name">rot</td><td>Rotation in radians</td></tr>
+    <tr><td class="name">r, g, b, a</td><td>Color tint and opacity, 0..1</td></tr>
+    <tr><td class="name">flipx, flipy</td><td>1 = mirror horizontally / vertically</td></tr>
+    <tr><td class="name">repeatx, repeaty</td><td>How many times the image tiles</td></tr>
+    <tr><td class="name">blendmode</td><td>0 blend, 1 decal, 2 additive, 3 source color, 4 color key, 5 image transparency (the PNG/GIF alpha)</td></tr>
+    <tr><td class="name">burn</td><td>1 = also paint the sprite into the image, so it leaves trails</td></tr>
+    <tr><td class="name">done</td><td>Set to 1 to remove the sprite</td></tr>
+    <tr><td class="name">time, frame, fps, progress</td><td>Read-only: time since the sprite started, frame counter, frame rate, preset progress</td></tr>
+    <tr><td class="name">bass, mid, treb (+ _att)</td><td>Read-only: current audio levels (1 = average)</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="messages">Custom messages <a class="anchor" href="#messages" aria-label="Link to this section">#</a></h2>
+<p>Custom messages are short texts you can flash on screen, for example a DJ name or an event title. Define up to 16 fonts and 100 messages in <code>milk2_msg.ini</code> next to the exe. The commands are in the right-click menu under <strong>Messages</strong>:</p>
+<ul>
+  <li><strong>Edit messages...</strong> creates <code>milk2_msg.ini</code> with an example (if it doesn't exist yet) and opens it in Notepad. The file is saved as UTF-16 (&quot;Unicode&quot; in Notepad), so messages can be in any language, Hebrew included. Keep that encoding when you save.</li>
+  <li><strong>Random message</strong> shows one of your messages. Edits you saved are picked up without restarting. With no messages yet you get a short hint instead.</li>
+  <li><strong>Show message...</strong>, or <kbd>Y</kbd> and the two-digit number, shows a message by number.</li>
+</ul>
+<p>To show messages at random by themselves, set <code>fTimeBetweenRandomCustomMsgs</code> in <code>milk2.ini</code> to the average number of seconds between messages (<code>-1</code> turns this off).</p>
+<pre><code>[font00]
+face=Arial
+bold=1
+ital=0
+r=255
+g=255
+b=255
+
+[message00]
+text=MilkDrop 3.0.S
+font=00
+size=40        <span class="c">; text height</span>
+x=0.5          <span class="c">; position, 0..1</span>
+y=0.5
+time=4         <span class="c">; seconds on screen</span>
+fade=0.3       <span class="c">; part of that time spent fading in</span>
+growth=1.2     <span class="c">; grows (or shrinks below 1) while showing</span>
+randx=0.1      <span class="c">; random position jitter</span>
+randr=60       <span class="c">; random color jitter (also randg, randb)</span></code></pre>
+<p>A message can also override its font's <code>face</code>, <code>bold</code>, <code>ital</code>, <code>r</code>, <code>g</code> and <code>b</code>.</p>
+
+<h2 id="nowplaying">Now playing <a class="anchor" href="#nowplaying" aria-label="Link to this section">#</a></h2>
+<p>When a new song starts, MilkDrop shows <em>Artist &ndash; Title</em> on screen. It reads the song from Windows itself, so it works with any player that shows up in the Windows media controls (the box that appears next to the volume when you press a media key): Spotify, YouTube or another site in your browser, and most music and video players. Nothing to set up.</p>
+<ul>
+  <li>Press <kbd>T</kbd> to show the current song again.</li>
+  <li>Pausing and resuming doesn't show it again; only a new song does.</li>
+  <li>To turn it off (or on again), right-click and pick <strong>View &rarr; Show now playing</strong>. The choice is saved (<code>bNowPlaying</code> in <code>milk2.ini</code>).</li>
+  <li>If no player is open, nothing is shown. On Windows versions without media controls the menu item is greyed out.</li>
+</ul>
+
+<h2 id="files">Files &amp; settings <a class="anchor" href="#files" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Path (next to MilkDrop3.exe)</th><th>What it is</th></tr></thead>
+  <tbody>
+    <tr><td class="name">milk2.ini</td><td>All settings. Written when you quit; edit it while MilkDrop is closed.</td></tr>
+    <tr><td class="name">MilkDrop3.log</td><td>Run log: audio device, audio format, errors. Check it first when something goes wrong.</td></tr>
+    <tr><td class="name">milk2_img.ini / milk2_msg.ini</td><td>Your sprites and custom messages (optional).</td></tr>
+    <tr><td class="name">plugins\Milkdrop2\presets\</td><td>The presets.</td></tr>
+    <tr><td class="name">plugins\Milkdrop2\textures\</td><td>Images that presets can use.</td></tr>
+    <tr><td class="name">plugins\Milkdrop2\playlists\</td><td>Playlists you save from the Playlist screen (<code>.m3u</code>).</td></tr>
+    <tr><td class="name">plugins\Milkdrop2\data\</td><td>Built-in shader templates. Don't edit.</td></tr>
+    <tr><td class="name">plugins\Milkdrop2\docs\</td><td>These guides.</td></tr>
+  </tbody>
+</table></div>
+<h3>Useful settings in milk2.ini</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td class="name">fTimeBetweenPresets</td><td class="rw">16</td><td>Seconds between automatic preset changes (<kbd>F3</kbd> changes it too)</td></tr>
+    <tr><td class="name">fTimeBetweenPresetsRand</td><td class="rw">10</td><td>Random extra seconds added to that time</td></tr>
+    <tr><td class="name">fBlendTimeAuto / fBlendTimeUser</td><td class="rw">2.7 / 1.7</td><td>Blend length for automatic changes / when you press <kbd>Space</kbd></td></tr>
+    <tr><td class="name">bHardCutsDisabled</td><td class="rw">1</td><td>0 = allow instant cuts on loud beats</td></tr>
+    <tr><td class="name">fHardCutLoudnessThresh</td><td class="rw">2.5</td><td>How loud a beat must be to trigger a hard cut</td></tr>
+    <tr><td class="name">bPresetLockOnAtStartup</td><td class="rw">0</td><td>1 = start with the preset locked</td></tr>
+    <tr><td class="name">bNowPlaying</td><td class="rw">1</td><td>0 = don't show the song from the Windows media controls</td></tr>
+    <tr><td class="name">bEnableRating</td><td class="rw">1</td><td>0 = ignore ratings when picking presets</td></tr>
+    <tr><td class="name">nMeshSize</td><td class="rw">64</td><td>Motion detail. Higher looks smoother and uses more CPU.</td></tr>
+    <tr><td class="name">MaxPSVersion</td><td class="rw">3</td><td>Highest pixel-shader model used (2 or 3)</td></tr>
+    <tr><td class="name">max_fps_w / max_fps_fs</td><td class="rw">60</td><td>Frame-rate limit, windowed / fullscreen (<kbd>F2</kbd>)</td></tr>
+    <tr><td class="name">fTimeBetweenRandomCustomMsgs</td><td class="rw">-1</td><td>Average seconds between random custom messages; -1 = off</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="trouble">Troubleshooting <a class="anchor" href="#trouble" aria-label="Link to this section">#</a></h2>
+<h3>The visuals don't react to the music</h3>
+<ul>
+  <li>Check that the music plays through the <strong>default</strong> playback device in Windows. MilkDrop listens only to that one.</li>
+  <li>Open <code>MilkDrop3.log</code>: it names the device and the audio format MilkDrop opened.</li>
+  <li>Close audio "enhancement" or recording tools that take the device exclusively, then restart MilkDrop.</li>
+</ul>
+<h3>The window opens and closes immediately</h3>
+<p>Look at the last lines of <code>MilkDrop3.log</code>. Keep <code>D3DX9_43.dll</code>, <code>D3DCompiler_43.dll</code> and the <code>plugins</code> folder next to the exe.</p>
+<h3>It's slow or choppy</h3>
+<ul>
+  <li>Lower the frame-rate limit with <kbd>F2</kbd>, or run in a smaller window.</li>
+  <li>Lower <code>nMeshSize</code> in <code>milk2.ini</code> (for example to 48).</li>
+  <li>Update your graphics driver. Most visual glitches are driver issues.</li>
+</ul>
+<h3>It always shows the same preset</h3>
+<p>The preset is locked: press <kbd>`</kbd> or <kbd>Scroll Lock</kbd>, or press <kbd>F3</kbd> until a time appears instead of "unlimited".</p>
+<h3>Some presets are missing from the list</h3>
+<p>Your graphics card doesn't support the shader model those presets need, so MilkDrop hides them. Setting <code>MaxPSVersion=3</code> in <code>milk2.ini</code> makes it try harder.</p>
+
+<h2 id="known">Known limitations in 3.0.S <a class="anchor" href="#known" aria-label="Link to this section">#</a></h2>
+<ul>
+  <li><strong>Audio comes from the default device only.</strong> If you change the default device while MilkDrop runs, restart it.</li>
+  <li><strong>No settings window.</strong> Settings are in <code>milk2.ini</code>.</li>
+</ul>
+
+<h2 id="about">About &amp; license <a class="anchor" href="#about" aria-label="Link to this section">#</a></h2>
+<p>MilkDrop 3.0.S is the SURI build, based on MilkDrop 2 by Ryan Geiss (Nullsoft) and MilkDrop3 / BeatDrop by Maxim Volskiy and contributors. Both are released under BSD licenses; the full text is in <code>LICENSE.txt</code> next to the exe. The included presets and textures come from the projectM community packs ("Cream of the Crop" by ISOSCELES, and the MilkDrop texture pack).</p>
+
+<footer>MilkDrop 3.0.S - User Guide. Continue with the <a href="preset-authoring.html">Preset Authoring Guide</a>.</footer>
+</main>
+</div>
+<script src="guide.js"></script>
+</body>
+</html>

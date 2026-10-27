@@ -44,8 +44,6 @@ DXContext::DXContext(LPDIRECT3DDEVICE9 device, D3DPRESENT_PARAMETERS* d3dpp, HWN
     for (int i = 0; i<MAX_DXC_ADAPTERS; i++)
         m_orig_windowed_mode_format[i] = D3DFMT_UNKNOWN;
     m_ordinal_adapter = D3DADAPTER_DEFAULT;
-    m_winamp_minimized = 0;
-    m_truly_exiting = 0;
     m_bpp = 0;
     m_frame_delay = 0;
     StringCbCopyW(m_szIniFile, sizeof(m_szIniFile), szIniFile);
@@ -102,7 +100,6 @@ BOOL DXContext::StartOrRestartDevice(DXCONTEXT_PARAMS *pParams)
         //SafeRelease(m_lpDevice);
         // but leave the D3D object!
 
-        //		RestoreWinamp();
         return Internal_Init(pParams, FALSE);
     }
 }

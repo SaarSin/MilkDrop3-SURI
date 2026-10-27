@@ -94,6 +94,19 @@ private:
     IUnknown *m_p;
 };
 
+// SURI: like ReleaseOnExit, but reads the pointer at exit time and tolerates NULL
+template <class T>
+class ReleaseIfSetOnExit {
+public:
+    ReleaseIfSetOnExit(T **pp) : m_pp(pp) {}
+    ~ReleaseIfSetOnExit() {
+        if (NULL != *m_pp) { (*m_pp)->Release(); }
+    }
+
+private:
+    T **m_pp;
+};
+
 class SetEventOnExit {
 public:
     SetEventOnExit(HANDLE h) : m_h(h) {}

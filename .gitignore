@@ -1,0 +1,7 @@
+build/
+dist/
+third_party/d3dx/
+*.log
+.vs/
+*.user
+.superpowers/

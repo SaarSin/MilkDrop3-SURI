@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MilkDrop 3.0.S - Preset Authoring</title>
+<meta name="description" content="Reference for writing MilkDrop presets: equations, variables, custom shapes and waves, pixel shaders, textures and performance.">
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<a class="skip-link" href="#content">Skip to content</a>
+<div class="layout">
+
+<aside class="sidebar" aria-label="Guide navigation">
+  <a class="brand" href="#top">
+    <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><rect width="34" height="34" rx="9" fill="#312e81"/><path d="M5 19c3 0 3-8 6-8s3 12 6 12 3-16 6-16 3 12 6 12" stroke="#22c55e" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>
+    <span><span class="brand-name">MilkDrop</span><br><span class="brand-ver">3.0.S</span></span>
+  </a>
+  <div class="doc-switch">
+    <a href="user-guide.html">User Guide</a>
+    <a href="preset-authoring.html" aria-current="page">Preset Authoring</a>
+  </div>
+  <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="toc">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    Contents
+  </button>
+  <nav id="toc">
+    <ul class="toc">
+      <li><a href="#anatomy">How a preset works</a></li>
+      <li><a href="#editing">Editing on screen</a></li>
+      <li><a href="#language">Expression language</a></li>
+      <li class="sub"><a href="#operators">Operators</a></li>
+      <li class="sub"><a href="#functions">Functions</a></li>
+      <li><a href="#perframe">Per-frame variables</a></li>
+      <li><a href="#pervertex">Per-vertex variables</a></li>
+      <li><a href="#pools">Variable pools, q &amp; t</a></li>
+      <li><a href="#shapes">Custom shapes</a></li>
+      <li><a href="#waves">Custom waves</a></li>
+      <li><a href="#shaders">Pixel shaders</a></li>
+      <li class="sub"><a href="#warp">Warp shader</a></li>
+      <li class="sub"><a href="#comp">Composite shader</a></li>
+      <li class="sub"><a href="#hlsl">HLSL quick reference</a></li>
+      <li class="sub"><a href="#inputs">Shader inputs</a></li>
+      <li class="sub"><a href="#textures">Textures</a></li>
+      <li class="sub"><a href="#tricks">Shader tricks</a></li>
+      <li><a href="#quality">Quality &amp; performance</a></li>
+      <li><a href="#debug">Debugging</a></li>
+    </ul>
+  </nav>
+</aside>
+
+<main id="content">
+<span id="top"></span>
+
+<section class="hero">
+  <svg class="hero-wave" width="420" height="180" viewBox="0 0 420 180" aria-hidden="true"><path d="M0 120c35 0 35-80 70-80s35 110 70 110 35-140 70-140 35 120 70 120 35-70 70-70 35 50 70 50" stroke="#22c55e" stroke-width="4" fill="none"/><path d="M0 140c35 0 35-50 70-50s35 70 70 70 35-90 70-90 35 80 70 80 35-40 70-40" stroke="#818cf8" stroke-width="3" fill="none"/></svg>
+  <h1>Preset Authoring</h1>
+  <p class="lead">Write your own visuals: animate motion with equations, draw custom shapes and waveforms, and finish the image with pixel shaders. All of it is edited live, while the music plays.</p>
+  <div class="chips"><span class="chip">.milk files</span><span class="chip">EEL expressions</span><span class="chip">HLSL pixel shaders (SM 2 / 3)</span></div>
+</section>
+
+<h2 id="anatomy">How a preset works <a class="anchor" href="#anatomy" aria-label="Link to this section">#</a></h2>
+<p>Every frame, MilkDrop takes the previous frame's image, warps it slightly, draws new things on top, and shows the result. Because each frame feeds the next, small motions add up to the flowing look MilkDrop is known for.</p>
+<figure>
+<svg viewBox="0 0 860 150" role="img" aria-labelledby="pipe-t">
+  <title id="pipe-t">Frame pipeline: per-frame code, per-vertex code, warp shader, draw waves and shapes, composite shader, screen</title>
+  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="dg-arrow"/></marker></defs>
+  <g>
+    <rect class="dg-box" x="14" y="40" width="122" height="66" rx="10"/><text class="dg-text" x="75" y="68" text-anchor="middle">Per-frame</text><text class="dg-sub" x="75" y="88" text-anchor="middle">once per frame</text>
+    <rect class="dg-box" x="156" y="40" width="122" height="66" rx="10"/><text class="dg-text" x="217" y="68" text-anchor="middle">Per-vertex</text><text class="dg-sub" x="217" y="88" text-anchor="middle">each mesh point</text>
+    <rect class="dg-box hl" x="298" y="40" width="122" height="66" rx="10"/><text class="dg-text" x="359" y="68" text-anchor="middle">Warp shader</text><text class="dg-sub" x="359" y="88" text-anchor="middle">feeds next frame</text>
+    <rect class="dg-box" x="440" y="40" width="122" height="66" rx="10"/><text class="dg-text" x="501" y="68" text-anchor="middle">Waves, shapes</text><text class="dg-sub" x="501" y="88" text-anchor="middle">drawn on top</text>
+    <rect class="dg-box hl" x="582" y="40" width="122" height="66" rx="10"/><text class="dg-text" x="643" y="68" text-anchor="middle">Composite</text><text class="dg-sub" x="643" y="88" text-anchor="middle">display only</text>
+    <rect class="dg-box" x="724" y="40" width="122" height="66" rx="10"/><text class="dg-text" x="785" y="78" text-anchor="middle">Screen</text>
+    <path class="dg-line" d="M136 73h18M278 73h18M420 73h18M562 73h18M704 73h18" marker-end="url(#ar)"/>
+    <path class="dg-line" d="M501 106v24H359v-22" marker-end="url(#ar)"/><text class="dg-sub" x="430" y="144" text-anchor="middle">the image loops back into the next frame</text>
+  </g>
+</svg>
+<figcaption>What runs each frame. The warp shader's output becomes the next frame's input; the composite shader only affects what you see.</figcaption>
+</figure>
+<p>A preset is a plain-text <code>.milk</code> file holding:</p>
+<ul>
+  <li><strong>Static values</strong>: zoom, rotation, wave color and so on, set from the <kbd>M</kbd> menu.</li>
+  <li><strong>Init code</strong>: runs once when the preset loads.</li>
+  <li><strong>Per-frame code</strong>: runs once per frame and animates the values over time and with the music.</li>
+  <li><strong>Per-vertex code</strong>: runs at every point of a mesh across the screen, so motion can differ by position.</li>
+  <li><strong>Up to 4 custom shapes and 4 custom waves</strong>, each with its own code.</li>
+  <li><strong>Two pixel shaders</strong> (HLSL): warp and composite.</li>
+</ul>
+
+<h2 id="editing">Editing on screen <a class="anchor" href="#editing" aria-label="Link to this section">#</a></h2>
+<ol>
+  <li>Lock the preset first with <kbd>`</kbd> or <kbd>Scroll Lock</kbd>, so MilkDrop doesn't move on while you work.</li>
+  <li>Press <kbd>M</kbd>. The menu has sub-menus for <em>motion</em>, <em>custom shapes</em>, <em>custom waves</em>, <em>waveform</em>, <em>augmentations</em> and <em>post-processing</em>, plus items to edit the init code, per-frame and per-vertex equations, and the warp and composite shaders.</li>
+  <li>In a code editor, press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to apply. Errors show in the corner of the screen. While editing a shader, <kbd>F9</kbd> shows a quick reference.</li>
+  <li>Save with <kbd>S</kbd> (new name) when you're happy.</li>
+</ol>
+<div class="note"><strong>Old presets</strong>MilkDrop 1 presets have no pixel shaders. Choose <em>upgrade preset's pixel shader version</em> in the menu to get default warp and composite shaders that reproduce the old look, then edit them. Keys like <kbd>g</kbd>/<kbd>G</kbd> (gamma) and <kbd>q</kbd>/<kbd>Q</kbd> (echo) only work on old presets; in upgraded ones, change the composite shader instead.</div>
+<p>Quick tweak keys (all listed in the <a href="user-guide.html#keys-tweak">User Guide</a>): <kbd>i</kbd>/<kbd>I</kbd> zoom, <kbd>[</kbd> <kbd>]</kbd> <kbd>{</kbd> <kbd>}</kbd> push, <kbd>&lt;</kbd> <kbd>&gt;</kbd> rotate, <kbd>o</kbd>/<kbd>O</kbd> warp, <kbd>w</kbd>/<kbd>W</kbd> wave type, <kbd>j</kbd>/<kbd>J</kbd> wave size, <kbd>e</kbd>/<kbd>E</kbd> wave opacity.</p>
+
+<h2 id="language">Expression language <a class="anchor" href="#language" aria-label="Link to this section">#</a></h2>
+<p>Init, per-frame, per-vertex, shape and wave code use the same small language (EEL). Statements end with <code>;</code>. Every value is a number. A variable you assign is created automatically.</p>
+<pre><code><span class="c">// per-frame: zoom breathes with time, spins harder on bass</span>
+zoom = 1 + <span class="n">0.05</span>*sin(time*<span class="n">1.3</span>);
+rot  = rot + <span class="n">0.02</span>*(bass_att - <span class="n">1</span>);
+wave_r = <span class="n">0.5</span> + <span class="n">0.5</span>*sin(time*<span class="n">1.13</span>);
+wave_g = <span class="n">0.5</span> + <span class="n">0.5</span>*sin(time*<span class="n">1.23</span>);
+wave_b = <span class="n">0.5</span> + <span class="n">0.5</span>*sin(time*<span class="n">1.33</span>);</code></pre>
+<p>Staggering the speeds (1.13, 1.23, 1.33) keeps the three color channels from moving together, which would only give gray.</p>
+
+<h3 id="operators">Operators</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Operator</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td class="name">=</td><td>Assign</td></tr>
+    <tr><td class="name">+ - * /</td><td>Arithmetic</td></tr>
+    <tr><td class="name">^</td><td>Power (same as <code>pow</code>)</td></tr>
+    <tr><td class="name">%</td><td>Integer remainder</td></tr>
+    <tr><td class="name">| &amp;</td><td>Bitwise or / and on integers</td></tr>
+    <tr><td class="name">+= -= *= /= %= ^= |= &amp;=</td><td>Update in place</td></tr>
+    <tr><td class="name">== != &lt; &gt; &lt;= &gt;=</td><td>Compare; result is 1 or 0</td></tr>
+    <tr><td class="name">&amp;&amp; || !</td><td>Logical and / or / not</td></tr>
+    <tr><td class="name">cond ? a : b</td><td>Choose a value</td></tr>
+    <tr><td class="name">( )</td><td>Grouping. Also groups several statements; the last one is the value.</td></tr>
+  </tbody>
+</table></div>
+
+<h3 id="functions">Functions</h3>
+<div id="fntables">
+  <div class="search">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <label for="fnfilter">Filter functions</label>
+    <input id="fnfilter" type="search" placeholder="Filter functions" data-filter="fntables" autocomplete="off">
+  </div>
+  <p class="empty" role="status">No function matches that filter.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Function</th><th>Returns</th></tr></thead>
+    <tbody>
+      <tr class="group-row"><td colspan="2">Math</td></tr>
+      <tr><td class="name">sin(x) cos(x) tan(x)</td><td>Trigonometry, x in radians</td></tr>
+      <tr><td class="name">asin(x) acos(x) atan(x)</td><td>Inverse trigonometry</td></tr>
+      <tr><td class="name">atan2(y, x)</td><td>Angle of the point (x, y), from -π to π</td></tr>
+      <tr><td class="name">sqr(x) sqrt(x) invsqrt(x)</td><td>x², √x, 1/√x (fast)</td></tr>
+      <tr><td class="name">pow(x, y) exp(x)</td><td>x<sup>y</sup>, e<sup>x</sup></td></tr>
+      <tr><td class="name">log(x) log10(x)</td><td>Natural log, base-10 log</td></tr>
+      <tr><td class="name">abs(x) sign(x)</td><td>Absolute value; -1, 0 or 1</td></tr>
+      <tr><td class="name">min(a, b) max(a, b)</td><td>Smaller / larger value</td></tr>
+      <tr><td class="name">int(x) floor(x) ceil(x)</td><td>Round down (int is the same as floor) / round up</td></tr>
+      <tr><td class="name">sigmoid(x, k)</td><td>Smooth 0-to-1 step; k sets the steepness</td></tr>
+      <tr><td class="name">rand(n)</td><td>Random integer from 0 to n-1</td></tr>
+      <tr class="group-row"><td colspan="2">Logic</td></tr>
+      <tr><td class="name">if(cond, a, b)</td><td>a when cond is non-zero, otherwise b</td></tr>
+      <tr><td class="name">equal(a, b) above(a, b) below(a, b)</td><td>1 if a = b / a &gt; b / a &lt; b, else 0</td></tr>
+      <tr><td class="name">band(a, b) bor(a, b) bnot(a)</td><td>Logical and / or / not, 1 or 0</td></tr>
+      <tr class="group-row"><td colspan="2">Loops and memory</td></tr>
+      <tr><td class="name">loop(n, code)</td><td>Run code n times</td></tr>
+      <tr><td class="name">while(code)</td><td>Run code until it returns 0</td></tr>
+      <tr><td class="name">exec2(a, b) exec3(a, b, c)</td><td>Run each expression in turn; returns the last</td></tr>
+      <tr><td class="name">assign(var, value)</td><td>Same as var = value</td></tr>
+      <tr><td class="name">megabuf(i)</td><td>A large array, private to this code block; read or assign <code>megabuf(i) = v</code></td></tr>
+      <tr><td class="name">gmegabuf(i)</td><td>Same, but shared by every code block in the preset</td></tr>
+      <tr><td class="name">memset(dest, value, n)</td><td>Fill n array slots with a value</td></tr>
+      <tr><td class="name">memcpy(dest, src, n)</td><td>Copy n array slots</td></tr>
+      <tr><td class="name">freembuf(n)</td><td>Release array memory from slot n on</td></tr>
+    </tbody>
+  </table></div>
+</div>
+
+<h2 id="perframe">Per-frame variables <a class="anchor" href="#perframe" aria-label="Link to this section">#</a></h2>
+<p>Readable and writable in the init and per-frame code. A value written here overrides the static value from the menu, for this frame only. <span class="tag rw">rw</span> = you can set it, <span class="tag ro">read</span> = read only.</p>
+<div id="pftables">
+  <div class="search">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/><path d="M20 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <label for="pffilter">Filter variables</label>
+    <input id="pffilter" type="search" placeholder="Filter variables: try &quot;wave&quot;, &quot;border&quot; or &quot;blur&quot;" data-filter="pftables" autocomplete="off">
+  </div>
+  <p class="empty" role="status">No variable matches that filter.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Name</th><th></th><th>Range</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr class="group-row"><td colspan="4">Motion</td></tr>
+      <tr><td class="name">zoom</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">&gt;0</td><td>Zoom per frame: 1 none, 1.01 in by 1%, 0.99 out by 1%</td></tr>
+      <tr><td class="name">zoomexp</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">&gt;0</td><td>Curvature of the zoom; 1 = normal</td></tr>
+      <tr><td class="name">rot</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">any</td><td>Rotation per frame; positive turns counter-clockwise</td></tr>
+      <tr><td class="name">warp</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">&gt;0</td><td>Strength of the built-in wobble; 0 none, 1 normal</td></tr>
+      <tr><td class="name">cx, cy</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..1</td><td>Center of rotation and stretching (0.5, 0.5 = middle)</td></tr>
+      <tr><td class="name">dx, dy</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">any</td><td>Constant shift per frame; 0.01 = 1% right / down</td></tr>
+      <tr><td class="name">sx, sy</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">&gt;0</td><td>Stretch per frame; 1 none, 1.01 stretches 1%</td></tr>
+      <tr class="group-row"><td colspan="4">Waveform</td></tr>
+      <tr><td class="name">wave_mode</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..7</td><td>Which of the 8 built-in waveforms to draw</td></tr>
+      <tr><td class="name">wave_x, wave_y</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..1</td><td>Position; wave_y 0 = bottom, 1 = top</td></tr>
+      <tr><td class="name">wave_r, wave_g, wave_b, wave_a</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..1</td><td>Color and opacity</td></tr>
+      <tr><td class="name">wave_mystery</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">-1..1</td><td>Shape parameter; its effect depends on the wave mode</td></tr>
+      <tr><td class="name">wave_usedots, wave_thick</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0/1</td><td>Draw as dots; double thickness</td></tr>
+      <tr><td class="name">wave_additive, wave_brighten</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0/1</td><td>Add light instead of covering; scale color up to full brightness</td></tr>
+      <tr class="group-row"><td colspan="4">Borders and motion vectors</td></tr>
+      <tr><td class="name">ob_size, ob_r, ob_g, ob_b, ob_a</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..1</td><td>Outer border: thickness (up to 0.5) and color</td></tr>
+      <tr><td class="name">ib_size, ib_r, ib_g, ib_b, ib_a</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..1</td><td>Inner border: thickness and color</td></tr>
+      <tr><td class="name">mv_x, mv_y</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..64 / 0..48</td><td>Number of motion-vector marks across / down</td></tr>
+      <tr><td class="name">mv_l, mv_dx, mv_dy</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..5, -1..1</td><td>Mark length; placement offset</td></tr>
+      <tr><td class="name">mv_r, mv_g, mv_b, mv_a</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..1</td><td>Mark color and opacity</td></tr>
+      <tr class="group-row"><td colspan="4">Image (MilkDrop 1 presets; newer presets do this in the shaders)</td></tr>
+      <tr><td class="name">decay</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..1</td><td>Fade per frame; 1 none, 0.98 recommended</td></tr>
+      <tr><td class="name">gamma</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">&gt;0</td><td>Display brightness; 1 normal</td></tr>
+      <tr><td class="name">echo_zoom, echo_alpha, echo_orient</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">&gt;0, 0..1, 0..3</td><td>Second image layer: size, opacity, flip</td></tr>
+      <tr><td class="name">darken_center, wrap</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0/1</td><td>Dim the center; let things drift across edges</td></tr>
+      <tr><td class="name">invert, brighten, darken, solarize</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0/1</td><td>Color filters</td></tr>
+      <tr class="group-row"><td colspan="4">Blur range</td></tr>
+      <tr><td class="name">blur1_min … blur3_max</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..1</td><td>Clamp range of the blur textures (more precision, see <a href="#blur">Blur</a>)</td></tr>
+      <tr><td class="name">blur1_edge_darken</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..1</td><td>Darken the edges of blur 1</td></tr>
+      <tr class="group-row"><td colspan="4">Time and audio</td></tr>
+      <tr><td class="name">time</td><td class="rw"><span class="tag ro">read</span></td><td class="rw">&gt;0</td><td>Seconds since MilkDrop started</td></tr>
+      <tr><td class="name">fps, frame</td><td class="rw"><span class="tag ro">read</span></td><td class="rw"></td><td>Current frame rate; frame counter</td></tr>
+      <tr><td class="name">progress</td><td class="rw"><span class="tag ro">read</span></td><td class="rw">0..1</td><td>How far into this preset's time slot; freezes while the preset is locked</td></tr>
+      <tr><td class="name">bass, mid, treb</td><td class="rw"><span class="tag ro">read</span></td><td class="rw">&gt;0</td><td>Audio level per band; 1 = average, above 1.3 = loud</td></tr>
+      <tr><td class="name">bass_att, mid_att, treb_att</td><td class="rw"><span class="tag ro">read</span></td><td class="rw">&gt;0</td><td>Smoothed versions of the same, slower to change</td></tr>
+      <tr class="group-row"><td colspan="4">Screen</td></tr>
+      <tr><td class="name">meshx, meshy</td><td class="rw"><span class="tag ro">read</span></td><td class="rw"></td><td>Mesh size across / down</td></tr>
+      <tr><td class="name">pixelsx, pixelsy</td><td class="rw"><span class="tag ro">read</span></td><td class="rw"></td><td>Canvas size in pixels</td></tr>
+      <tr><td class="name">aspectx, aspecty</td><td class="rw"><span class="tag ro">read</span></td><td class="rw"></td><td>Multiply x / y coordinates by these so the preset looks right at any window shape</td></tr>
+      <tr class="group-row"><td colspan="4">Sharing and debugging</td></tr>
+      <tr><td class="name">q1 … q32</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">any</td><td>Carry values to per-vertex code, shapes, waves and shaders (see <a href="#pools">pools</a>)</td></tr>
+      <tr><td class="name">monitor</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">any</td><td>Shown on screen when you press <kbd>N</kbd></td></tr>
+    </tbody>
+  </table></div>
+</div>
+<p>You can create your own variables too: <code>vol = (bass+mid+treb)/3; zoom = zoom + 0.1*(vol-1);</code></p>
+
+<h2 id="pervertex">Per-vertex variables <a class="anchor" href="#pervertex" aria-label="Link to this section">#</a></h2>
+<p>Per-vertex code runs at each point of the mesh (<code>nMeshSize</code>, 64 by default) and the result is blended smoothly between points. It can set the same motion values as per-frame code (<code>zoom</code>, <code>zoomexp</code>, <code>rot</code>, <code>warp</code>, <code>cx</code>, <code>cy</code>, <code>dx</code>, <code>dy</code>, <code>sx</code>, <code>sy</code>), but differently at every point. It can also read time, audio, mesh and screen values, and <code>q1</code>-<code>q32</code>. On top of that it gets the position of the current point:</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Name</th><th></th><th>Range</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td class="name">x, y</td><td class="rw"><span class="tag ro">read</span></td><td class="rw">0..1</td><td>Position of the point; 0, 0 = top-left</td></tr>
+    <tr><td class="name">rad</td><td class="rw"><span class="tag ro">read</span></td><td class="rw">0..1</td><td>Distance from the center; 0 at the center, 1 at the corners</td></tr>
+    <tr><td class="name">ang</td><td class="rw"><span class="tag ro">read</span></td><td class="rw">0..2π</td><td>Angle around the center; 0 = right, π/2 = up</td></tr>
+  </tbody>
+</table></div>
+<pre><code><span class="c">// per-vertex: zoom more toward the edges, for a sense of depth</span>
+zoom = zoom + rad*<span class="n">0.1</span>;</code></pre>
+<div class="note"><strong>Rule of thumb</strong>If a per-vertex line doesn't use <code>x</code>, <code>y</code>, <code>rad</code> or <code>ang</code>, it gives the same result everywhere, so move it to the per-frame code. That's much faster.</div>
+
+<h2 id="pools">Variable pools, q and t <a class="anchor" href="#pools" aria-label="Link to this section">#</a></h2>
+<p>Your own variables live in a <strong>pool</strong> and can't be seen from other pools. Values persist from frame to frame within a pool. The pools are:</p>
+<ol>
+  <li>Preset init + preset per-frame code</li>
+  <li>Each custom wave's init + per-frame code</li>
+  <li>Each custom shape's init + per-frame code</li>
+</ol>
+<p>Per-vertex code and wave per-point code have no persistent variables; treat anything you create there as scratch. To pass values between pools, use the shared <strong>q1-q32</strong>, and for waves and shapes also <strong>t1-t8</strong>.</p>
+<figure>
+<svg viewBox="0 0 860 260" role="img" aria-labelledby="qv-t">
+  <title id="qv-t">How q1 to q32 flow: init code sets their starting values every frame; per-frame code can change them and passes them to per-vertex code, custom shapes, custom waves and to both shaders</title>
+  <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="dg-arrow"/></marker></defs>
+  <rect class="dg-box" x="14" y="98" width="150" height="62" rx="10"/><text class="dg-text" x="89" y="124" text-anchor="middle">Preset init</text><text class="dg-sub" x="89" y="144" text-anchor="middle">sets start values</text>
+  <rect class="dg-box hl" x="214" y="98" width="160" height="62" rx="10"/><text class="dg-text" x="294" y="124" text-anchor="middle">Preset per-frame</text><text class="dg-sub" x="294" y="144" text-anchor="middle">may change q1-q32</text>
+  <rect class="dg-box" x="440" y="14" width="190" height="46" rx="10"/><text class="dg-text" x="535" y="42" text-anchor="middle">Preset per-vertex</text>
+  <rect class="dg-box" x="440" y="74" width="190" height="46" rx="10"/><text class="dg-text" x="535" y="102" text-anchor="middle">Shape per-frame</text>
+  <rect class="dg-box" x="440" y="134" width="190" height="46" rx="10"/><text class="dg-text" x="535" y="162" text-anchor="middle">Wave per-frame</text>
+  <rect class="dg-box" x="440" y="194" width="190" height="46" rx="10"/><text class="dg-text" x="535" y="222" text-anchor="middle">Warp + composite shaders</text>
+  <rect class="dg-box" x="680" y="134" width="166" height="46" rx="10"/><text class="dg-text" x="763" y="162" text-anchor="middle">Wave per-point</text>
+  <path class="dg-line" d="M164 129h48" marker-end="url(#ar2)"/>
+  <path class="dg-line" d="M374 129h30v-92h34M404 129v-32h34M404 129v28h34M404 129v88h34" marker-end="url(#ar2)"/>
+  <path class="dg-line" d="M630 157h48" marker-end="url(#ar2)"/>
+  <text class="dg-sub" x="188" y="186" text-anchor="middle">reset to the init values</text>
+  <text class="dg-sub" x="188" y="202" text-anchor="middle">at the start of every frame</text>
+</svg>
+<figcaption>q1-q32 each frame: init sets the starting values, per-frame code may change them, and the result reaches everything to the right. Changes don't carry over to the next frame.</figcaption>
+</figure>
+<ul>
+  <li>Values written to q in the init code become the <em>starting values for every frame</em>.</li>
+  <li>Per-frame code can change them; per-vertex code, shapes, waves and shaders see the changed values for that frame.</li>
+  <li>q values written in shape or wave init code go nowhere. Use your own variables there instead.</li>
+  <li><strong>t1-t8</strong> work the same way, but only inside one wave or shape: from its init code to its per-frame code, and for waves on to the per-point code.</li>
+  <li>Editing the init code and pressing <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs it again right away. Editing other code does not re-run init; reload the preset for that.</li>
+</ul>
+
+<h2 id="shapes">Custom shapes <a class="anchor" href="#shapes" aria-label="Link to this section">#</a></h2>
+<p>Each preset can have 4 shapes: polygons with 3 to 100 sides, drawn anywhere, any size and color. A shape can be filled with the previous frame's image (<code>textured</code>), which makes feedback fractals possible. With <strong>instancing</strong> a single shape is drawn up to 1024 times per frame, each copy with its own values.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Name</th><th></th><th>Range</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td class="name">num_inst</td><td class="rw"><span class="tag ro">read</span></td><td class="rw">1..1024</td><td>How many copies are drawn</td></tr>
+    <tr><td class="name">instance</td><td class="rw"><span class="tag ro">read</span></td><td class="rw">0..num_inst-1</td><td>Which copy the code is running for</td></tr>
+    <tr><td class="name">sides</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">3..100</td><td>Number of sides</td></tr>
+    <tr><td class="name">x, y, rad, ang</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw"></td><td>Center (y 0 = bottom), radius, rotation</td></tr>
+    <tr><td class="name">r, g, b, a</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..1</td><td>Color and opacity at the center</td></tr>
+    <tr><td class="name">r2, g2, b2, a2</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..1</td><td>Color and opacity at the edge (gradient)</td></tr>
+    <tr><td class="name">border_r, border_g, border_b, border_a</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..1</td><td>Outline color and opacity</td></tr>
+    <tr><td class="name">thick, additive</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0/1</td><td>Bold outline; add light instead of covering</td></tr>
+    <tr><td class="name">textured, tex_zoom, tex_ang</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw"></td><td>Fill with the previous frame; how much of it; its rotation</td></tr>
+    <tr><td class="name">time, fps, frame, progress, bass … treb_att</td><td class="rw"><span class="tag ro">read</span></td><td class="rw"></td><td>Same as in per-frame code</td></tr>
+    <tr><td class="name">q1-q32, t1-t8</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">any</td><td>Shared values (see <a href="#pools">pools</a>)</td></tr>
+  </tbody>
+</table></div>
+<pre><code><span class="c">// shape per-frame: a ring of 12 dots that spins with the bass</span>
+a0 = instance/num_inst * <span class="n">6.2832</span> + time*<span class="n">0.5</span>*bass_att;
+x = <span class="n">0.5</span> + <span class="n">0.3</span>*cos(a0)*aspectx;
+y = <span class="n">0.5</span> + <span class="n">0.3</span>*sin(a0)*aspecty;
+rad = <span class="n">0.03</span>;</code></pre>
+
+<h2 id="waves">Custom waves <a class="anchor" href="#waves" aria-label="Link to this section">#</a></h2>
+<p>Each preset can have 4 custom waves that draw the waveform or the frequency spectrum however you like. Per-frame code sets the overall look; <strong>per-point</strong> code places every point.</p>
+<h4>Per-frame</h4>
+<div class="table-wrap"><table>
+  <thead><tr><th>Name</th><th></th><th>Range</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td class="name">r, g, b, a</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..1</td><td>Base color and opacity</td></tr>
+    <tr><td class="name">samples</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..512</td><td>Number of points; you can change it every frame</td></tr>
+    <tr><td class="name">time … treb_att, q1-q32, t1-t8</td><td class="rw"></td><td class="rw"></td><td>As above</td></tr>
+  </tbody>
+</table></div>
+<h4>Per-point</h4>
+<div class="table-wrap"><table>
+  <thead><tr><th>Name</th><th></th><th>Range</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td class="name">x, y</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..1</td><td>Where to put this point (y 0 = bottom)</td></tr>
+    <tr><td class="name">sample</td><td class="rw"><span class="tag ro">read</span></td><td class="rw">0..1</td><td>How far along the wave this point is</td></tr>
+    <tr><td class="name">value1, value2</td><td class="rw"><span class="tag ro">read</span></td><td class="rw">any</td><td>Left / right audio sample (or spectrum value) at this point</td></tr>
+    <tr><td class="name">r, g, b, a</td><td class="rw"><span class="tag rw">rw</span></td><td class="rw">0..1</td><td>Color and opacity of this point</td></tr>
+  </tbody>
+</table></div>
+<pre><code><span class="c">// wave per-point: a circle whose radius follows the audio</span>
+r0 = <span class="n">0.25</span> + value1*<span class="n">0.3</span>;
+a0 = sample * <span class="n">6.2832</span>;
+x = <span class="n">0.5</span> + r0*cos(a0)*aspectx;
+y = <span class="n">0.5</span> + r0*sin(a0)*aspecty;</code></pre>
+<p>q and t values you change in per-point code carry over to the next point, which is handy for smoothing a wave.</p>
+
+<h2 id="shaders">Pixel shaders <a class="anchor" href="#shaders" aria-label="Link to this section">#</a></h2>
+<p>Pixel shaders are small HLSL programs that run for every pixel, every frame, on the graphics card. Each preset has two. Your code goes between <code>shader_body {</code> and <code>}</code>, and whatever ends up in <code>ret</code> (a <code>float3</code> color, 0..1) is the result. Declarations such as samplers go <em>above</em> <code>shader_body</code>.</p>
+<p>MilkDrop supports shader model 2 (64-instruction limit) and shader model 3 (practically unlimited). A preset that needs more than the graphics card supports is hidden from the list.</p>
+
+<h3 id="warp">Warp shader</h3>
+<p>Runs over the internal canvas and writes back to it, so whatever you do here is "baked in" and carries into the next frame. <code>uv</code> holds the warped coordinates from your per-vertex code; <code>uv_orig</code> holds the original ones.</p>
+<pre><code>shader_body
+{
+    <span class="c">// read the previous frame at the warped position: this creates the motion</span>
+    ret = tex2D(sampler_main, uv).xyz;
+    <span class="c">// fade a little each frame so the screen doesn't fill up with white</span>
+    ret = (ret - <span class="n">0.002</span>) * <span class="n">0.99</span>;
+}</code></pre>
+<div class="note"><strong>Fading over time</strong>The canvas holds 8 bits per channel. With <code>ret *= 0.97</code> alone, keep the factor at 0.98 or lower, or dark pixels never reach black. <code>ret -= 0.004</code> always reaches black but can feel abrupt. Combining the two, as above, usually looks best.</div>
+
+<h3 id="comp">Composite shader</h3>
+<p>Runs once per frame to produce what you see. Nothing here affects the next frame, so it's the place for color grading, mirroring and other display effects.</p>
+<pre><code>shader_body
+{
+    ret = tex2D(sampler_main, uv).xyz;
+    ret = max(ret, tex2D(sampler_main, <span class="n">1</span> - uv).xyz); <span class="c">// mirror on both axes, keep the brighter pixel</span>
+    ret = pow(ret, float3(<span class="n">0.5</span>, <span class="n">1</span>, <span class="n">2</span>));             <span class="c">// warm tint: curve each channel differently</span>
+    ret *= <span class="n">1.6</span>;                                     <span class="c">// slightly over-bright for punch</span>
+}</code></pre>
+
+<h3 id="hlsl">HLSL quick reference</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Item</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr class="group-row"><td colspan="2">Types</td></tr>
+    <tr><td class="name">float float2 float3 float4</td><td>1-4 numbers; use for coordinates, time and most math</td></tr>
+    <tr><td class="name">half half2 half3 half4</td><td>Lower precision; fine for colors</td></tr>
+    <tr><td class="name">float2x2 float3x3 float4x3</td><td>Matrices, used with <code>mul(vec, mat)</code></td></tr>
+    <tr class="group-row"><td colspan="2">Swizzles</td></tr>
+    <tr><td class="name">v.x v.xy v.zyx v.xxx</td><td>Pick and reorder components: <code>float2(1,2).yx</code> = <code>(2,1)</code></td></tr>
+    <tr class="group-row"><td colspan="2">Math (cheap)</td></tr>
+    <tr><td class="name">abs frac floor saturate</td><td>Absolute value, fraction, round down, clamp to 0..1 (usually free)</td></tr>
+    <tr><td class="name">min max lerp(a,b,t)</td><td>Per-component min / max; blend a→b by t</td></tr>
+    <tr><td class="name">sqrt pow exp log</td><td>Square root, power, 2<sup>x</sup>, log<sub>2</sub></td></tr>
+    <tr><td class="name">dot length normalize</td><td>Dot product, vector length, unit vector</td></tr>
+    <tr><td class="name">lum(color)</td><td>Gray value of a color. Over-saturate: <code>lerp(lum(c), c, 2)</code></td></tr>
+    <tr class="group-row"><td colspan="2">Math (expensive, about 8 instructions)</td></tr>
+    <tr><td class="name">sin cos atan2 cross</td><td>Compute in per-frame code and pass through q when the value is the same for all pixels</td></tr>
+    <tr class="group-row"><td colspan="2">Textures</td></tr>
+    <tr><td class="name">tex2D(sampler, uv)</td><td>Read a 2D texture; returns float4</td></tr>
+    <tr><td class="name">tex3D(sampler, uvw)</td><td>Read a volume texture (noisevol_*)</td></tr>
+    <tr><td class="name">GetBlur1/2/3(uv)</td><td>Read a blurred copy of the canvas; returns float3</td></tr>
+    <tr><td class="name">GetPixel(uv)</td><td>Same as <code>tex2D(sampler_main, uv).xyz</code></td></tr>
+  </tbody>
+</table></div>
+<p><code>if</code>, <code>#define</code> and <code>#if</code> work as in C. Unlike C, <code>1/5</code> is 0.2.</p>
+
+<h3 id="inputs">Shader inputs</h3>
+<h4>Per pixel</h4>
+<div class="table-wrap"><table>
+  <thead><tr><th>Name</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td class="name">float2 uv</td><td>Warp: warped coordinates. Composite: plain screen coordinates.</td></tr>
+    <tr><td class="name">float2 uv_orig</td><td>Warp only: original, un-warped coordinates</td></tr>
+    <tr><td class="name">float rad, ang</td><td>Distance (0..1) and angle (0..2π) from the center</td></tr>
+    <tr><td class="name">float3 hue_shader</td><td>Composite only: a color that varies across the screen (old MilkDrop 1 effect)</td></tr>
+  </tbody>
+</table></div>
+<p>Near the center the interpolated <code>ang</code> can glitch. For exact values use <code>atan2(uv.y-0.5, uv.x-0.5)</code> and <code>length(uv-0.5)</code>, which are slower.</p>
+<h4>Per frame</h4>
+<div class="table-wrap"><table>
+  <thead><tr><th>Name</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td class="name">time fps frame progress</td><td>Time since the <em>preset</em> started, frame rate, frame number, progress 0..1</td></tr>
+    <tr><td class="name">bass mid treb vol</td><td>Audio levels</td></tr>
+    <tr><td class="name">bass_att mid_att treb_att vol_att</td><td>Smoothed audio levels; <code>bass &gt; bass_att</code> means a bass hit</td></tr>
+    <tr><td class="name">float4 rand_preset, rand_frame</td><td>Random numbers 0..1, new per preset / every frame</td></tr>
+    <tr><td class="name">float4 aspect</td><td>.xy fits an image to the screen keeping its shape; .zw the inverse</td></tr>
+    <tr><td class="name">float4 texsize</td><td>Canvas size: .xy = width, height; .zw = 1/width, 1/height</td></tr>
+    <tr><td class="name">float4 roam_cos, roam_sin</td><td>Values that drift around 0..1 at four speeds (about 0.3 to 20)</td></tr>
+    <tr><td class="name">float4 slow_roam_cos, slow_roam_sin</td><td>Same, very slow (about 0.005 to 0.022)</td></tr>
+    <tr><td class="name">q1 … q32</td><td>From the per-frame code. Also grouped as float4: <code>_qa</code> = q1-q4 … <code>_qh</code> = q29-q32</td></tr>
+    <tr><td class="name">blur1_min … blur3_max</td><td>The blur clamp values</td></tr>
+    <tr><td class="name">rot_s1-4</td><td>Random rotation matrices (float4x3), fixed per preset</td></tr>
+    <tr><td class="name">rot_d1-4, rot_f1-4, rot_vf1-4, rot_uf1-4</td><td>Rotations that change slowly, faster, very fast, ultra fast</td></tr>
+    <tr><td class="name">rot_rand1-4</td><td>New random rotation every frame</td></tr>
+  </tbody>
+</table></div>
+<div class="warn"><strong>Don't feed time into rotations</strong>Avoid multiplying growing values like <code>time</code> into the changing rotation matrices: as time grows, the result turns into noise.</div>
+
+<h3 id="textures">Textures</h3>
+<h4>Sampler names</h4>
+<p>A two-letter prefix sets filtering and edge behavior. It works with every texture.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Sampler</th><th>Filtering</th><th>Outside 0..1</th></tr></thead>
+  <tbody>
+    <tr><td class="name">sampler_main = sampler_fw_main</td><td>Smooth (bilinear)</td><td>Wraps around</td></tr>
+    <tr><td class="name">sampler_fc_main</td><td>Smooth</td><td>Clamps to the edge</td></tr>
+    <tr><td class="name">sampler_pw_main</td><td>Nearest pixel</td><td>Wraps around</td></tr>
+    <tr><td class="name">sampler_pc_main</td><td>Nearest pixel</td><td>Clamps to the edge</td></tr>
+  </tbody>
+</table></div>
+<h4 id="blur">Blur</h4>
+<p><code>GetBlur1</code>, <code>GetBlur2</code> and <code>GetBlur3</code> return progressively blurrier copies of the canvas. Each is only computed when a shader actually uses it, and each level is built from the one before it, so Blur3 costs the most. Edge detection:</p>
+<pre><code>ret = abs(tex2D(sampler_main, uv).xyz - GetBlur1(uv)) * <span class="n">4</span>;</code></pre>
+<p>Glow from bright areas only: set <code>blur1_min = 0.7</code> in per-frame code, then add <code>ret += (GetBlur1(uv) - blur1_min) * 2;</code></p>
+<h4>Noise</h4>
+<div class="table-wrap"><table>
+  <thead><tr><th>Name</th><th>Kind</th><th>Size</th><th>Quality</th></tr></thead>
+  <tbody>
+    <tr><td class="name">noise_lq</td><td>2D</td><td>256×256</td><td>Low</td></tr>
+    <tr><td class="name">noise_lq_lite</td><td>2D</td><td>32×32</td><td>Low</td></tr>
+    <tr><td class="name">noise_mq</td><td>2D</td><td>64×64</td><td>Medium (smooth)</td></tr>
+    <tr><td class="name">noise_hq</td><td>2D</td><td>32×32</td><td>High (smoothest)</td></tr>
+    <tr><td class="name">noisevol_lq</td><td>3D</td><td>32×32×32</td><td>Low</td></tr>
+    <tr><td class="name">noisevol_hq</td><td>3D</td><td>8×8×8</td><td>High</td></tr>
+  </tbody>
+</table></div>
+<p>Use the smallest that works. To map noise 1:1 to screen pixels and move it every frame (a good dither):</p>
+<pre><code><span class="k">float4</span> texsize_noise_lq;          <span class="c">// above shader_body: MilkDrop fills in the size</span>
+shader_body
+{
+    <span class="k">float2</span> nuv = uv_orig * texsize.xy * texsize_noise_lq.zw + rand_frame.xy;
+    ret = tex2D(sampler_main, uv).xyz;
+    ret += (tex2D(sampler_noise_lq, nuv).xyz * <span class="n">2</span> - <span class="n">1</span>) * <span class="n">0.01</span>;
+}</code></pre>
+<p>Only use the medium and high quality noise when zoomed in on it. Sampling it at 1:1 or smaller wastes the cache and slows the preset down a lot.</p>
+<h4>Your own images</h4>
+<p>Put the image in <code>plugins\Milkdrop2\textures\</code> or next to the preset, and declare a sampler named after the file, without its extension:</p>
+<pre><code>sampler sampler_clouds;           <span class="c">// loads clouds.jpg (or .dds, .png, .tga, .bmp)</span>
+<span class="k">float4</span>  texsize_clouds;           <span class="c">// optional: its size</span>
+shader_body
+{
+    ret = tex2D(sampler_clouds, uv * aspect.xy).xyz;           <span class="c">// fit to screen</span>
+    <span class="c">// tex2D(sampler_clouds, uv * texsize.xy * texsize_clouds.zw)  -> 1:1 pixels</span>
+    <span class="c">// tex2D(sampler_clouds, (uv-0.5)*0.2 + 0.5)                   -> zoom into the center</span>
+}</code></pre>
+<p><strong>Random textures:</strong> name the sampler <code>sampler_rand00</code> to <code>sampler_rand15</code> and MilkDrop picks a random image from the textures folder. Add a prefix to choose only among matching files: <code>sampler_rand02_smalltiled</code> picks only files whose names start with "smalltiled".</p>
+<p>Keep shared textures small (256×256 or less, JPG at about 95%), so presets download fast and load without a pause.</p>
+
+<h3 id="tricks">Shader tricks</h3>
+<ul>
+  <li><strong>Darken only the center of a zoom</strong> (warp shader): <code>ret *= 0.97 + 0.03*saturate(length(uv - uv_orig)*200);</code></li>
+  <li><strong>Soft max</strong> for values in 0..1: <code>a + b - a*b</code> blends more smoothly than <code>max(a, b)</code>.</li>
+  <li><strong>Aspect-correct offsets:</strong> when you nudge <code>uv</code> in the warp shader, multiply the offset by <code>aspect.xy</code>, so it looks the same in wide and tall windows.</li>
+</ul>
+
+<h2 id="quality">Quality &amp; performance <a class="anchor" href="#quality" aria-label="Link to this section">#</a></h2>
+<ul>
+  <li><strong>Compute once, not per pixel.</strong> A value that's the same everywhere belongs in per-frame code; hand it to shaders and per-vertex code through q.</li>
+  <li><strong>Slow motion goes in per-vertex code, fine detail in the shader.</strong> Per-vertex runs on the CPU at a few thousand points; shaders run on millions of pixels.</li>
+  <li><strong>Avoid in shaders:</strong> <code>if</code>, <code>sin</code>/<code>cos</code> with per-pixel inputs, and sampling textures heavily zoomed out.</li>
+  <li><strong>Multiply instead of dividing</strong> in equations: compute <code>inv = 1/v;</code> once and multiply.</li>
+  <li><strong>Check square and wide windows.</strong> Use <code>aspectx</code>/<code>aspecty</code> in equations and <code>aspect</code> in shaders.</li>
+  <li><strong>Test with the default mesh size</strong> (64), so others see what you designed.</li>
+  <li><strong>Don't build effects on <code>progress</code>.</strong> How fast it moves depends on each user's auto-change time.</li>
+  <li><strong>Remember <code>dx</code> and <code>dy</code>.</strong> With everything else off, they give exact control over the motion; every other motion effect can be expressed with them.</li>
+  <li>The shader compiler removes unused work, such as <code>ret *= 1</code> or a texture that never reaches <code>ret</code>, so experimenting is cheap.</li>
+</ul>
+
+<h2 id="debug">Debugging <a class="anchor" href="#debug" aria-label="Link to this section">#</a></h2>
+<p>Press <kbd>N</kbd> to show the monitor, then add a line to the <strong>per-frame</strong> code and apply with <kbd>Ctrl</kbd>+<kbd>Enter</kbd>:</p>
+<pre><code>monitor = q3;      <span class="c">// the value appears in the top-right corner</span></code></pre>
+<p>The monitor works in per-frame code only. To watch a per-vertex quantity, compute it in per-frame code for one sample point. Code errors show in the corner of the screen when you apply; <kbd>F9</kbd> opens the shader quick reference while you edit.</p>
+
+<footer>MilkDrop 3.0.S - Preset Authoring Guide. Based on the original MilkDrop 2 authoring guide by Ryan Geiss, rewritten and checked against the 3.0.S source. Back to the <a href="user-guide.html">User Guide</a>.</footer>
+</main>
+</div>
+<script src="guide.js"></script>
+</body>
+</html>

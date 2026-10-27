@@ -31,19 +31,8 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define __MILKDROP_DEFINES_H__ 1
 
 // IDENTIFIERS
-/*
-#define CURRENT_VERSION			220
-#define CURRENT_SUBVERSION		0			// 0=first release, 1=a, 2=b, 3=c...
-#define MODULEDESC				"MilkDrop 2.2"	// used for module desc (from Winamp/Prefs) + window title for fullscreen mode
-#define DLLDESC					"MilkDrop 2.2"
-#define NAME					"MilkDrop"
-#define TITLE					"MilkDrop"
-#define CLASSNAME               "MilkDrop"  // window class name
-*/
 #define TEXT_WINDOW_CLASSNAME   "MilkDrop Console [VJ Mode]"
 #define DEBUGFILE				"c:\\m_debug.txt"
-//#define CONFIG_INIFILE			"milkdrop_config.ini"
-//#define PRESET_INIFILE			"milkdrop_presets.ini"
 #define DEBUGFILEHEADER			"[milkdrop debug file]\n"
 
 #define MAX_GRID_X 192//128
@@ -66,9 +55,6 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define WM_MILKDROP_SYSTRAY_MSG			WM_USER + 407
 #define IDC_MILKDROP_SYSTRAY_ICON			555
 #define ID_MILKDROP_SYSTRAY_CLOSE			556
-//#define ID_MILKDROP_SYSTRAY_RESUME			559
-//#define ID_MILKDROP_SYSTRAY_SUSPEND			560
-//#define ID_MILKDROP_SYSTRAY_HOTKEYS			561
 
 #define NUMERIC_INPUT_MODE_CUST_MSG 0
 #define NUMERIC_INPUT_MODE_SPRITE   1

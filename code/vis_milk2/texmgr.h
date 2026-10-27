@@ -42,14 +42,6 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define TEXMGR_ERROR_MASK                 0x0F
 #define TEXMGR_ERR_SUCCESS                0
 #define TEXMGR_ERR_BAD_INDEX              1
-/*
-#define TEXMGR_ERR_OPENING                2
-#define TEXMGR_ERR_IMAGE_NOT_24_BIT       3
-#define TEXMGR_ERR_IMAGE_TOO_LARGE        4
-#define TEXMGR_ERR_CREATESURFACE_FAILED   5
-#define TEXMGR_ERR_LOCKSURFACE_FAILED     6
-#define TEXMGR_ERR_CORRUPT_JPEG           7
-*/
 #define TEXMGR_ERR_FORMAT                 8
 #define TEXMGR_ERR_BADFILE                9
 #define TEXMGR_ERR_OUTOFMEM               10
@@ -57,15 +49,14 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define TEXMGR_WARN_ERROR_IN_INIT_CODE    0x10
 #define TEXMGR_WARN_ERROR_IN_REG_CODE     0x20
 
+// SURI: LoadTex ck value for "no colour key": no pixel becomes transparent (pure black stays
+// opaque, which matters for blend 5, the image's own alpha). td_tex::colorkey keeps this value.
+#define TEXMGR_NO_COLORKEY                0xFFFFFFFFu
+
 typedef struct
 {
 	LPDIRECT3DTEXTURE9     pSurface;
 	int                    img_w, img_h;
-    /*
-	int                    tex_w, tex_h;
-	float                  scale_x, scale_y;  // the factors by which the original image was squished to become (img_w x img_h) texels in size.
-	DDPIXELFORMAT          ddpf;
-    */
 	wchar_t				   szFileName[512];	
 	float				   fStartTime;
 	int                    nStartFrame;
@@ -85,6 +76,13 @@ typedef struct
 	double          *var_repeatx, *var_repeaty;
 	double          *var_done, *var_burn;
 	NSEEL_VMCTX	tex_eel_ctx;
+
+	// SURI: user overrides (sprite editor) and preset ownership. Reset by KillTex and LoadTex.
+	bool            bOwnedByPreset;         // launched from the preset's sprite list
+	float           userDx, userDy;         // clip-space offsets added after the EEL code
+	float           userScale;              // multiplies sx and sy
+	int             userBlend;              // -1 = use var_blendmode
+	unsigned        colorkey;               // 0x00RRGGBB the texture was loaded with (for saving), or TEXMGR_NO_COLORKEY
 }
 td_tex;
 
@@ -112,6 +110,7 @@ protected:
 	bool RunInitCode(int iSlot, char *szInitCode);
 	bool RecompileExpressions(int iSlot);
 	void StripLinefeedCharsAndComments(char *src, char *dest);
+	void ResetUserOverrides(int iSlot);
 
 	// data
 	LPDIRECT3DDEVICE9 m_lpDD;					

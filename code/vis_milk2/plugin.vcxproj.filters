@@ -20,6 +20,9 @@
     <Filter Include="library\ns-eel">
       <UniqueIdentifier>{ad60581f-f132-4b9d-86c6-2c543b5c59da}</UniqueIdentifier>
     </Filter>
+    <Filter Include="features">
+      <UniqueIdentifier>{5d1a7c3e-2b4f-4e8a-9c61-0f3b8e7a2d41}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\ns-eel2\nseel-caltab.c">
@@ -73,7 +76,7 @@
     <ClCompile Include="utility.cpp">
       <Filter>library\sources</Filter>
     </ClCompile>
-    <ClCompile Include="wasabi.cpp">
+    <ClCompile Include="resstrings.cpp">
       <Filter>library\sources</Filter>
     </ClCompile>
     <ClCompile Include="dxcontext.cpp">
@@ -97,6 +100,63 @@
     <ClCompile Include="..\audio\audiobuf.cpp">
       <Filter>musikcube</Filter>
     </ClCompile>
+    <ClCompile Include="..\audio\device-watch.cpp">
+      <Filter>musikcube</Filter>
+    </ClCompile>
+    <ClCompile Include="features\commands.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\context_menu.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\context_menu_win32.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\shader_fx.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\ui_scale.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\desktop_mode.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\desktop_mode_win32.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\messages.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\sprite_layout.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\sprite_preset.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\drop_import.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\playlist.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\playlist_screen.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\image_load_win32.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\now_playing.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\title_anim.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\now_playing_winrt.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
+    <ClCompile Include="features\help_text.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="plugin_icon.ico">
@@ -104,7 +164,55 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="wasabi.h">
+    <ClInclude Include="features\commands.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\context_menu.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\shader_fx.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\ui_scale.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\desktop_mode.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\messages.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\sprite_layout.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\sprite_preset.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\drop_import.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\playlist.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\playlist_screen.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\image_load_win32.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\now_playing.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\title_anim.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\now_playing_winrt.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\help_text.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="resstrings.h">
       <Filter>library\headers</Filter>
     </ClInclude>
     <ClInclude Include="utility.h">
@@ -161,11 +269,6 @@
     <ClInclude Include="..\audio\loopback-capture.h" />
     <ClInclude Include="..\audio\prefs.h" />
     <ClInclude Include="..\audio\audiobuf.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="text1.bin">
-      <Filter>library\resources</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="plugin.rc">

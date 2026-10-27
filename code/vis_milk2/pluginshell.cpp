@@ -27,121 +27,16 @@ IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISI
 OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/*
-    TO DO
-    -----
-    -done/v1.06:
-        -(nothing yet)
-        -
-        -
-    -to do/v1.06:
-        -FFT: high freq. data kinda sucks because of the 8-bit samples we get in;
-            look for justin to put 16-bit vis data into wa5.
-        -make an 'advanced view' button on config panel; hide complicated stuff
-            til they click that.
-        -put an asterisk(*) next to the 'max framerate' values that
-            are ideal (given the current windows display mode or selected FS dispmode).
-        -or add checkbox: "smart sync"
-            -> matches FPS limit to nearest integer divisor of refresh rate.
-        -debug.txt/logging support!
-        -audio: make it a DSP plugin? then we could get the complete, continuous waveform
-            and overlap our waveform windows, so we'd never miss a brief high note.
-        -bugs:
-            -vms plugins sometimes freeze after a several-minute pause; I've seen it
-                with most of them.  hard to repro, though.
-            -running FS on monitor 2, hit ALT-TAB -> minimizes!!!
-                -but only if you let go of TAB first.  Let go of ALT first and it's fine!
-                -> means it's related to the keyup...
-            -fix delayloadhelper leak; one for each launch to config panel/plugin.
-            -also, delayload(d3d9.dll) still leaks, if plugin has error initializing and
-                quits by returning false from PluginInitialize().
-        -add config panel option to ignore fake-fullscreen tips
-            -"tip" boxes in dxcontext.cpp
-            -"notice" box on WM_ACTIVATEAPP?
-        -desktop mode:
-            -icon context menus: 'send to', 'cut', and 'copy' links do nothing.
-                -http://netez.com/2xExplorer/shellFAQ/bas_context.html
-            -create a 2nd texture to render all icon text labels into
-                (they're the sole reason that desktop mode is slow)
-            -in UpdateIconBitmaps, don't read the whole bitmap and THEN
-                realize it's a dupe; try to compare icon filename+index or somethign?
-            -DRAG AND DROP.  COMPLICATED; MANY DETAILS.
-                -http://netez.com/2xExplorer/shellFAQ/adv_drag.html
-                -http://www.codeproject.com/shell/explorerdragdrop.asp
-                -hmm... you can't drag icons between the 2 desktops (ugh)
-            -multiple delete/open/props/etc
-            -delete + enter + arrow keys.
-            -try to solve mysteries w/ShellExecuteEx() and desktop *shortcuts* (*.lnk).
-            -(notice that when icons are selected, they get modulated by the
-                highlight color, when they should be blended 50% with that color.)
-
-    ---------------------------
-    final touches:
-        -Tests:
-            -make sure desktop still functions/responds properly when winamp paused
-            -desktop mode + multimon:
-                -try desktop mode on all monitors
-                -try moving taskbar around; make sure icons are in the
-                    right place, that context menus (general & for
-                    specific icons) pop up in the right place, and that
-                    text-off-left-edge is ok.
-                -try setting the 2 monitors to different/same resolutions
-        -check tab order of config panel controls!
-        -Clean All
-        -build in release mode to include in the ZIP
-        -leave only one file open in workspace: README.TXT.
-        -TEMPORARILY "ATTRIB -R" ALL FILES BEFORE ZIPPING THEM!
-
-    ---------------------------
-    KEEP IN VIEW:
-        -EMBEDWND:
-            -kiv: on resize of embedwnd, it's out of our control; winamp
-                resizes the child every time the mouse position changes,
-                and we have to cleanup & reallocate everything, b/c we
-                can't tell when the resize begins & ends.
-                [justin said he'd fix in wa5, though]
-            -kiv: with embedded windows of any type (plugin, playlist, etc.)
-                you can't place the winamp main wnd over them.
-            -kiv: embedded windows are child windows and don't get the
-                WM_SETFOCUS or WM_KILLFOCUS messages when they get or lose
-                the focus.  (For a workaround, see milkdrop & scroll lock key.)
-            -kiv: tiny bug (IGNORE): when switching between embedwnd &
-                no-embedding, the window gets scooted a tiny tiny bit.
-        -kiv: fake fullscreen mode w/multiple monitors: there is no way
-            to keep the taskbar from popping up [potentially overtop of
-            the plugin] when you click on something besides the plugin.
-            To get around this, use true fullscreen mode.
-        -kiv: max_fps implementation assumptions:
-            -that most computers support high-precision timer
-            -that no computers [regularly] sleep for more than 1-2 ms
-                when you call Sleep(1) after timeBeginPeriod(1).
-        -reminder: if vms_desktop.dll's interface needs changed,
-            it will have to be renamed!  (version # upgrades are ok
-            as long as it won't break on an old version; if the
-            new functionality is essential, rename the DLL.)
-
-    ---------------------------
-    REMEMBER:
-        -GF2MX + GF4 have icon scooting probs in desktop mode
-            (when taskbar is on upper or left edge of screen)
-        -Radeon is the one w/super slow text probs @ 1280x1024.
-            (it goes unstable after you show playlist AND helpscr; -> ~1 fps)
-        -Mark's win98 machine has hidden cursor (in all modes),
-            but no one else seems to have this problem.
-        -links:
-            -win2k-only-style desktop mode: (uses VirtualAllocEx, vs. DLL Injection)
-                http://www.digiwar.com/scripts/renderpage.php?section=2&subsection=2
-            -http://www.experts-exchange.com/Programming/Programming_Platforms/Win_Prog/Q_20096218.html
-*/
-
 #include "pluginshell.h"
 #include "utility.h"
 #include "defines.h"
 #include "shell_defines.h"
 #include "resource.h"
-#include "wasabi.h"
+#include "resstrings.h"
 #include <multimon.h>
 #include "AutoCharFn.h"
+#include "features/ui_scale.h"
+#include "features/help_text.h"
 #include <mmsystem.h>
 #pragma comment(lib,"winmm.lib")    // for timeGetTime
 
@@ -166,11 +61,12 @@ typedef struct _SIMPLEVERTEX
 } SIMPLEVERTEX, *LPSIMPLEVERTEX;
 #define SIMPLE_VERTEX_FORMAT (D3DFVF_XYZ | D3DFVF_DIFFUSE)
 
-extern wchar_t* g_szHelp;
-extern int g_szHelp_W;
-
-// resides in vms_desktop.dll/lib:
-void getItemData(int x);
+// SURI: help pages (see features/help_text.cpp)
+static const std::vector<std::wstring>& HelpPages()
+{
+	static std::vector<std::wstring> pages = SplitHelpPages(HelpText());
+	return pages;
+}
 
 
 CPluginShell::CPluginShell()
@@ -292,8 +188,8 @@ int CPluginShell::InitGDIStuff()
 	{
 		if (!(m_font[i] = CreateFontW(m_fontinfo[i].nSize, 0, 0, 0, m_fontinfo[i].bBold ? 900 : 400, m_fontinfo[i].bItalic, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, m_fontinfo[i].bAntiAliased ? ANTIALIASED_QUALITY : DEFAULT_QUALITY, DEFAULT_PITCH, m_fontinfo[i].szFace)))
 		{
-			MessageBoxW(NULL, wasabiApiLangString(IDS_ERROR_CREATING_GDI_FONTS),
-					    wasabiApiLangString(IDS_MILKDROP_ERROR, title, 64),
+			MessageBoxW(NULL, LoadResString(IDS_ERROR_CREATING_GDI_FONTS),
+					    LoadResString(IDS_MILKDROP_ERROR, title, 64),
 					    MB_OK|MB_SETFOREGROUND|MB_TOPMOST);
 			return false;
 		}
@@ -328,8 +224,8 @@ int CPluginShell::InitVJStuff(RECT* pClientRect)
 		// Create direct 3d & get some infos
 		if (!(m_vjd3d9 = Direct3DCreate9(D3D_SDK_VERSION)))
 		{
-			MessageBoxW(NULL, wasabiApiLangString(IDS_ERROR_CREATING_DIRECT3D_DEVICE_FOR_VJ_MODE),
-					    wasabiApiLangString(IDS_MILKDROP_ERROR, title, 64), MB_OK|MB_SETFOREGROUND|MB_TOPMOST);
+			MessageBoxW(NULL, LoadResString(IDS_ERROR_CREATING_DIRECT3D_DEVICE_FOR_VJ_MODE),
+					    LoadResString(IDS_MILKDROP_ERROR, title, 64), MB_OK|MB_SETFOREGROUND|MB_TOPMOST);
 			return false;
 		}
 
@@ -351,8 +247,8 @@ int CPluginShell::InitVJStuff(RECT* pClientRect)
 		D3DDISPLAYMODE dm;
 		if (D3D_OK != m_vjd3d9->GetAdapterDisplayMode(ordinal_adapter, &dm))
 		{
-			MessageBoxW(NULL, wasabiApiLangString(IDS_VJ_MODE_INIT_ERROR),
-					    wasabiApiLangString(IDS_MILKDROP_ERROR, title, 64),
+			MessageBoxW(NULL, LoadResString(IDS_VJ_MODE_INIT_ERROR),
+					    LoadResString(IDS_MILKDROP_ERROR, title, 64),
 					    MB_OK|MB_SETFOREGROUND|MB_TOPMOST);
 			return false;
 		}
@@ -363,11 +259,6 @@ int CPluginShell::InitVJStuff(RECT* pClientRect)
 		{
 			MONITORINFO mi;
 			mi.cbSize = sizeof(mi);
-			//if (GetMonitorInfo(hMon, &mi))
-			//{
-			//	upper_left_corner.x = mi.rcWork.left;
-			//	upper_left_corner.y = mi.rcWork.top;
-			//}
 		}
 
 		// CREATE THE WINDOW
@@ -406,15 +297,13 @@ int CPluginShell::InitVJStuff(RECT* pClientRect)
 
 		if (!RegisterClass(&wc))
 		{
-			MessageBoxW(NULL, wasabiApiLangString(IDS_ERROR_REGISTERING_WINDOW_CLASS_FOR_TEXT_WINDOW),
-					    wasabiApiLangString(IDS_MILKDROP_ERROR, title, 64),
+			MessageBoxW(NULL, LoadResString(IDS_ERROR_REGISTERING_WINDOW_CLASS_FOR_TEXT_WINDOW),
+					    LoadResString(IDS_MILKDROP_ERROR, title, 64),
 					    MB_OK|MB_SETFOREGROUND|MB_TOPMOST);
 			return false;
 		}
 		m_bTextWindowClassRegistered = true;
 
-		//DWORD nThreadID;
-		//CreateThread(NULL, 0, TextWindowThread, &rect, 0, &nThreadID);
 
 		// Create the text window
 		m_hTextWnd = CreateWindowEx(
@@ -424,7 +313,7 @@ int CPluginShell::InitVJStuff(RECT* pClientRect)
 		               dwStyle,
 		               rect.left, rect.top,								// screen position (read from config)
 		               rect.right - rect.left, rect.bottom - rect.top,  // width & height of window (need to adjust client area later)
-		               NULL,								// parent window (winamp main window)
+		               NULL,								// no parent window
 		               NULL,								// no menu
 		               GetInstance(),						// hInstance of DLL
 		               NULL
@@ -432,8 +321,8 @@ int CPluginShell::InitVJStuff(RECT* pClientRect)
 
 		if (!m_hTextWnd)
 		{
-			MessageBoxW(NULL, wasabiApiLangString(IDS_ERROR_CREATING_VJ_WINDOW),
-					   wasabiApiLangString(IDS_MILKDROP_ERROR, title, 64),
+			MessageBoxW(NULL, LoadResString(IDS_ERROR_CREATING_VJ_WINDOW),
+					   LoadResString(IDS_MILKDROP_ERROR, title, 64),
 					   MB_OK|MB_SETFOREGROUND|MB_TOPMOST);
 			return false;
 		}
@@ -460,7 +349,6 @@ int CPluginShell::InitVJStuff(RECT* pClientRect)
 		pres_param.Flags = 0;
 		pres_param.FullScreen_RefreshRateInHz = 0;
 		pres_param.PresentationInterval       = D3DPRESENT_INTERVAL_IMMEDIATE;//D3DPRESENT_INTERVAL_ONE;//D3DPRESENT_INTERVAL_IMMEDIATE;//m_current_mode.allow_page_tearing ? D3DPRESENT_INTERVAL_IMMEDIATE : D3DPRESENT_INTERVAL_ONE;//D3DPRESENT_INTERVAL_IMMEDIATE;//D3DPRESENT_INTERVAL_ONE;
-		//pres_param.FullScreen_PresentationInterval = 0;
 		pres_param.Windowed = TRUE;
 
 		HRESULT hr;
@@ -472,8 +360,8 @@ int CPluginShell::InitVJStuff(RECT* pClientRect)
 		                    &m_vjd3d9_device)))
 		{
 			m_vjd3d9_device = NULL;
-			MessageBoxW(m_lpDX->GetHwnd(), wasabiApiLangString(IDS_ERROR_CREATING_D3D_DEVICE_FOR_VJ_MODE),
-					   wasabiApiLangString(IDS_MILKDROP_ERROR, title, 64),
+			MessageBoxW(m_lpDX->GetHwnd(), LoadResString(IDS_ERROR_CREATING_D3D_DEVICE_FOR_VJ_MODE),
+					   LoadResString(IDS_MILKDROP_ERROR, title, 64),
 					   MB_OK|MB_SETFOREGROUND|MB_TOPMOST);
 			return false;
 		}
@@ -522,29 +410,34 @@ void CPluginShell::CleanUpVJStuff()
 
 		if (m_hTextWnd)
 		{
-			//dumpmsg("Finish: destroying text window");
 			DestroyWindow(m_hTextWnd);
 			m_hTextWnd = NULL;
-			//dumpmsg("Finish: text window destroyed");
 		}
 
 		if (m_bTextWindowClassRegistered)
 		{
-			//dumpmsg("Finish: unregistering text window class");
 			UnregisterClass(TEXT_WINDOW_CLASSNAME,GetInstance()); // unregister window class
 			m_bTextWindowClassRegistered = false;
-			//dumpmsg("Finish: text window class unregistered");
 		}
 	}
 }
 
 int CPluginShell::AllocateFonts(IDirect3DDevice9* pDevice)
 {
+	// SURI: scale from the configured size, not from the measured height that is stored back
+	// into nSize below (which would compound at every DPI change / device reset).
+	UINT dpi = WindowDpi(m_lpDX ? m_lpDX->GetHwnd() : NULL);
+	for (int k=0; k<NUM_BASIC_FONTS + NUM_EXTRA_FONTS; k++)
+		if (m_fontbase[k] <= 0)
+			m_fontbase[k] = m_fontinfo[k].nSize;
+
 	// Create D3DX system font:
 	for (int i=0; i<NUM_BASIC_FONTS + NUM_EXTRA_FONTS; i++)
+	{
+		int px = ScaleFontPixels(m_fontbase[i], dpi);
 		if (D3DXCreateFontW(pDevice,  //m_font[i],
-		                   m_fontinfo[i].nSize,
-		                   m_fontinfo[i].nSize*4/10,
+		                   px,
+		                   px*4/10,
 		                   m_fontinfo[i].bBold ? 900 : 400,
 		                   1,  // mip levels
 		                   m_fontinfo[i].bItalic,
@@ -557,11 +450,12 @@ int CPluginShell::AllocateFonts(IDirect3DDevice9* pDevice)
 		                  ) != D3D_OK)
 		{
 			wchar_t title[64];
-			MessageBoxW(m_lpDX ? m_lpDX->GetHwnd() : NULL, wasabiApiLangString(IDS_ERROR_CREATING_D3DX_FONTS),
-					    wasabiApiLangString(IDS_MILKDROP_ERROR, title, 64),
+			MessageBoxW(m_lpDX ? m_lpDX->GetHwnd() : NULL, LoadResString(IDS_ERROR_CREATING_D3DX_FONTS),
+					    LoadResString(IDS_MILKDROP_ERROR, title, 64),
 					    MB_OK|MB_SETFOREGROUND|MB_TOPMOST);
 			return false;
 		}
+	}
 
 	// get actual font heights
 	for (i=0; i<NUM_BASIC_FONTS + NUM_EXTRA_FONTS; i++)
@@ -572,6 +466,31 @@ int CPluginShell::AllocateFonts(IDirect3DDevice9* pDevice)
 		if (h>0) m_fontinfo[i].nSize = h;
 	}
 
+	// SURI: fixed card fonts (design B); sizes are CSS-style em heights at 96 DPI.
+	m_ui_dpi = dpi < 96 ? 96 : dpi;
+	static const struct { const wchar_t* face; int px; int weight; } kUi[UIF_COUNT] = {
+		{ L"Segoe UI", 22, 400 },         // UIF_TITLE
+		{ L"Segoe UI", 17, 400 },         // UIF_META
+		{ L"Segoe UI", 24, 400 },         // UIF_TOAST
+		{ L"Segoe UI", 21, 400 },         // UIF_BODY
+		{ L"Segoe UI", 16, 400 },         // UIF_SMALL
+		{ L"Consolas", 18, 400 },         // UIF_KEY
+		{ L"Segoe UI", 17, 600 },         // UIF_TAB_ON
+		{ L"Segoe UI Symbol", 22, 400 },  // UIF_STARS: a star is shorter than a digit; 22 px stars match 17 px text
+		{ L"Consolas", 0, 400 },          // UIF_CODE: cell height of SIMPLE_FONT, see below
+		{ L"Consolas", 15, 400 },         // UIF_KEY_COMPACT
+		{ L"Segoe UI", 17, 400 },         // UIF_BODY_COMPACT
+	};
+	for (int u=0; u<UIF_COUNT; u++)
+	{
+		// UIF_CODE uses SIMPLE_FONT's configured (DPI-scaled) cell height, so the code editor keeps
+		// the menu text size but gets a monospace face (its cursor is drawn by swapping characters)
+		int height = (u == UIF_CODE) ? ScaleFontPixels(m_fontbase[SIMPLE_FONT], dpi) : -UiPx(kUi[u].px);
+		if (D3DXCreateFontW(pDevice, height, 0, kUi[u].weight, 1, FALSE, DEFAULT_CHARSET,
+		                    OUT_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH, kUi[u].face, &m_ui_font[u]) != D3D_OK)
+			m_ui_font[u] = NULL;   // callers check; that card text is then skipped
+	}
+
 	return true;
 }
 
@@ -579,6 +498,18 @@ void CPluginShell::CleanUpFonts()
 {
 	for (int i=0; i<NUM_BASIC_FONTS + NUM_EXTRA_FONTS; i++)
 		SafeRelease(m_d3dx_font[i]);
+	for (int u=0; u<UIF_COUNT; u++)   // SURI
+		SafeRelease(m_ui_font[u]);
+}
+
+// SURI: WM_DPICHANGED
+void CPluginShell::ReallocateFontsForDpi()
+{
+	if (m_vj_mode || !m_lpDX || !m_lpDX->m_lpDevice)
+		return;
+	CleanUpFonts();
+	AllocateFonts(m_lpDX->m_lpDevice);
+	OnFontsReallocated();   // SURI: the song-title font follows the new SONGTITLE_FONT size
 }
 
 void CPluginShell::AllocateTextSurface()
@@ -619,10 +550,6 @@ int CPluginShell::AllocateDX9Stuff()
 
 	int ret = AllocateMyDX9Stuff();
 
-	// invalidate various 'caches' here:
-	m_playlist_top_idx = -1;    // invalidating playlist cache forces recompute of playlist width
-	//m_icon_list.clear();      // clear desktop mode icon list, so it has to read the bitmaps back in
-
 	if (!m_vj_mode)
 	{
 		m_text.Finish();
@@ -646,6 +573,8 @@ void CPluginShell::CleanUpDX9Stuff(int final_cleanup)
 	{
 		for (int i=0; i<NUM_BASIC_FONTS + NUM_EXTRA_FONTS; i++)
 			SafeRelease(m_d3dx_font[i]);
+		for (int u=0; u<UIF_COUNT; u++)   // SURI
+			SafeRelease(m_ui_font[u]);
 		SafeRelease(m_lpDDSText);
 	}
 
@@ -731,7 +660,6 @@ void CPluginShell::OnUserResizeWindow()
 		if (m_lpDX->m_REAL_client_width  != new_REAL_client_w ||
 		    m_lpDX->m_REAL_client_height != new_REAL_client_h)
 		{
-			//CleanUpVJStuff();
 			CleanUpDX9Stuff(0);
 			if (!m_lpDX->OnUserResizeWindow(&w, &c))
 			{
@@ -745,11 +673,6 @@ void CPluginShell::OnUserResizeWindow()
 				m_lpDX->m_ready = false;   // flag to exit
 				return;
 			}
-			/*if (!InitVJStuff())
-			{
-			    m_lpDX->m_ready = false;   // flag to exit
-			    return;
-			}*/
 		}
 
 		// save the new window position:
@@ -781,8 +704,8 @@ int CPluginShell::InitDirectX(LPDIRECT3DDEVICE9 device, D3DPRESENT_PARAMETERS* d
 	if (!m_lpDX)
 	{
 		wchar_t title[64];
-		MessageBoxW(NULL, wasabiApiLangString(IDS_UNABLE_TO_INIT_DXCONTEXT),
-				    wasabiApiLangString(IDS_MILKDROP_ERROR, title, 64),
+		MessageBoxW(NULL, LoadResString(IDS_UNABLE_TO_INIT_DXCONTEXT),
+				    LoadResString(IDS_MILKDROP_ERROR, title, 64),
 				    MB_OK|MB_SETFOREGROUND|MB_TOPMOST);
 		return FALSE;
 	}
@@ -821,24 +744,16 @@ void CPluginShell::CleanUpDirectX()
 	SafeDelete(m_lpDX);
 }
 
-int CPluginShell::PluginPreInitialize(HWND hWinampWnd, HINSTANCE hWinampInstance)
+int CPluginShell::PluginPreInitialize(HWND hParentWnd, HINSTANCE hInstance)
 {
-	// PROTECTED CONFIG PANEL SETTINGS (also see 'private' settings, below)
+	// PROTECTED SETTINGS (also see 'private' settings, below)
 	m_start_fullscreen      = 0;
-	m_start_desktop         = 0;
 	m_fake_fullscreen_mode  = 0;
 	m_max_fps_fs            = 60;
-	m_max_fps_dm            = 60;
 	m_max_fps_w             = 60;
 	m_show_press_f1_msg     = 1;
 	m_allow_page_tearing_w  = 1;
 	m_allow_page_tearing_fs = 0;
-	m_allow_page_tearing_dm = 0;
-	m_minimize_winamp       = 1;
-	m_desktop_show_icons    = 1;
-	m_desktop_textlabel_boxes = 1;
-	m_desktop_manual_icon_scoot = 0;
-	m_desktop_555_fix       = 2;
 	m_dualhead_horz         = 2;
 	m_dualhead_vert         = 1;
 	m_save_cpu              = 1;
@@ -922,7 +837,9 @@ int CPluginShell::PluginPreInitialize(HWND hWinampWnd, HINSTANCE hWinampInstance
 	// PROTECTED STRUCTURES/POINTERS
 	for (int i=0; i<NUM_BASIC_FONTS + NUM_EXTRA_FONTS; i++)
 		m_d3dx_font[i] = NULL;
-	m_d3dx_desktop_font = NULL;
+	for (int i=0; i<UIF_COUNT; i++)   // SURI
+		m_ui_font[i] = NULL;
+	m_ui_dpi = 96;
 	m_lpDDSText = NULL;
 	ZeroMemory(&m_sound, sizeof(td_soundinfo));
 	for (int ch=0; ch<2; ch++)
@@ -936,7 +853,7 @@ int CPluginShell::PluginPreInitialize(HWND hWinampWnd, HINSTANCE hWinampInstance
 	m_frame = 0;
 	m_time = 0;
 	m_fps = 60;
-	m_hInstance = hWinampInstance;
+	m_hInstance = hInstance;
 	m_lpDX = NULL;
 	m_szPluginsDirPath[0] = 0;  // will be set further down
 	m_szConfigIniFile[0] = 0;  // will be set further down
@@ -950,16 +867,13 @@ int CPluginShell::PluginPreInitialize(HWND hWinampWnd, HINSTANCE hWinampInstance
     swprintf(m_szConfigIniFile, L"%s%s", m_szPluginsDirPath, INIFILE);
 	lstrcpyn(m_szConfigIniFileA,AutoCharFn(m_szConfigIniFile),MAX_PATH);
 
-	// PRIVATE CONFIG PANEL SETTINGS
+	// PRIVATE SETTINGS
 	m_multisample_fullscreen = D3DMULTISAMPLE_NONE;
-	m_multisample_desktop = D3DMULTISAMPLE_NONE;
 	m_multisample_windowed = D3DMULTISAMPLE_NONE;
 	ZeroMemory(&m_adapter_guid_fullscreen, sizeof(GUID));
-	ZeroMemory(&m_adapter_guid_desktop , sizeof(GUID));
 	ZeroMemory(&m_adapter_guid_windowed , sizeof(GUID));
 	m_adapter_devicename_windowed[0]   = 0;
 	m_adapter_devicename_fullscreen[0] = 0;
-	m_adapter_devicename_desktop[0]    = 0;
 
 
 	// PRIVATE RUNTIME SETTINGS
@@ -967,13 +881,8 @@ int CPluginShell::PluginPreInitialize(HWND hWinampWnd, HINSTANCE hWinampInstance
 	m_hidden     = 0;
 	m_resizing   = 0;
 	m_show_help  = 0;
-	m_show_playlist = 0;
-	m_playlist_pos = 0;
-	m_playlist_pageups = 0;
-	m_playlist_top_idx = -1;
-	m_playlist_btm_idx = -1;
-	// m_playlist_width_pixels will be considered invalid whenever 'm_playlist_top_idx' is -1.
-	// m_playlist[256][256] will be considered invalid whenever 'm_playlist_top_idx' is -1.
+	m_help_page  = 0;
+	for (int fb=0; fb<NUM_BASIC_FONTS + NUM_EXTRA_FONTS; fb++) m_fontbase[fb] = 0;
 	m_exiting    = 0;
 	m_upper_left_corner_y = 0;
 	m_lower_left_corner_y = 0;
@@ -986,7 +895,6 @@ int CPluginShell::PluginPreInitialize(HWND hWinampWnd, HINSTANCE hWinampInstance
 	// PRIVATE - GDI STUFF
 	for (i=0; i<NUM_BASIC_FONTS + NUM_EXTRA_FONTS; i++)
 		m_font[i] = NULL;
-	m_font_desktop = NULL;
 
 	// PRIVATE - MORE TIMEKEEPING
 	m_last_raw_time = 0;
@@ -1079,25 +987,17 @@ void CPluginShell::ReadConfig()
 	else if (old_subver < INT_SUBVERSION)
 		return;
 
-	//D3DMULTISAMPLE_TYPE m_multisample_fullscreen;
-	//D3DMULTISAMPLE_TYPE m_multisample_desktop;
-	//D3DMULTISAMPLE_TYPE m_multisample_windowed;
 	m_multisample_fullscreen      = (D3DMULTISAMPLE_TYPE)GetPrivateProfileIntW(L"settings",L"multisample_fullscreen",m_multisample_fullscreen,m_szConfigIniFile);
-	m_multisample_desktop         = (D3DMULTISAMPLE_TYPE)GetPrivateProfileIntW(L"settings",L"multisample_desktop",m_multisample_desktop,m_szConfigIniFile);
 	m_multisample_windowed        = (D3DMULTISAMPLE_TYPE)GetPrivateProfileIntW(L"settings",L"multisample_windowed"  ,m_multisample_windowed  ,m_szConfigIniFile);
 
 	//GUID m_adapter_guid_fullscreen
-	//GUID m_adapter_guid_desktop
 	//GUID m_adapter_guid_windowed
 	char str[256];
 	GetPrivateProfileString("settings","adapter_guid_fullscreen","",str,sizeof(str)-1,m_szConfigIniFileA);
 	TextToGuid(str, &m_adapter_guid_fullscreen);
-	GetPrivateProfileString("settings","adapter_guid_desktop","",str,sizeof(str)-1,m_szConfigIniFileA);
-	TextToGuid(str, &m_adapter_guid_desktop);
 	GetPrivateProfileString("settings","adapter_guid_windowed","",str,sizeof(str)-1,m_szConfigIniFileA);
 	TextToGuid(str, &m_adapter_guid_windowed);
 	GetPrivateProfileString("settings","adapter_devicename_fullscreen","",m_adapter_devicename_fullscreen,sizeof(m_adapter_devicename_fullscreen)-1,m_szConfigIniFileA);
-	GetPrivateProfileString("settings","adapter_devicename_desktop",   "",m_adapter_devicename_desktop   ,sizeof(m_adapter_devicename_desktop)-1,m_szConfigIniFileA);
 	GetPrivateProfileString("settings","adapter_devicename_windowed",  "",m_adapter_devicename_windowed  ,sizeof(m_adapter_devicename_windowed)-1,m_szConfigIniFileA);
 
 	// FONTS
@@ -1122,20 +1022,12 @@ void CPluginShell::ReadConfig()
 #endif
 
 	m_start_fullscreen     = GetPrivateProfileIntW(L"settings",L"start_fullscreen",m_start_fullscreen,m_szConfigIniFile);
-	m_start_desktop        = GetPrivateProfileIntW(L"settings",L"start_desktop"   ,m_start_desktop   ,m_szConfigIniFile);
 	m_fake_fullscreen_mode = GetPrivateProfileIntW(L"settings",L"fake_fullscreen_mode",m_fake_fullscreen_mode,m_szConfigIniFile);
 	m_max_fps_fs           = GetPrivateProfileIntW(L"settings",L"max_fps_fs",m_max_fps_fs,m_szConfigIniFile);
-	m_max_fps_dm           = GetPrivateProfileIntW(L"settings",L"max_fps_dm",m_max_fps_dm,m_szConfigIniFile);
 	m_max_fps_w            = GetPrivateProfileIntW(L"settings",L"max_fps_w" ,m_max_fps_w ,m_szConfigIniFile);
 	m_show_press_f1_msg    = GetPrivateProfileIntW(L"settings",L"show_press_f1_msg",m_show_press_f1_msg,m_szConfigIniFile);
 	m_allow_page_tearing_w = GetPrivateProfileIntW(L"settings",L"allow_page_tearing_w",m_allow_page_tearing_w,m_szConfigIniFile);
 	m_allow_page_tearing_fs= GetPrivateProfileIntW(L"settings",L"allow_page_tearing_fs",m_allow_page_tearing_fs,m_szConfigIniFile);
-	m_allow_page_tearing_dm= GetPrivateProfileIntW(L"settings",L"allow_page_tearing_dm",m_allow_page_tearing_dm,m_szConfigIniFile);
-	m_minimize_winamp      = GetPrivateProfileIntW(L"settings",L"minimize_winamp",m_minimize_winamp,m_szConfigIniFile);
-	m_desktop_show_icons   = GetPrivateProfileIntW(L"settings",L"desktop_show_icons",m_desktop_show_icons,m_szConfigIniFile);
-	m_desktop_textlabel_boxes = GetPrivateProfileIntW(L"settings",L"desktop_textlabel_boxes",m_desktop_textlabel_boxes,m_szConfigIniFile);
-	m_desktop_manual_icon_scoot = GetPrivateProfileIntW(L"settings",L"desktop_manual_icon_scoot",m_desktop_manual_icon_scoot,m_szConfigIniFile);
-	m_desktop_555_fix      = GetPrivateProfileIntW(L"settings",L"desktop_555_fix",m_desktop_555_fix,m_szConfigIniFile);
 	m_dualhead_horz        = GetPrivateProfileIntW(L"settings",L"dualhead_horz",m_dualhead_horz,m_szConfigIniFile);
 	m_dualhead_vert        = GetPrivateProfileIntW(L"settings",L"dualhead_vert",m_dualhead_vert,m_szConfigIniFile);
 	m_save_cpu             = GetPrivateProfileIntW(L"settings",L"save_cpu",m_save_cpu,m_szConfigIniFile);
@@ -1158,31 +1050,23 @@ void CPluginShell::WRITE_FONT(int n){
 	WritePrivateProfileStringW(L"settings",BuildSettingName(L"szFontFace",n),m_fontinfo[n].szFace,m_szConfigIniFile);
 	WritePrivateProfileIntW(m_fontinfo[n].bBold,  BuildSettingName(L"bFontBold",n),   m_szConfigIniFile, L"settings");
 	WritePrivateProfileIntW(m_fontinfo[n].bItalic,BuildSettingName(L"bFontItalic",n), m_szConfigIniFile, L"settings");
-	WritePrivateProfileIntW(m_fontinfo[n].nSize,  BuildSettingName(L"nFontSize",n),   m_szConfigIniFile, L"settings");
+	WritePrivateProfileIntW(m_fontbase[n] > 0 ? m_fontbase[n] : m_fontinfo[n].nSize,  BuildSettingName(L"nFontSize",n),   m_szConfigIniFile, L"settings"); // SURI: configured size, not the scaled measured one
 	WritePrivateProfileIntW(m_fontinfo[n].bAntiAliased, BuildSettingName(L"bFontAA",n),m_szConfigIniFile, L"settings");
 }
 
 void CPluginShell::WriteConfig()
 {
-	//D3DMULTISAMPLE_TYPE m_multisample_fullscreen;
-	//D3DMULTISAMPLE_TYPE m_multisample_desktop;
-	//D3DMULTISAMPLE_TYPE m_multisample_windowed;
 	WritePrivateProfileIntW((int)m_multisample_fullscreen,L"multisample_fullscreen",m_szConfigIniFile,L"settings");
-	WritePrivateProfileIntW((int)m_multisample_desktop   ,L"multisample_desktop"   ,m_szConfigIniFile,L"settings");
 	WritePrivateProfileIntW((int)m_multisample_windowed  ,L"multisample_windowed"  ,m_szConfigIniFile,L"settings");
 
 	//GUID m_adapter_guid_fullscreen
-	//GUID m_adapter_guid_desktop
 	//GUID m_adapter_guid_windowed
 	char str[256];
 	GuidToText(&m_adapter_guid_fullscreen, str, sizeof(str));
 	WritePrivateProfileString("settings","adapter_guid_fullscreen",str,m_szConfigIniFileA);
-	GuidToText(&m_adapter_guid_desktop, str, sizeof(str));
-	WritePrivateProfileString("settings","adapter_guid_desktop",str,m_szConfigIniFileA);
 	GuidToText(&m_adapter_guid_windowed,   str, sizeof(str));
 	WritePrivateProfileString("settings","adapter_guid_windowed"  ,str,m_szConfigIniFileA);
 	WritePrivateProfileString("settings","adapter_devicename_fullscreen",m_adapter_devicename_fullscreen,m_szConfigIniFileA);
-	WritePrivateProfileString("settings","adapter_devicename_desktop"   ,m_adapter_devicename_desktop   ,m_szConfigIniFileA);
 	WritePrivateProfileString("settings","adapter_devicename_windowed"  ,m_adapter_devicename_windowed  ,m_szConfigIniFileA);
 
 	// FONTS
@@ -1207,20 +1091,12 @@ void CPluginShell::WriteConfig()
 #endif
 
 	WritePrivateProfileIntW(m_start_fullscreen,L"start_fullscreen",m_szConfigIniFile,L"settings");
-	WritePrivateProfileIntW(m_start_desktop   ,L"start_desktop"   ,m_szConfigIniFile,L"settings");
 	WritePrivateProfileIntW(m_fake_fullscreen_mode,L"fake_fullscreen_mode",m_szConfigIniFile,L"settings");
 	WritePrivateProfileIntW(m_max_fps_fs,L"max_fps_fs",m_szConfigIniFile,L"settings");
-	WritePrivateProfileIntW(m_max_fps_dm,L"max_fps_dm",m_szConfigIniFile,L"settings");
 	WritePrivateProfileIntW(m_max_fps_w ,L"max_fps_w" ,m_szConfigIniFile,L"settings");
 	WritePrivateProfileIntW(m_show_press_f1_msg,L"show_press_f1_msg",m_szConfigIniFile,L"settings");
 	WritePrivateProfileIntW(m_allow_page_tearing_w,L"allow_page_tearing_w",m_szConfigIniFile,L"settings");
 	WritePrivateProfileIntW(m_allow_page_tearing_fs,L"allow_page_tearing_fs",m_szConfigIniFile,L"settings");
-	WritePrivateProfileIntW(m_allow_page_tearing_dm,L"allow_page_tearing_dm",m_szConfigIniFile,L"settings");
-	WritePrivateProfileIntW(m_minimize_winamp,L"minimize_winamp",m_szConfigIniFile,L"settings");
-	WritePrivateProfileIntW(m_desktop_show_icons,L"desktop_show_icons",m_szConfigIniFile,L"settings");
-	WritePrivateProfileIntW(m_desktop_textlabel_boxes,L"desktop_textlabel_boxes",m_szConfigIniFile,L"settings");
-	WritePrivateProfileIntW(m_desktop_manual_icon_scoot,L"desktop_manual_icon_scoot",m_szConfigIniFile,L"settings");
-	WritePrivateProfileIntW(m_desktop_555_fix,L"desktop_555_fix",m_szConfigIniFile,L"settings");
 	WritePrivateProfileIntW(m_dualhead_horz,L"dualhead_horz",m_szConfigIniFile,L"settings");
 	WritePrivateProfileIntW(m_dualhead_vert,L"dualhead_vert",m_szConfigIniFile,L"settings");
 	WritePrivateProfileIntW(m_save_cpu,L"save_cpu",m_szConfigIniFile,L"settings");
@@ -1247,7 +1123,7 @@ void CPluginShell::WriteConfig()
 
 int CPluginShell::PluginRender(unsigned char *pWaveL, unsigned char *pWaveR)//, unsigned char *pSpecL, unsigned char *pSpecR)
 {
-	// return FALSE here to tell Winamp to terminate the plugin
+	// return FALSE here to quit
 
 	if (!m_lpDX || !m_lpDX->m_ready)
 	{
@@ -1345,50 +1221,13 @@ void CPluginShell::DrawAndDisplay(int redraw)
 			cy = min(cy, (int)desc.Height);
 		}
 	}
-	m_upper_left_corner_y  = TEXT_MARGIN + GetCanvasMarginY();
-	m_upper_right_corner_y = TEXT_MARGIN + GetCanvasMarginY();
-	m_lower_left_corner_y  = cy - TEXT_MARGIN - GetCanvasMarginY();
-	m_lower_right_corner_y = cy - TEXT_MARGIN - GetCanvasMarginY();
-	m_left_edge            = TEXT_MARGIN + GetCanvasMarginX();
-	m_right_edge           = cx - TEXT_MARGIN - GetCanvasMarginX();
-
-	/*if (m_screenmode == DESKTOP || m_screenmode == FAKE_FULLSCREEN)
-	{
-	    // check if taskbar is above plugin window;
-	    // if so, scoot text & icons out of the way.
-	    //     [...should always be true for Desktop Mode,
-	    //         but it's like this for code simplicity.]
-	    int taskbar_is_above_plugin_window = 1;
-	    HWND h = FindWindow("Shell_TrayWnd", NULL);
-	    while (h) //(..shouldn't be very many windows to iterate through here)
-	    {
-	        h = GetWindow(h, GW_HWNDPREV);
-	        if (h == GetPluginWindow())
-	        {
-	            taskbar_is_above_plugin_window = 0;
-	            break;
-	        }
-	    }
-
-	    if (taskbar_is_above_plugin_window)
-	    {
-	        // respect the taskbar area; make sure the text, desktop icons, etc.
-	        // don't appear underneath it.
-	        //m_upper_left_corner_y  += m_lpDX->m_monitor_work_rect.top - m_lpDX->m_monitor_rect.top;
-	        //m_upper_right_corner_y += m_lpDX->m_monitor_work_rect.top - m_lpDX->m_monitor_rect.top;
-	        //m_lower_left_corner_y  -= m_lpDX->m_monitor_rect.bottom - m_lpDX->m_monitor_work_rect.bottom;
-	        //m_lower_right_corner_y -= m_lpDX->m_monitor_rect.bottom - m_lpDX->m_monitor_work_rect.bottom;
-	        //m_left_edge  += m_lpDX->m_monitor_work_rect.left - m_lpDX->m_monitor_rect.left;
-	        //m_right_edge -= m_lpDX->m_monitor_rect.right - m_lpDX->m_monitor_work_rect.right;
-	        m_lpDX->UpdateMonitorWorkRect();
-	        m_upper_left_corner_y  = max(m_upper_left_corner_y , m_lpDX->m_monitor_work_rect.top - m_lpDX->m_monitor_rect.top + TEXT_MARGIN + GetCanvasMarginY());
-	        m_upper_right_corner_y = max(m_upper_right_corner_y, m_lpDX->m_monitor_work_rect.top - m_lpDX->m_monitor_rect.top + TEXT_MARGIN + GetCanvasMarginY());
-	        m_lower_left_corner_y  = min(m_lower_left_corner_y , m_lpDX->m_client_height - (m_lpDX->m_monitor_rect.bottom - m_lpDX->m_monitor_work_rect.bottom) - TEXT_MARGIN - GetCanvasMarginY());
-	        m_lower_right_corner_y = min(m_lower_right_corner_y, m_lpDX->m_client_height - (m_lpDX->m_monitor_rect.bottom - m_lpDX->m_monitor_work_rect.bottom) - TEXT_MARGIN - GetCanvasMarginY());
-	        m_left_edge  = max(m_left_edge , m_lpDX->m_monitor_work_rect.left - m_lpDX->m_monitor_rect.left + TEXT_MARGIN + GetCanvasMarginX() );
-	        m_right_edge = min(m_right_edge, m_lpDX->m_client_width - (m_lpDX->m_monitor_rect.right - m_lpDX->m_monitor_work_rect.right) - TEXT_MARGIN + GetCanvasMarginX());
-	    }
-	}*/
+	const int margin = UiPx(TEXT_MARGIN);   // SURI: DPI-scaled, like the card sizes that build on it
+	m_upper_left_corner_y  = margin + GetCanvasMarginY();
+	m_upper_right_corner_y = margin + GetCanvasMarginY();
+	m_lower_left_corner_y  = cy - margin - GetCanvasMarginY();
+	m_lower_right_corner_y = cy - margin - GetCanvasMarginY();
+	m_left_edge            = margin + GetCanvasMarginX();
+	m_right_edge           = cx - margin - GetCanvasMarginX();
 
 	if (D3D_OK==m_lpDX->m_lpDevice->BeginScene())
 	{
@@ -1399,10 +1238,15 @@ void CPluginShell::DrawAndDisplay(int redraw)
 		if (!m_vjd3d9_device)   // in VJ mode, this renders to different context, so do it after BeginScene() on 2nd device.
 			RenderBuiltInTextMsgs();    // to m_lpDDSText?
 		MyRenderUI(&m_upper_left_corner_y, &m_upper_right_corner_y, &m_lower_left_corner_y, &m_lower_right_corner_y, m_left_edge, m_right_edge);
-		RenderPlaylist();
 
 		if (!m_vjd3d9_device)
 			m_text.DrawNow();
+
+		// SURI: things that must sit above all queued text (toasts). m_text.DrawNow changes the
+		// projection, so set up 2D drawing again first. (In VJ mode the overlay's text is queued
+		// and drawn by the VJ device's DrawNow below.)
+		PrepareFor2DDrawing_B(GetDevice(), GetWidth(), GetHeight());
+		MyRenderOverlay();
 
 		m_lpDX->m_lpDevice->EndScene();
 	}
@@ -1482,7 +1326,6 @@ void CPluginShell::EnforceMaxFPS()
 		if (det>0)
 		{
 			float t1 = (-b + sqrtf(det)) / (2*a);
-			//float t2 = (-b - sqrtf(det)) / (2*a);
 
 			if (t1 > 1.0f)
 			{
@@ -1531,7 +1374,6 @@ void CPluginShell::EnforceMaxFPS()
 					//   but don't really save cpu or battery, but do pass a tiny
 					//   amount of time.
 
-					//if (ticks_left > (int)m_high_perf_timer_freq.QuadPart/500)
 					if (ticks_to_wait_hi - ticks_passed > (int)m_high_perf_timer_freq.QuadPart/100)
 						Sleep(5);
 					else if (ticks_to_wait_hi - ticks_passed > (int)m_high_perf_timer_freq.QuadPart/1000)
@@ -1652,7 +1494,7 @@ void CPluginShell::DoTime()
 
 void CPluginShell::AnalyzeNewSound(unsigned char *pWaveL, unsigned char *pWaveR)
 {
-	// we get 576 samples in from winamp.
+	// we get 576 samples in from the audio capture.
 	// the output of the fft has 'num_frequencies' samples,
 	//   and represents the frequency range 0 hz - 22,050 hz.
 	// usually, plugins only use half of this output (the range 0 hz - 11,025 hz),
@@ -1862,172 +1704,290 @@ void CPluginShell::RenderBuiltInTextMsgs()
 		RECT r;
 
 		if (m_show_help)
-		{
-			int y = m_upper_left_corner_y;
-
-			SetRect(&r, 0, 0, GetWidth(), GetHeight());
-			if(!g_szHelp_W)
-				m_d3dx_font[HELPSCREEN_FONT]->DrawTextA(NULL, (char*)g_szHelp, -1, &r, DT_CALCRECT, 0xFFFFFFFF);
-			else
-				m_d3dx_font[HELPSCREEN_FONT]->DrawTextW(NULL, g_szHelp, -1, &r, DT_CALCRECT, 0xFFFFFFFF);
-
-			r.top += m_upper_left_corner_y;
-			r.left += m_left_edge;
-			r.right += m_left_edge + PLAYLIST_INNER_MARGIN*2;
-			r.bottom += m_upper_left_corner_y + PLAYLIST_INNER_MARGIN*2;
-			DrawDarkTranslucentBox(&r);
-
-			r.top += PLAYLIST_INNER_MARGIN;
-			r.left += PLAYLIST_INNER_MARGIN;
-			r.right -= PLAYLIST_INNER_MARGIN;
-			r.bottom -= PLAYLIST_INNER_MARGIN;
-			if(!g_szHelp_W)
-				m_d3dx_font[HELPSCREEN_FONT]->DrawTextA(NULL, (char*)g_szHelp, -1, &r, 0, 0xFFFFFFFF);
-			else
-				m_d3dx_font[HELPSCREEN_FONT]->DrawTextW(NULL, g_szHelp, -1, &r, 0, 0xFFFFFFFF);
-
-			m_upper_left_corner_y += r.bottom-r.top + PLAYLIST_INNER_MARGIN*3;
-		}
+			RenderHelpCard();   // SURI: design B card, centred
 
 		// render 'Press F1 for Help' message in lower-right corner:
 		if (_show_press_f1_NOW)
 		{
 			int dx = (int)(160.0f * powf(m_time/(float)(PRESS_F1_DUR), (float)(PRESS_F1_EXP)));
 			SetRect(&r, m_left_edge, m_lower_right_corner_y - GetFontHeight(DECORATIVE_FONT), m_right_edge + dx, m_lower_right_corner_y);
-			m_lower_right_corner_y -= m_d3dx_font[DECORATIVE_FONT]->DrawTextW(NULL, wasabiApiLangString(IDS_PRESS_F1_MSG), -1, &r, DT_RIGHT, 0xFFFFFFFF);
+			m_lower_right_corner_y -= m_d3dx_font[DECORATIVE_FONT]->DrawTextW(NULL, LoadResString(IDS_PRESS_F1_MSG), -1, &r, DT_RIGHT, 0xFFFFFFFF);
 		}
 	}
 }
 
-void CPluginShell::RenderPlaylist()
+// SURI: ---- on-screen cards (phase 6 design B) ----------------------------------------------
+
+int CPluginShell::UiPx(int px96)
 {
-	// draw playlist:
-	if (m_show_playlist)
+	return ScaleFontPixels(px96, m_ui_dpi);
+}
+
+void CPluginShell::DrawRoundedPanel(const RECT* r, int radius, DWORD fill, DWORD border)
+{
+	// Same approach as DrawDarkTranslucentBox: untextured DrawPrimitiveUP with alpha blending.
+	// The outline is the rectangle with 4 quarter circles of 8 segments each. The inside is one
+	// triangle fan from the centre (the shape is convex, so this covers the centre rectangle and
+	// the 4 corner fans in one call); the border is a 1 px line strip along the same outline.
+	if (m_vjd3d9_device || !m_lpDX || !m_lpDX->m_lpDevice || !r)
+		return;
+	const int w = r->right - r->left, h = r->bottom - r->top;
+	if (w <= 0 || h <= 0)
+		return;
+	float rad = (float)radius;
+	if (rad > w * 0.5f) rad = w * 0.5f;
+	if (rad > h * 0.5f) rad = h * 0.5f;
+	if (rad < 0) rad = 0;
+
+	LPDIRECT3DDEVICE9 dev = m_lpDX->m_lpDevice;
+	dev->SetVertexShader(NULL);
+	dev->SetPixelShader(NULL);
+	dev->SetFVF(SIMPLE_VERTEX_FORMAT);
+	dev->SetTexture(0, NULL);
+	dev->SetRenderState(D3DRS_ZENABLE, FALSE);
+	dev->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+	dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
+	dev->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+	dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+	dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_DIFFUSE);
+
+	const float cx = m_lpDX->m_client_width  * 0.5f;
+	const float cy = m_lpDX->m_client_height * 0.5f;
+	const int SEG = 8, NPTS = 4 * (SEG + 1);
+	// Outline in pixel coordinates (D3D9 pixel centres are on integers). inset 0 runs along the
+	// pixel edges (for the fill); inset 0.5 runs through the outermost pixels (for the line).
+	auto outline = [&](SIMPLEVERTEX* out, float inset, DWORD color) {
+		const float L = r->left - 0.5f + inset, R = r->right - 0.5f - inset;
+		const float T = r->top - 0.5f + inset,  B = r->bottom - 0.5f - inset;
+		float rr = rad - inset; if (rr < 0) rr = 0;
+		const float ccx[4] = { L + rr, R - rr, R - rr, L + rr };
+		const float ccy[4] = { T + rr, T + rr, B - rr, B - rr };
+		int n = 0;
+		for (int c = 0; c < 4; c++)
+			for (int k = 0; k <= SEG; k++) {
+				float a = 3.14159265f * (1.0f + 0.5f * c + 0.5f * k / SEG);   // 180..540 deg: clockwise on screen
+				out[n].x = (ccx[c] + rr * cosf(a)) - cx;
+				out[n].y = -((ccy[c] + rr * sinf(a)) - cy);
+				out[n].z = 0;
+				out[n].Diffuse = color;
+				n++;
+			}
+	};
+
+	if (fill >> 24)
 	{
-		RECT r;
-        int nSongs = 0;  //SendMessage(m_hWndWinamp, WM_USER, 0, 124);
-        int now_playing = 0; // SendMessage(m_hWndWinamp, WM_USER, 0, 125);
+		SIMPLEVERTEX v[NPTS + 2];
+		v[0].x = (r->left + r->right) * 0.5f - 0.5f - cx;
+		v[0].y = -((r->top + r->bottom) * 0.5f - 0.5f - cy);
+		v[0].z = 0;
+		v[0].Diffuse = fill;
+		outline(&v[1], 0.0f, fill);
+		v[NPTS + 1] = v[1];
+		dev->DrawPrimitiveUP(D3DPT_TRIANGLEFAN, NPTS, v, sizeof(SIMPLEVERTEX));
+	}
+	if (border >> 24)
+	{
+		SIMPLEVERTEX v[NPTS + 1];
+		outline(v, 0.5f, border);
+		v[NPTS] = v[0];
+		dev->DrawPrimitiveUP(D3DPT_LINESTRIP, NPTS, v, sizeof(SIMPLEVERTEX));
+	}
 
-		if (nSongs <= 0)
+	// undo unusual state changes (as DrawDarkTranslucentBox does):
+	dev->SetRenderState(D3DRS_ZENABLE, TRUE);
+	dev->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+}
+
+int CPluginShell::UiText(LPD3DXFONT f, const wchar_t* s, RECT* r, DWORD flags, DWORD color)
+{
+	if (!f || !s || !r || !s[0])
+		return 0;
+	if (m_vjd3d9_device)
+		return m_text.DrawTextW(f, (wchar_t*)s, r, flags, color, false);
+	return f->DrawTextW(NULL, s, -1, r, flags, color);
+}
+
+int CPluginShell::UiMeasure(LPD3DXFONT f, const wchar_t* s, RECT* r, DWORD flags)
+{
+	if (!f || !s || !r)
+		return 0;
+	if (!s[0]) { r->right = r->left; r->bottom = r->top; return 0; }
+	return f->DrawTextW(NULL, s, -1, r, flags | DT_CALCRECT, 0xFFFFFFFF);
+}
+
+// The F1 help as a centred card: a row of topic tabs, then the page's keys as keycaps with
+// their descriptions in a grid (two columns when there is room), then a footer line.
+// SURI: a page taller than the window is drawn with smaller fonts, and cut with a "..." line
+// if it still does not fit.
+// Called from RenderBuiltInTextMsgs, which runs on the device that owns the fonts, so the text
+// is drawn right away (DrawRoundedPanel skips the panels in VJ mode).
+void CPluginShell::RenderHelpCard()
+{
+	LPD3DXFONT fTab = m_ui_font[UIF_META], fTabOn = m_ui_font[UIF_TAB_ON];
+	if (!fTab || !fTabOn || !m_ui_font[UIF_KEY] || !m_ui_font[UIF_BODY])
+		return;
+
+	const std::vector<std::wstring>& pages = HelpPages();
+	if (m_help_page < 0 || m_help_page >= (int)pages.size()) m_help_page = 0;
+
+	const int W = m_vjd3d9_device ? m_nTextWndWidth  : m_lpDX->m_client_width;
+	const int H = m_vjd3d9_device ? m_nTextWndHeight : m_lpDX->m_client_height;
+	int cardW = UiPx(980);
+	if (cardW > W * 9 / 10) cardW = W * 9 / 10;
+	const int padX = UiPx(38), padY = UiPx(30), margin = UiPx(12);
+	const int innerW = cardW - 2 * padX;
+	if (innerW < UiPx(120))
+		return;
+	const int maxCardH = H - 2 * margin;   // SURI: the card must fit in the window
+
+	struct Op { bool isPanel; LPD3DXFONT f; std::wstring s; RECT r; DWORD flags, color, fill, border; int radius; };
+	std::vector<Op> ops;   // positions relative to the card's inner top-left corner
+	auto text = [&](LPD3DXFONT f, const std::wstring& s, int x, int y, int w, int h, DWORD flags, DWORD color) {
+		Op o = { false, f, s, { x, y, x + w, y + h }, flags, color, 0, 0, 0 };
+		ops.push_back(o);
+	};
+	auto panel = [&](int x, int y, int w, int h, int radius, DWORD fill, DWORD border) {
+		Op o = { true, NULL, L"", { x, y, x + w, y + h }, 0, 0, fill, border, radius };
+		ops.push_back(o);
+	};
+	auto measure = [&](LPD3DXFONT f, const std::wstring& s, int maxW, DWORD flags, int* outW) -> int {
+		RECT r = { 0, 0, maxW, 0 };
+		int h = UiMeasure(f, s.c_str(), &r, flags);
+		if (outW) *outW = r.right - r.left;
+		return h;
+	};
+
+	// SURI: footer text from the string table (LoadResString returns one static buffer: copy each)
+	const std::wstring footLeft  = LoadResString(IDS_HELP_FOOTER_TOPICS);
+	const std::wstring footRight = LoadResString(IDS_HELP_FOOTER_CLOSE);
+	const std::vector<HelpRow> rows = ParseHelpPage(pages[m_help_page], NULL);
+
+	// SURI: lays the card out into ops and returns its inner height. compact: smaller key / body
+	// fonts and gaps. limitCardH > 0: rows that would make the card taller than that are left
+	// out, and a "..." line shows where the page was cut.
+	auto layout = [&](bool compact, int limitCardH) -> int {
+		ops.clear();
+		LPD3DXFONT fKey  = m_ui_font[compact ? UIF_KEY_COMPACT  : UIF_KEY];
+		LPD3DXFONT fBody = m_ui_font[compact ? UIF_BODY_COMPACT : UIF_BODY];
+		const int gap = UiPx(compact ? 12 : 20);
+
+		// 1. tabs: one per page, named by the page's title line
+		int x = 0, y = 0, rowH = 0;
+		const int tabPadX = UiPx(14), tabPadY = UiPx(compact ? 4 : 6), tabGap = UiPx(8);
+		for (int i = 0; i < (int)pages.size(); i++)
 		{
-			m_show_playlist = 0;
+			std::wstring title;
+			ParseHelpPage(pages[i], &title);
+			const bool on = (i == m_help_page);
+			LPD3DXFONT f = on ? fTabOn : fTab;
+			int tw = 0, th = measure(f, title, 4096, DT_SINGLELINE, &tw);
+			int w = tw + 2 * tabPadX, h = th + 2 * tabPadY;
+			if (x > 0 && x + w > innerW) { x = 0; y += rowH + tabGap; rowH = 0; }
+			panel(x, y, w, h, h, on ? CARD_ACCENT : 0, on ? 0 : CARD_BORDER);
+			text(f, title, x + tabPadX, y + tabPadY, tw + 2, th, DT_SINGLELINE, on ? CARD_ACCENT_TEXT : CARD_TEXT_2);
+			x += w + tabGap;
+			if (h > rowH) rowH = h;
 		}
+		y += rowH + gap;
+
+		// 2. key grid (paragraph lines span the full width)
+		const int colGap = UiPx(36), rowGap = UiPx(compact ? 5 : 12), capPadX = UiPx(8), capPadY = UiPx(compact ? 1 : 2), keyGap = UiPx(14);
+		const int cols = ((innerW - colGap) / 2 >= UiPx(380)) ? 2 : 1;
+		const int colW = (cols == 2) ? (innerW - colGap) / 2 : innerW;
+		int capW = UiPx(110);   // all keycaps of a page share one width, so the descriptions line up
+		for (const HelpRow& r : rows)
+			if (!r.key.empty()) {
+				int kw = 0;
+				measure(fKey, r.key, 4096, DT_SINGLELINE, &kw);
+				if (kw + 2 * capPadX > capW) capW = kw + 2 * capPadX;
+			}
+		if (capW > colW * 45 / 100) capW = colW * 45 / 100;
+		const int descX = capW + keyGap, descW = colW - descX;
+		const int keyLineH  = measure(fKey,  L"Ag", 4096, DT_SINGLELINE, NULL);
+		const int bodyLineH = measure(fBody, L"Ag", 4096, DT_SINGLELINE, NULL);
+		const int footH     = measure(fTab,  L"Ag", 4096, DT_SINGLELINE, NULL);
+		const int capH = keyLineH + 2 * capPadY;
+		const int capTop  = (bodyLineH > capH) ? (bodyLineH - capH) / 2 : 0;   // centre the keycap on the first text line
+		const int descTop = (capH > bodyLineH) ? (capH - bodyLineH) / 2 : 0;
+		// lowest y a row may reach: leaves room for the "..." line, the gap and the footer
+		const int limitY = (limitCardH > 0) ? limitCardH - 2 * padY - (bodyLineH + rowGap) - gap - footH : 0x7FFFFFFF;
+
+		bool clipped = false;
+		int col = 0, cellRowH = 0;
+		auto endRow = [&]() { if (col > 0) { y += cellRowH + rowGap; col = 0; cellRowH = 0; } };
+		for (const HelpRow& r : rows)
+		{
+			if (r.key.empty())
+			{
+				endRow();
+				int h = measure(fBody, r.text, innerW, DT_WORDBREAK, NULL);
+				if (y + h > limitY) { clipped = true; break; }
+				text(fBody, r.text, 0, y, innerW, h, DT_WORDBREAK, CARD_TEXT_2);
+				y += h + rowGap;
+				continue;
+			}
+			const int cx0 = col * (colW + colGap);
+			int dh = measure(fBody, r.text, descW, DT_WORDBREAK, NULL);
+			int hh = descTop + dh;
+			if (capTop + capH > hh) hh = capTop + capH;
+			if (y + hh > limitY) { clipped = true; break; }
+			int kw = 0;
+			measure(fKey, r.key, 4096, DT_SINGLELINE, &kw);
+			int kx = (capW - kw) / 2;
+			if (kx < capPadX) kx = capPadX;
+			panel(cx0, y + capTop, capW, capH, UiPx(6), CARD_KEYCAP, 0);
+			text(fKey, r.key, cx0 + kx, y + capTop + capPadY, capW - kx, keyLineH, DT_SINGLELINE, CARD_TEXT);
+			text(fBody, r.text, cx0 + descX, y + descTop, descW, dh, DT_WORDBREAK, CARD_TEXT);
+			if (hh > cellRowH) cellRowH = hh;
+			if (++col >= cols) endRow();
+		}
+		endRow();
+		if (clipped)
+		{
+			text(fBody, L"\x2026", 0, y, innerW, bodyLineH, DT_SINGLELINE, CARD_TEXT_2);
+			y += bodyLineH + rowGap;
+		}
+		y += gap - rowGap;
+
+		// 3. footer, in the smaller 17 px font and the secondary colour
+		{
+			int lw = 0, rw = 0;
+			int h = measure(fTab, footLeft, 4096, DT_SINGLELINE, &lw);
+			measure(fTab, footRight, 4096, DT_SINGLELINE, &rw);
+			text(fTab, footLeft, 0, y, lw + 2, h, DT_SINGLELINE, CARD_TEXT_2);
+			text(fTab, footRight, innerW - rw - 2, y, rw + 2, h, DT_SINGLELINE, CARD_TEXT_2);
+			y += h;
+		}
+		return y;
+	};
+
+	// SURI: too tall for the window: smaller fonts first, then cut the page
+	int innerH = layout(false, 0);
+	if (innerH + 2 * padY > maxCardH && m_ui_font[UIF_KEY_COMPACT] && m_ui_font[UIF_BODY_COMPACT])
+	{
+		innerH = layout(true, 0);
+		if (innerH + 2 * padY > maxCardH)
+			innerH = layout(true, maxCardH);
+	}
+
+	// 4. place the card and draw everything
+	const int cardH = innerH + 2 * padY;
+	const int left = (W - cardW) / 2;
+	int top = (H - cardH) / 2;
+	if (top < margin) top = margin;
+	RECT card = { left, top, left + cardW, top + cardH };
+	DrawRoundedPanel(&card, UiPx(18), CARD_FILL_PANEL, CARD_BORDER);
+	for (Op& o : ops)
+	{
+		RECT r = o.r;
+		OffsetRect(&r, left + padX, top + padY);
+		if (o.isPanel)
+			DrawRoundedPanel(&r, o.radius, o.fill, o.border);
 		else
-		{
-			int playlist_vert_pixels = m_lower_left_corner_y - m_upper_left_corner_y;
-			int disp_lines  = min(MAX_SONGS_PER_PAGE, (playlist_vert_pixels - PLAYLIST_INNER_MARGIN*2) / GetFontHeight(PLAYLIST_FONT));
-			int total_pages = (nSongs) / disp_lines;
-
-			if (disp_lines<=0)
-				return;
-
-			// apply PgUp/PgDn keypresses since last time
-			m_playlist_pos -= m_playlist_pageups * disp_lines;
-			m_playlist_pageups = 0;
-
-			if (m_playlist_pos < 0)
-				m_playlist_pos = 0;
-			if (m_playlist_pos >= nSongs)
-				m_playlist_pos = nSongs-1;
-
-			// NOTE: 'dwFlags' is used for both DDRAW and DX9
-			DWORD dwFlags   = DT_SINGLELINE;// | DT_NOPREFIX | DT_WORD_ELLIPSIS;
-			DWORD color;
-
-			int cur_page    = (m_playlist_pos) / disp_lines;
-			int cur_line    = (m_playlist_pos + disp_lines - 1) % disp_lines;
-			int new_top_idx = cur_page * disp_lines;
-			int new_btm_idx = new_top_idx + disp_lines;
-			wchar_t buf[1024] = {0};
-
-			// ask winamp for the song names, but DO IT BEFORE getting the DC,
-			// otherwise vaio will crash (~DDRAW port).
-			if (m_playlist_top_idx != new_top_idx ||
-			    m_playlist_btm_idx != new_btm_idx)
-			{
-				for (int i=0; i<disp_lines; i++)
-				{
-					int j = new_top_idx + i;
-					if (j < nSongs)
-					{
-						// clip max len. of song name to 240 chars, to prevent overflows
-						//lstrcpynW(buf, (wchar_t*)SendMessage(m_hWndWinamp, WM_USER, j, IPC_GETPLAYLISTTITLEW), 240);
-						//wsprintfW(m_playlist[i], L"%d. %s ", j+1, buf);  // leave an extra space @ end, so italicized fonts don't get clipped
-					}
-				}
-			}
-
-			// update playlist cache, if necessary:
-			if (m_playlist_top_idx != new_top_idx ||
-			    m_playlist_btm_idx != new_btm_idx)
-			{
-				m_playlist_top_idx = new_top_idx;
-				m_playlist_btm_idx = new_btm_idx;
-				m_playlist_width_pixels = 0;
-
-				int max_w = min(m_right_edge - m_left_edge, m_lpDX->m_client_width - TEXT_MARGIN*2 - PLAYLIST_INNER_MARGIN*2);
-
-				for (int i=0; i<disp_lines; i++)
-				{
-					int j = new_top_idx + i;
-					if (j < nSongs)
-					{
-						// clip max len. of song name to 240 chars, to prevent overflows
-						//strcpy(buf, (char*)SendMessage(m_hWndWinamp, WM_USER, j, 212));
-						//buf[240] = 0;
-						//sprintf(m_playlist[i], "%d. %s ", j+1, buf);  // leave an extra space @ end, so italicized fonts don't get clipped
-
-						SetRect(&r, 0, 0, max_w, 1024);
-						m_d3dx_font[PLAYLIST_FONT]->DrawTextW(NULL, m_playlist[i], -1, &r, dwFlags | DT_CALCRECT, 0xFFFFFFFF);
-						int w = r.right-r.left;
-						if (w>0)
-							m_playlist_width_pixels = max(m_playlist_width_pixels, w);
-					}
-					else
-					{
-						m_playlist[i][0] = 0;
-					}
-				}
-
-				if (m_playlist_width_pixels == 0 ||
-				    m_playlist_width_pixels > max_w)
-					m_playlist_width_pixels = max_w;
-			}
-
-			int start = max(0, (cur_page)*disp_lines);
-			int end   = min(nSongs, (cur_page+1)*disp_lines);
-
-			// draw dark box around where the playlist will go:
-
-			RECT r;
-			r.top    = m_upper_left_corner_y;
-			r.left   = m_left_edge;
-			r.right  = m_left_edge + m_playlist_width_pixels + PLAYLIST_INNER_MARGIN*2;
-			r.bottom = m_upper_left_corner_y + (end-start)*GetFontHeight(PLAYLIST_FONT) + PLAYLIST_INNER_MARGIN*2;
-			DrawDarkTranslucentBox(&r);
-
-			//m_d3dx_font[PLAYLIST_FONT]->Begin();
-
-			// draw playlist text
-			int y = m_upper_left_corner_y + PLAYLIST_INNER_MARGIN;
-			for (int i=start; i<end; i++)
-			{
-				SetRect(&r, m_left_edge + PLAYLIST_INNER_MARGIN, y, m_left_edge + PLAYLIST_INNER_MARGIN + m_playlist_width_pixels, y + GetFontHeight(PLAYLIST_FONT));
-
-				if (m_lpDX->GetBitDepth() == 8)
-					color = (i==m_playlist_pos) ?
-					        (i==now_playing ? 0xFFFFFFFF : 0xFFFFFFFF) :
-							        (i==now_playing ? 0xFFFFFFFF : 0xFF707070);
-				else
-					color = (i==m_playlist_pos) ?
-					        (i==now_playing ? PLAYLIST_COLOR_BOTH : PLAYLIST_COLOR_HILITE_TRACK) :
-							        (i==now_playing ? PLAYLIST_COLOR_PLAYING_TRACK : PLAYLIST_COLOR_NORMAL);
-
-				y += m_d3dx_font[PLAYLIST_FONT]->DrawTextW(NULL, m_playlist[i-start], -1, &r, dwFlags, color);
-			}
-
-			//m_d3dx_font[PLAYLIST_FONT]->End();
-		}
+			o.f->DrawTextW(NULL, o.s.c_str(), -1, &r, o.flags, o.color);
 	}
 }
 
@@ -2042,14 +2002,14 @@ void CPluginShell::SuggestHowToFreeSomeMem()
 
 	if (m_lpDX->m_current_mode.multisamp != D3DMULTISAMPLE_NONE)
 	{
-		wasabiApiLangString(IDS_TO_FREE_UP_SOME_MEMORY_RESTART_WINAMP_THEN_GO_TO_CONFIG, str, 2048);
+		LoadResString(IDS_TO_FREE_UP_MEMORY_DISABLE_MULTISAMPLING, str, ARRAYSIZE(str));
 	}
     else
     {
-        wasabiApiLangString(IDS_TO_FREE_UP_VIDEO_MEMORY, str, 2048);
+        LoadResString(IDS_TO_FREE_UP_VIDEO_MEMORY, str, ARRAYSIZE(str));
     }
 
-	MessageBoxW(m_lpDX->GetHwnd(), str, wasabiApiLangString(IDS_MILKDROP_SUGGESTION), MB_OK|MB_SETFOREGROUND|MB_TOPMOST);
+	MessageBoxW(m_lpDX->GetHwnd(), str, LoadResString(IDS_MILKDROP_SUGGESTION), MB_OK|MB_SETFOREGROUND|MB_TOPMOST);
 }
 
 LRESULT CALLBACK CPluginShell::WindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lParam)
@@ -2073,7 +2033,6 @@ LRESULT CALLBACK CPluginShell::WindowProc(HWND hWnd, unsigned uMsg, WPARAM wPara
 LRESULT CPluginShell::PluginShellWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lParam)
 {
 	USHORT mask = 1 << (sizeof(SHORT)*8 - 1);
-	//bool bShiftHeldDown = (GetKeyState(VK_SHIFT) & mask) != 0;
 	bool bCtrlHeldDown  = (GetKeyState(VK_CONTROL) & mask) != 0;
 	//bool bAltHeldDown: most keys come in under WM_SYSKEYDOWN when ALT is depressed.
 
@@ -2099,9 +2058,6 @@ LRESULT CPluginShell::PluginShellWindowProc(HWND hWnd, unsigned uMsg, WPARAM wPa
 		if (!m_lpDX->TempIgnoreDestroyMessages())
 		{
 			// this is a final exit, and not just destroy-then-recreate-the-window.
-			// so, flag DXContext so it knows that someone else
-			// will take care of destroying the window!
-			m_lpDX->OnTrulyExiting();
 			PostQuitMessage(0);
 		}
 		return FALSE;
@@ -2166,53 +2122,10 @@ LRESULT CPluginShell::PluginShellWindowProc(HWND hWnd, unsigned uMsg, WPARAM wPa
 		}
 		break;
 
-	case WM_SYSCHAR:
-		if ((wParam=='k' || wParam=='K'))
-		{
-			OnAltK();
-			return 0;
-		}
-		break;
-
 	case WM_CHAR:
-		// if playlist is showing, steal p/j keys from the plugin:
-		if (m_show_playlist)
-		{
-			/* resync m_playlist_pos */
-		}
-
-		// then allow the plugin to override any keys:
+		// allow the plugin to override any keys:
 		if (MyWindowProc(hWnd, uMsg, wParam, lParam) == 0)
 			return 0;
-
-		switch (wParam)
-		{
-			// WINAMP PLAYBACK CONTROL KEYS:
-		case 'x':
-		case 'X':
-			/* play */
-			return 0;
-		case 'c':
-		case 'C':
-			/* pause */
-			return 0;
-		case 'v':
-		case 'V':
-			/* stop */
-			return 0;
-		case 'b':
-		case 'B':
-			/* next */
-			return 0;
-		case 's':
-		case 'S':
-			/* shuffle */
-			return 0;
-		case 'r':
-		case 'R':
-			/* repeat */
-			return 0;
-		}
 
 		return 0;
 
@@ -2226,68 +2139,13 @@ LRESULT CPluginShell::PluginShellWindowProc(HWND hWnd, unsigned uMsg, WPARAM wPa
 		break;
 
 	case WM_KEYDOWN:
-		if (m_show_playlist)
-		{
-			switch (wParam)
-			{
-			case VK_UP:
-			{
-				int nRepeat = lParam & 0xFFFF;
-				if (GetKeyState(VK_SHIFT) & mask)
-					m_playlist_pos -= 10*nRepeat;
-				else
-					m_playlist_pos -= nRepeat;
-			}
-			return 0;
-
-			case VK_DOWN:
-			{
-				int nRepeat = lParam & 0xFFFF;
-				if (GetKeyState(VK_SHIFT) & mask)
-					m_playlist_pos += 10*nRepeat;
-                else
-					m_playlist_pos += nRepeat;
-			}
-			return 0;
-
-			case VK_HOME:
-				m_playlist_pos = 0;
-				return 0;
-
-			case VK_END:
-				return 0;
-
-			case VK_PRIOR:
-				if (GetKeyState(VK_SHIFT) & mask)
-					m_playlist_pageups += 10;
-				else
-					m_playlist_pageups++;
-				return 0;
-
-			case VK_NEXT:
-				if (GetKeyState(VK_SHIFT) & mask)
-					m_playlist_pageups -= 10;
-				else
-					m_playlist_pageups--;
-				return 0;
-
-			case VK_RETURN:
-                /* set playlist selection, and play */
-				return 0;
-			}
-		}
-
 		// allow the plugin to override any keys:
 		if (MyWindowProc(hWnd, uMsg, wParam, lParam) == 0)
 			return 0;
 
 		switch (wParam)
 		{
-		    case VK_F1:
-			    m_show_press_f1_msg = 0;
-			    ToggleHelp();
-			    return 0;
-
+		    // (F1 is Cmd::HelpOverlay, handled in CPlugin::MyWindowProc)
 		    case VK_ESCAPE:
 			    if (m_show_help)
 				    ToggleHelp();
@@ -2309,34 +2167,13 @@ LRESULT CPluginShell::PluginShellWindowProc(HWND hWnd, unsigned uMsg, WPARAM wPa
 void CPluginShell::ToggleHelp()
 {
     m_show_help = 1 - m_show_help;
+    m_help_page = 0;   // SURI: F1 always opens page 1
 }
 
-LRESULT CALLBACK CPluginShell::DesktopWndProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lParam)
+void CPluginShell::HelpPageStep(int dir)
 {
-    CPluginShell* p = (CPluginShell*)GetWindowLongPtr(hWnd,GWLP_USERDATA);
-	if (p)
-		return p->PluginShellDesktopWndProc(hWnd, uMsg, wParam, lParam);
-	else
-		return DefWindowProc(hWnd, uMsg, wParam, lParam);
-}
-
-LRESULT CPluginShell::PluginShellDesktopWndProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lParam)
-{
-	switch (uMsg)
-	{
-	case WM_KEYDOWN:
-	case WM_KEYUP:
-	case WM_CHAR:
-	case WM_SYSCHAR:
-	case WM_SYSKEYDOWN:
-	case WM_SYSKEYUP:
-		//PostMessage(GetPluginWindow(), uMsg, wParam, lParam);
-		PluginShellWindowProc(GetPluginWindow(), uMsg, wParam, lParam);
-		return 0;
-		break;
-	}
-
-	return DefWindowProc(hWnd, uMsg, wParam, lParam);
+    const int n = (int)HelpPages().size();
+    m_help_page = ((m_help_page + dir) % n + n) % n;
 }
 
 void CPluginShell::AlignWaves()
@@ -2435,7 +2272,6 @@ void CPluginShell::AlignWaves()
 			for (int n=n1; n<n2; n++)
 			{
 				float err_sum = 0;
-				//for (int i=0; i<compare_samples; i++)
 				for (int i=first_nonzero_weight[octave]; i<=last_nonzero_weight[octave]; i++)
 				{
 					float x = (temp_new[octave][i+n] - temp_old[octave][i]) * temp_weight[octave][i];

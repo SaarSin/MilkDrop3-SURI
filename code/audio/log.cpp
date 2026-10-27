@@ -4,6 +4,24 @@
 
 #define LOG_SIZE 512
 
+// SURI: besides OutputDebugString, append every message to MilkDrop3.log next to the exe,
+// so startup failures (e.g. audio capture errors) can be diagnosed without a debugger.
+static void WriteLogFile(LPCWSTR msg) {
+	static wchar_t path[MAX_PATH] = L"";
+	if (!path[0]) {
+		GetModuleFileNameW(NULL, path, MAX_PATH);
+		wchar_t* slash = wcsrchr(path, L'\\');
+		if (slash) wcscpy_s(slash + 1, MAX_PATH - (slash + 1 - path), L"MilkDrop3.log");
+	}
+	FILE* f = NULL;
+	if (_wfopen_s(&f, path, L"a, ccs=UTF-8") == 0 && f) {
+		SYSTEMTIME t;
+		GetLocalTime(&t);
+		fwprintf(f, L"%02d:%02d:%02d.%03d %s\n", t.wHour, t.wMinute, t.wSecond, t.wMilliseconds, msg);
+		fclose(f);
+	}
+}
+
 //LPCTSTR UNICODE _UNICODE
 
 //--------------------------------------------------
@@ -38,6 +56,7 @@ void LOG(LPCWSTR format, ...) {
 	va_end(args_list);
 
 	OutputDebugStringW(output_buff);
+	WriteLogFile(output_buff);
 }
 
 //--------------------------------------------------
@@ -72,6 +91,7 @@ void ERR(LPCWSTR format, ...) {
 	va_end(args_list);
 
 	OutputDebugStringW(output_buff);
+	WriteLogFile(output_buff);
 }
 
 //--------------------------------------------------

@@ -31,6 +31,7 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define __NULLSOFT_DX9_EXAMPLE_PLUGIN_H__ 1
 
 #include "pluginshell.h"
+#include <shellapi.h>   // SURI: HDROP (drag & drop)
 #include "md_defines.h"
 #include "menu.h"
 #include "support.h"
@@ -38,17 +39,22 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "state.h"
 #include <vector>
 #include "../ns-eel2/ns-eel.h"
+#include "features/commands.h"
+#include "features/shader_fx.h"
+#include "features/ui_scale.h"
+#include "features/now_playing.h"
+#include "features/now_playing_winrt.h"
+#include "features/sprite_preset.h"
+#include "features/playlist.h"
+#include "features/playlist_screen.h"
 #include <string>
-
-//#include <core/sdk/IPlaybackService.h>
 
 extern "C" int (*warand)(void);
 
 typedef enum { TEX_DISK, TEX_VS, TEX_BLUR0, TEX_BLUR1, TEX_BLUR2, TEX_BLUR3, TEX_BLUR4, TEX_BLUR5, TEX_BLUR6, TEX_BLUR_LAST } tex_code;
-typedef enum { UI_REGULAR, UI_MENU, UI_LOAD, UI_LOAD_DEL, UI_LOAD_RENAME, UI_SAVEAS, UI_SAVE_OVERWRITE, UI_EDIT_MENU_STRING, UI_CHANGEDIR, UI_IMPORT_WAVE, UI_EXPORT_WAVE, UI_IMPORT_SHAPE, UI_EXPORT_SHAPE, UI_UPGRADE_PIXEL_SHADER, UI_MASHUP } ui_mode;
+typedef enum { UI_REGULAR, UI_MENU, UI_LOAD, UI_LOAD_DEL, UI_LOAD_RENAME, UI_SAVEAS, UI_SAVE_OVERWRITE, UI_EDIT_MENU_STRING, UI_CHANGEDIR, UI_IMPORT_WAVE, UI_EXPORT_WAVE, UI_IMPORT_SHAPE, UI_EXPORT_SHAPE, UI_UPGRADE_PIXEL_SHADER, UI_MASHUP, UI_PLAYLIST, UI_IMPORT_NEW } ui_mode;
 typedef struct { float rad; float ang; float a; float c;  } td_vertinfo; // blending: mix = max(0,min(1,a*t + c));
 typedef char* CHARPTR;
-LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 #define MY_FFT_SAMPLES 512     // for old [pre-vms] milkdrop sound analysis
 typedef struct
@@ -135,7 +141,6 @@ typedef struct
 {
 	int 	bRedrawSuperText;	// true if it needs redraw
 	int 	bIsSongTitle;		// false for custom message, true for song title
-	//char	szText[256];
 	wchar_t	szTextW[256];
 	wchar_t	nFontFace[128];
 	int 	bBold;
@@ -148,6 +153,8 @@ typedef struct
 	float	fStartTime;
 	float	fDuration;
 	float	fFadeTime;			// applies to custom messages only; song title fade times are handled specially
+	float	fHoldTime;			// SURI: song title only: seconds on screen after the fly-in (0 = classic burn-in)
+	float	fOutFadeTime;		// SURI: song title only: seconds to fade out after fHoldTime
 	int  	nColorR;
 	int     nColorG;
 	int  	nColorB;
@@ -159,7 +166,6 @@ typedef struct
     wchar_t        texname[256];   // ~filename, but without path or extension!
     LPDIRECT3DBASETEXTURE9 texptr;
     int                w,h,d;
-    //D3DXHANDLE         texsize_param;
     bool               bEvictable;
     int                 nAge;   // only valid if bEvictable is true
     int                 nSizeInBytes;    // only valid if bEvictable is true
@@ -179,16 +185,6 @@ typedef struct
     bool               bWrap;
 } SamplerInfo;
 
-typedef struct
-{
-    std::wstring   msg;
-    bool      bBold;  // true == red bkg; false == black bkg
-    float     birthTime;
-    float     expireTime;
-    int       category;
-} ErrorMsg;
-
-typedef std::vector<ErrorMsg> ErrorMsgList;
 typedef std::vector<CShaderParams*> CShaderParamsList;
 
 class CShaderParams
@@ -274,7 +270,7 @@ public:
 
     //====[ 1. members added to create this specific example plugin: ]================================================
 
-        /// CONFIG PANEL SETTINGS THAT WE'VE ADDED (TAB #2)
+        /// SETTINGS (milk2.ini)
         bool		m_bFirstRun;
         float		m_fBlendTimeAuto;		// blend time when preset auto-switches
         float		m_fBlendTimeUser;		// blend time when user loads a new preset
@@ -285,9 +281,6 @@ public:
         float		m_fHardCutLoudnessThresh;
         float		m_fHardCutHalflife;
         float		m_fHardCutThresh;
-        //int			m_nWidth;
-        //int			m_nHeight;
-        //int			m_nDispBits;
         int         m_nCanvasStretch;   // 0=Auto, 100=None, 125 = 1.25X, 133, 150, 167, 200, 300, 400 (4X).
         int			m_nTexSizeX;			// -1 = exact match to screen; -2 = nearest power of 2.
         int			m_nTexSizeY;
@@ -300,29 +293,23 @@ public:
         int			m_nGridY;
 
         bool		m_bShowPressF1ForHelp;
-        //char		m_szMonitorName[256];
         bool		m_bShowMenuToolTips;
         int			m_n16BitGamma;
         bool		m_bAutoGamma;
-        //int		m_nFpsLimit;
-        //int			m_cLeftEye3DColor[3];
-        //int			m_cRightEye3DColor[3];
         bool		m_bEnableRating;
-        //bool        m_bInstaScan;
         bool		m_bSongTitleAnims;
+        bool		m_bNowPlaying;		// SURI: read the song from Windows media controls (ini: bNowPlaying)
+        SongInfoBox	m_songBox;		// SURI: filled by m_nowPlaying's thread, read by GetSongTitle
+        CNowPlaying	m_nowPlaying;
         float		m_fSongTitleAnimDuration;
+        float		m_fSongTitleHold;		// SURI: now-playing title stays on screen this long (ini: fSongTitleHold)
+        float		m_fSongTitleFade;		// SURI: ...then fades out over this long (ini: fSongTitleFade)
         float		m_fTimeBetweenRandomSongTitles;
         float		m_fTimeBetweenRandomCustomMsgs;
         int			m_nSongTitlesSpawned;
         int			m_nCustMsgsSpawned;
 
-        //bool		m_bAlways3D;
-        //float       m_fStereoSep;
-        //bool		m_bAlwaysOnTop;
-        //bool		m_bFixSlowText;
-        //bool		m_bWarningsDisabled;		// messageboxes
         bool		m_bWarningsDisabled2;		// warnings/errors in upper-right corner (m_szUserMessage)
-        //bool        m_bAnisotropicFiltering;
         bool        m_bPresetLockOnAtStartup;
 		bool		m_bPreventScollLockHandling;
         int         m_nMaxPSVersion_ConfigPanel;  // -1 = auto, 0 = disable shaders, 2 = ps_2_0, 3 = ps_3_0
@@ -333,11 +320,10 @@ public:
 
         HFONT       m_gdi_title_font_doublesize;
         LPD3DXFONT  m_d3dx_title_font_doublesize;
+        int         m_nTitleFontPx;		// SURI: pixel height m_d3dx_title_font_doublesize was made with
 
         // PIXEL SHADERS
         DWORD                   m_dwShaderFlags;       // Shader compilation/linking flags
-        //ID3DXFragmentLinker*    m_pFragmentLinker;     // Fragment linker interface
-        //LPD3DXBUFFER            m_pCompiledFragments;  // Buffer containing compiled fragments
         LPD3DXBUFFER            m_pShaderCompileErrors;
         VShaderSet              m_fallbackShaders_vs;  // *these are the only vertex shaders used for the whole app.*
         PShaderSet              m_fallbackShaders_ps;  // these are just used when the preset's pixel shaders fail to compile.
@@ -433,6 +419,41 @@ public:
         int         m_presetHistoryPos;
         int         m_presetHistoryBackFence;
         int         m_presetHistoryFwdFence;
+        // SURI: the session playlist (phase 10). IsAll() = the whole library, as before.
+        Playlist    m_playlist;
+        void        SetPlaylist(const std::vector<std::wstring>& names);   // empty = all; always resets the history
+        void        ResetPresetHistory();
+        const std::vector<int>& PlaylistIndices();   // m_presets indices the playlist allows (cached)
+        void        OpenPlaylistScreen();
+        // SURI: the on-screen playlist screen (P): two columns, search, save / load (.m3u)
+        PlaylistScreen m_plScreen;
+        std::vector<std::wstring> m_plLib;           // the library m_plScreen was opened with
+        int         m_plPageRows;                    // list rows drawn last frame (PgUp / PgDn step)
+        size_t      m_plTop[2];                      // first row shown in each column (PlCol order)
+        void        ClosePlaylistScreen();
+        void        OnPlaylistAction(PlAction a);
+        void        SavePlaylistDialog();
+        void        LoadPlaylistDialog();
+        void        DrawPlaylistScreen();
+        std::vector<std::wstring> LibraryFileNames();   // m_presets file names (no dirs), list order
+        // SURI: drag & drop onto the window (phase 10): folders / .milk files; new presets go
+        // through the "new presets" prompt (UI_IMPORT_NEW) before they are copied to the library
+        void        OnDropFiles(HDROP h);            // calls DragFinish
+        ImportPrompt m_importPrompt;
+        bool        m_importSingle;                  // one .milk file was dropped: load it, playlist unchanged
+        std::vector<ImportItem> m_importExisting;    // dropped presets already in the library
+        int         m_importPageRows;                // prompt rows drawn last frame (PgUp / PgDn step)
+        size_t      m_importTop;                     // first prompt row shown
+        void        FinishImport(PromptResult r);    // copy the checked ones (Accept), then apply the drop
+        void        CopyPresetTextures(const std::wstring& presetPath, int* copied, int* kept, int* failed);
+        void        LoadLibraryPreset(int index);    // m_presets[index] with m_fBlendTimeUser
+        void        DrawImportPrompt();
+        bool        (*m_pfnIsFullscreen)();          // set by the window code; NULL = never full screen
+        bool        (*m_pfnRunCommand)(HWND, Cmd);   // set by the window code: runs window commands too (Cmd::ViewFullscreen)
+        std::vector<int> m_playlistIdx;              // cache for PlaylistIndices()
+        int         m_playlistIdxPresets;
+        int         m_playlistIdxDirs;
+        unsigned    m_playlistIdxGen;
         void        PrevPreset(float fBlendTime);
         void        NextPreset(float fBlendTime);  // if not retracing our former steps, it will choose a random one.
         void        OnFinishedLoadingPreset();
@@ -457,15 +478,21 @@ public:
         #define ERR_NOTIFY 4  // a simple notification - not an error at all. ("shuffle is now ON." etc.)
                               // NOTE: each NOTIFY msg clears all the old NOTIFY messages!
         #define ERR_SCANNING_PRESETS 5
-        ErrorMsgList m_errors;
+        #define ERR_PRESET_DIR 6      // SURI: "no preset files or directories found"; cleared when a retry finds presets
+        ToastQueue  m_toasts;   // SURI: AddError shows its messages as toasts (category = toast tag)
+        int         m_ui_band_left, m_ui_band_right;   // SURI: while > 0, MyMenuTextOut puts a band under the selected row
         void        AddError(wchar_t* szMsg, float fDuration, int category=ERR_ALL, bool bBold=true);
         void        ClearErrors(int category=ERR_ALL);  // 0=all categories
+        void        DrawInfoCard(RECT* pCard, int* upper_right_corner_y, int xL, int xR);   // SURI
+        void        MyRenderOverlay();   // SURI: draws the toasts, above all other text
+        void        OnFontsReallocated(); // SURI: DPI change: rebuild the song-title fonts
+        bool        CreateTitleFonts();   // SURI: m_gdi/m_d3dx_title_font_doublesize from SONGTITLE_FONT
+        int         m_toast_top, m_toast_xL, m_toast_xR;   // SURI: toast layout, set by MyRenderUI each frame
+        RECT        m_toast_avoid;                        // SURI: the info card (toasts go below it if they would overlap)
 
 
         void GetSongTitle(wchar_t *szSongTitle, int nSize);
 
-        //musik::core::sdk::IPlaybackService* playbackService;
-        std::string emulatedWinampSongTitle;
         char		m_szDebugMessage[512];
         wchar_t		m_szSongTitle    [512];
         wchar_t		m_szSongTitlePrev[512];
@@ -516,7 +543,6 @@ public:
         int         m_comp_indices[(FCGSX-2)*(FCGSY-2)*2*3];
 
         bool		m_bMMX;
-        //bool		m_bSSE;
         bool        m_bHasFocus;
         bool        m_bHadFocus;
         bool		m_bOrigScrollLockState;
@@ -529,6 +555,21 @@ public:
         td_custom_msg        m_CustomMessage[MAX_CUSTOM_MESSAGES];
 
         texmgr      m_texmgr;		// for user sprites
+        float       m_spriteQuad[NUM_TEX][4][2];	// SURI: last drawn corners per slot (pre-projection space whose y grows downward, no burn-in), for hit tests
+        int         m_nSelectedSprite;	// SURI: slot of the selected sprite, -1 = none
+        bool        m_bSpriteDrag;		// SURI: left button dragging the selected sprite
+        POINT       m_ptSpriteDrag;		// SURI: last mouse position of the drag (client coords)
+        struct SpriteSnapshot {			// SURI: a live sprite kept across a device reset (CleanUpMyDX9Stuff -> AllocateMyDX9Stuff)
+            SpriteDesc desc;			// where it is now (user offsets / scale / blend folded in)
+            unsigned   ck;				// colour key it was loaded with (may be TEXMGR_NO_COLORKEY)
+            int        slot;			// same slot again, so the draw order does not change
+            bool       owned;			// bOwnedByPreset
+            int        nStartFrame;
+            float      fStartTime;
+        };
+        SpriteSnapshot m_spriteSnap[NUM_TEX];
+        int         m_nSpriteSnap;		// SURI: entries in m_spriteSnap waiting to be relaunched
+        int         m_nSpriteSnapSel;	// SURI: index in m_spriteSnap of the selected sprite, -1 = none
 
         td_supertext m_supertext;	// **contains info about current Song Title or Custom Message.**
 
@@ -551,7 +592,6 @@ public:
    //====[ 2. methods added: ]=====================================================================================
 
         void RenderFrame(int bRedraw);
-        void AlignWave(int nSamples);
 
         void        DrawTooltip(wchar_t* str, int xR, int yB);
         void        RandomizeBlendPattern();
@@ -575,15 +615,23 @@ public:
 	    void		SeekToPreset(wchar_t cStartChar);
 	    bool		ReversePropagatePoint(float fx, float fy, float *fx2, float *fy2);
 	    int 		HandleRegularKey(WPARAM wParam);
+	    bool		DispatchCommand(Cmd c, HWND hWnd);	// SURI: true if handled; false -> caller continues the old key path
+	    AppSnapshot	GetAppSnapshot() const;			// SURI: menu state (fullscreen/stretch are filled in by the window code)
+	    FxState		m_fx;							// SURI: live shader effects, injected into the comp shader text on every preset load
+	    void		ApplyFxToState(CState* pState);	// SURI: upgrades comp to ps_2_0 if needed, then injects m_fx into pState's comp text
+	    void		RefreshFx();					// SURI: re-injects into the current preset and recompiles its comp shader (and a preset still loading)
+	    void		RecompileCompShader(CState* pState, PShaderInfo* si);	// SURI: compiles pState's comp text into si, fallback shader on failure
+	    void		CloseOverlays();				// SURI: F1 help, menus / browser and any text entry off (entering desktop mode)
 	    bool		OnResizeGraphicsWindow();
 	    bool		OnResizeTextWindow();
 	    void		ClearGraphicsWindow();	// for windowed mode only
 	    void		LaunchCustomMessage(int nMsgNum);
 	    void		ReadCustomMessages();
-	    void		LaunchSongTitleAnim();
+	    void		LaunchSongTitleAnim(bool bNowPlaying = false);	// SURI: bNowPlaying = hold + fade instead of burn-in
+	    float		SuperTextEndTime() const;
 
 	    bool		RenderStringToTitleTexture();
-	    void		ShowSongTitleAnim(/*IDirect3DTexture9* lpRenderTarget,*/ int w, int h, float fProgress);
+	    void		ShowSongTitleAnim(/*IDirect3DTexture9* lpRenderTarget,*/ int w, int h, float fProgress, float fAlpha = 1.0f);
 	    void		DrawWave(float *fL, float *fR);
         void        DrawCustomWaves();
         void        DrawCustomShapes();
@@ -602,9 +650,17 @@ public:
 	    void		MergeSortPresets(int left, int right);
 	    void		BuildMenus();
         void        SetMenusForPresetVersion(int WarpPSVersion, int CompPSVersion);
-	    //void  ResetWindowSizeOnDisk();
 	    bool		LaunchSprite(int nSpriteNum, int nSlot);
+	    int 		FindSpriteSlot();	// SURI: free slot, or the oldest one (killed)
+	    bool		LaunchStaticSprite(const SpriteDesc& d, bool ownedByPreset);	// SURI: false + AddError on failure
+	    bool		LaunchStaticSpriteEx(const SpriteDesc& d, bool ownedByPreset, unsigned ck, int nSlot);	// SURI: explicit colour key; nSlot -1 = FindSpriteSlot
+	    void		SnapshotSprites();		// SURI: before m_texmgr.Finish on a routine cleanup
+	    void		RelaunchSnapshotSprites();	// SURI: after m_texmgr.Init
 	    void		KillSprite(int iSlot);
+	    void		LaunchPresetSprites(const CState* pState);	// SURI: drop the old preset's sprites, launch pState's
+	    int 		CollectLiveSprites(SpriteDesc* out, int maxOut, int* slotsOut = NULL);	// SURI: live sprites as preset entries, oldest first; slotsOut[i] = slot of out[i]
+	    int 		SpriteAtClientPoint(HWND hWnd, int x, int y);	// SURI: topmost live sprite slot under the point, -1 = none
+	    bool		SpriteMouseMessage(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lParam);	// SURI: drag / wheel on sprites; true = handled
         void        DoCustomSoundAnalysis();
         void        DrawMotionVectors();
 
@@ -629,7 +685,10 @@ public:
         virtual void MyRenderFn(int redraw);
         virtual void MyRenderUI(int *upper_left_corner_y, int *upper_right_corner_y, int *lower_left_corner_y, int *lower_right_corner_y, int xL, int xR);
         virtual LRESULT MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lParam);
-        virtual void OnAltK();
 };
+
+// SURI: a WM_KEYDOWN key (with Ctrl / Shift from GetKeyState) as a key of the on-screen lists;
+// false = not one of theirs
+bool TranslateUiKey(WPARAM vk, UiKey* out);
 
 #endif

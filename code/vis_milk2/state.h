@@ -34,10 +34,10 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <stdio.h>
 #include "texmgr.h"
+#include "features/sprite_preset.h"  // SURI
 
 #include <d3dx9math.h> // for D3DXVECTOR3
 
-//#include "evallib/eval.h"
 #include "../ns-eel2/ns-eel.h"
 #include "md_defines.h"
 
@@ -114,9 +114,7 @@ public:
 
     char  m_szInit[MAX_BIGSTRING_LEN]; // note: only executed once -> don't need to save codehandle
     char  m_szPerFrame[MAX_BIGSTRING_LEN];
-    //char  m_szPerPoint[MAX_BIGSTRING_LEN];
     NSEEL_CODEHANDLE m_pf_codehandle;
-    //int   m_pp_codehandle;
 
 
 	// for per-frame expression evaluation:
@@ -124,8 +122,6 @@ public:
 	double *var_pf_time, *var_pf_fps;
 	double *var_pf_frame;
 	double *var_pf_progress;
-	//double *var_pf_q1, *var_pf_q2, *var_pf_q3, *var_pf_q4, *var_pf_q5, *var_pf_q6, *var_pf_q7, *var_pf_q8;
-	//double *var_pf_t1, *var_pf_t2, *var_pf_t3, *var_pf_t4, *var_pf_t5, *var_pf_t6, *var_pf_t7, *var_pf_t8;
     double* var_pf_q[NUM_Q_VAR];
     double* var_pf_t[NUM_T_VAR];
 	double *var_pf_bass, *var_pf_mid, *var_pf_treb, *var_pf_bass_att, *var_pf_mid_att, *var_pf_treb_att;
@@ -137,19 +133,6 @@ public:
     double *var_pf_tex_zoom, *var_pf_tex_ang;
 
 	// for per-point expression evaluation:
-    /*
-		NSEEL_VMCTX m_pp_eel;
-	double *var_pp_time, *var_pp_fps;
-	double *var_pp_frame;
-	double *var_pp_progress;
-	double *var_pp_q1, *var_pp_q2, *var_pp_q3, *var_pp_q4, *var_pp_q5, *var_pp_q6, *var_pp_q7, *var_pp_q8;
-	double *var_pp_t1, *var_pp_t2, *var_pp_t3, *var_pp_t4, *var_pp_t5, *var_pp_t6, *var_pp_t7, *var_pp_t8;
-	double *var_pp_bass, *var_pp_mid, *var_pp_treb, *var_pp_bass_att, *var_pp_mid_att, *var_pp_treb_att;
-	double *var_pp_r, *var_pp_g, *var_pp_b, *var_pp_a;
-	double *var_pp_r2, *var_pp_g2, *var_pp_b2, *var_pp_a2;
-	double *var_pp_border_r, *var_pp_border_g, *var_pp_border_b, *var_pp_border_a;
-    double *var_pp_x, *var_pp_y, *var_pp_rad, *var_pp_ang, *var_pp_sides;
-    */
 
 	double t_values_after_init_code[NUM_T_VAR];
 };
@@ -182,8 +165,6 @@ public:
 	double *var_pf_time, *var_pf_fps;
 	double *var_pf_frame;
 	double *var_pf_progress;
-	//double *var_pf_q1, *var_pf_q2, *var_pf_q3, *var_pf_q4, *var_pf_q5, *var_pf_q6, *var_pf_q7, *var_pf_q8;
-	//double *var_pf_t1, *var_pf_t2, *var_pf_t3, *var_pf_t4, *var_pf_t5, *var_pf_t6, *var_pf_t7, *var_pf_t8;
     double* var_pf_q[NUM_Q_VAR];
     double* var_pf_t[NUM_T_VAR];
 	double *var_pf_bass, *var_pf_mid, *var_pf_treb, *var_pf_bass_att, *var_pf_mid_att, *var_pf_treb_att;
@@ -195,8 +176,6 @@ public:
 	double *var_pp_time, *var_pp_fps;
 	double *var_pp_frame;
 	double *var_pp_progress;
-	//double *var_pp_q1, *var_pp_q2, *var_pp_q3, *var_pp_q4, *var_pp_q5, *var_pp_q6, *var_pp_q7, *var_pp_q8;
-	//double *var_pp_t1, *var_pp_t2, *var_pp_t3, *var_pp_t4, *var_pp_t5, *var_pp_t6, *var_pp_t7, *var_pp_t8;
     double* var_pp_q[NUM_Q_VAR];
     double* var_pp_t[NUM_T_VAR];
 	double *var_pp_bass, *var_pp_mid, *var_pp_treb, *var_pp_bass_att, *var_pp_mid_att, *var_pp_treb_att;
@@ -222,7 +201,6 @@ typedef struct
 	float phase2;	// for sine functions
 } td_modifier;
 
-//#define MAX_EVALS 8
 
 #define INVALID_PRESET_DESC L"<no description>"  // this should contain invalid filename chars, so there is never a conflict...
 
@@ -253,12 +231,14 @@ public:
     void GenDefaultCompShader();
 
 	wchar_t m_szDesc[512];		// this is just the filename, without a path or extension.
-	//char m_szSection[256];
 
     int                 m_nMinPSVersion;  // the min of the warp & comp values...
     int                 m_nMaxPSVersion;  // the max of the warp & comp values...
 	int                 m_nWarpPSVersion;  // 0 = milkdrop 1 era (no PS), 2 = ps_2_0, 3 = ps_3_0
 	int                 m_nCompPSVersion;  // 0 = milkdrop 1 era (no PS), 2 = ps_2_0, 3 = ps_3_0
+	int                 m_nFxOrigCompPSVersion;  // SURI: comp version before an effect upgraded it; -1 = not upgraded
+	int                 m_nSprites;              // SURI: sprites saved with the preset (suri_sprite* keys)
+	SpriteDesc          m_sprites[kMaxPresetSprites];
 	float				m_fRating;		// 0..5
 	// post-processing:
 	CBlendableFloat		m_fGammaAdj;	// +0 -> +1.0 (double), +2.0 (triple)...
@@ -296,18 +276,6 @@ public:
 	bool				m_bDarken;
 	bool				m_bSolarize;
 	bool				m_bInvert;
-	/*
-	bool				m_bPlates;
-	int					m_nPlates;
-	CBlendableFloat		m_fPlateAlpha;		// 0 = off, 0.1 = barely visible, 1.0 = solid
-	CBlendableFloat		m_fPlateR;
-	CBlendableFloat		m_fPlateG;
-	CBlendableFloat		m_fPlateB;
-	CBlendableFloat		m_fPlateWidth;		// 1.0=normal, 2.0=double, etc.
-	CBlendableFloat		m_fPlateLength;		// 1.0=normal, 2.0=double, etc.
-	float				m_fPlateSpeed;		// 1.0=normal, 2.0=double, etc.
-	bool				m_bPlatesAdditive;
-	*/
 
 	// map controls:
 	CBlendableFloat		m_fZoom;
@@ -361,11 +329,6 @@ public:
     D3DXVECTOR3  m_rot_base[20];
     D3DXVECTOR3  m_rot_speed[20];
 
-	//COscillator			m_waveR;
-	//COscillator			m_waveG;
-	//COscillator			m_waveB;
-	//COscillator			m_wavePosX;		// 0 = centered
-	//COscillator			m_wavePosY;		// 0 = centered
 
 	// for arbitrary function evaluation:
     NSEEL_CODEHANDLE				m_pf_codehandle;
@@ -392,7 +355,6 @@ public:
 	double *var_pf_wave_a, *var_pf_wave_r, *var_pf_wave_g, *var_pf_wave_b, *var_pf_wave_x, *var_pf_wave_y, *var_pf_wave_mystery, *var_pf_wave_mode;
 	double *var_pf_decay;
 	double *var_pf_frame;
-	//double *var_pf_q1, *var_pf_q2, *var_pf_q3, *var_pf_q4, *var_pf_q5, *var_pf_q6, *var_pf_q7, *var_pf_q8;
     double* var_pf_q[NUM_Q_VAR];
 	double *var_pf_progress;
 	double *var_pf_ob_size, *var_pf_ob_r, *var_pf_ob_g, *var_pf_ob_b, *var_pf_ob_a;
@@ -430,7 +392,6 @@ public:
 	double *var_pv_bass, *var_pv_mid, *var_pv_treb, *var_pv_bass_att, *var_pv_mid_att, *var_pv_treb_att;
 	double *var_pv_x, *var_pv_y, *var_pv_rad, *var_pv_ang;
 	double *var_pv_frame;
-	//double *var_pv_q1, *var_pv_q2, *var_pv_q3, *var_pv_q4, *var_pv_q5, *var_pv_q6, *var_pv_q7, *var_pv_q8;
     double* var_pv_q[NUM_Q_VAR];
 	double *var_pv_progress;
     double *var_pv_meshx, *var_pv_meshy;

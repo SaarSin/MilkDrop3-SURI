@@ -30,7 +30,7 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "state.h"		// for CBlendableFloat - fix this
 #include "menu.h"
 #include "plugin.h"
-#include "wasabi.h"
+#include "resstrings.h"
 #include <stdio.h>
 #include <math.h>
 #include <assert.h>
@@ -42,7 +42,7 @@ extern CPlugin g_plugin;		// declared in main.cpp
 
 CMilkMenuItem::CMilkMenuItem()
 {
-	wasabiApiLangString(IDS_UNTITLED_MENU_ITEM,m_szName,64);
+	LoadResString(IDS_UNTITLED_MENU_ITEM,m_szName,64);
 	m_szToolTip[0] = 0;
 	m_type = MENUITEMTYPE_BUNK;
 	m_fMin = 0.0f;
@@ -68,18 +68,10 @@ CMilkMenuItem::~CMilkMenuItem()
 
 CMilkMenu::CMilkMenu()
 {
-    //Reset();
 }
 
 CMilkMenu::~CMilkMenu()
 {
-    /*
-	if (m_pFirstChildItem)
-	{
-		delete m_pFirstChildItem;
-		m_pFirstChildItem = NULL;
-	}
-    */
 }
 
 //----------------------------------------
@@ -153,7 +145,7 @@ void CMilkMenu::Reset()
 	for (int i=0; i<MAX_CHILD_MENUS; i++)
 		m_ppChildMenu[i] = NULL;
 	m_pFirstChildItem = NULL;
-	wasabiApiLangString(IDS_UNTITLED_MENU,m_szMenuName,64);
+	LoadResString(IDS_UNTITLED_MENU,m_szMenuName,64);
 	m_nChildMenus = 0;
 	m_nChildItems = 0;
 	m_nCurSel = 0;
@@ -238,15 +230,23 @@ void CMilkMenu::AddItem(wchar_t *szName, void *var, MENUITEMTYPE type, wchar_t *
 
 //----------------------------------------
 
-void MyMenuTextOut(eFontIndex font_index, wchar_t* str, DWORD color, RECT* pRect, int bCalcRect, RECT* pCalcRect)
+// SURI: bSelected puts a CARD_BAND band under the row while the menu card is drawn
+// (g_plugin.m_ui_band_left/right are set by CPlugin::MyRenderUI around the drawing call).
+void MyMenuTextOut(eFontIndex font_index, wchar_t* str, DWORD color, RECT* pRect, int bCalcRect, RECT* pCalcRect, bool bSelected=false)
 {
+    if (!bCalcRect && bSelected && g_plugin.m_ui_band_right > g_plugin.m_ui_band_left)
+    {
+        // SURI: the band is as tall as the row DrawTextW will draw (measured, not GetFontHeight)
+        RECT t = *pRect;
+        int rowH = g_plugin.m_text.DrawTextW(g_plugin.GetFont(font_index), str, -1, &t, DT_SINGLELINE | DT_END_ELLIPSIS | DT_CALCRECT, 0xFFFFFFFF, false);
+        RECT band = { g_plugin.m_ui_band_left, pRect->top, g_plugin.m_ui_band_right, pRect->top + rowH };
+        g_plugin.DrawRoundedPanel(&band, g_plugin.UiPx(6), CARD_BAND, 0);
+    }
     if (bCalcRect)
     {
         RECT t = *pRect;
 		pRect->top += g_plugin.m_text.DrawTextW(g_plugin.GetFont(font_index), str, -1, &t, DT_SINGLELINE | DT_END_ELLIPSIS | DT_CALCRECT, 0xFFFFFFFF, false);
         pCalcRect->bottom += t.bottom - t.top;
-        //if (pCalcRect->bottom > pRect->bottom)
-        //    pCalcRect->bottom = pRect->bottom;
         pCalcRect->right = max(pCalcRect->right, pCalcRect->left + t.right - t.left);
     }
     else
@@ -255,7 +255,7 @@ void MyMenuTextOut(eFontIndex font_index, wchar_t* str, DWORD color, RECT* pRect
     }
 }
 
-void CMilkMenu::DrawMenu(RECT rect, int xR, int yB, int bCalcRect, RECT* pCalcRect)
+void CMilkMenu::DrawMenu(RECT rect, int bCalcRect, RECT* pCalcRect)
 {
     // 'rect' is the bounding rectangle in which we're allowed to draw the menu;
     //   it's .top member is incremented as we draw downward.
@@ -285,17 +285,11 @@ void CMilkMenu::DrawMenu(RECT rect, int xR, int yB, int bCalcRect, RECT* pCalcRe
 		{
 			if (i >= nStart && i < nStart+nLines)
 			{
-                //rect.top += g_plugin.GetFont(SIMPLE_FONT)->DrawText(m_ppChildMenu[i]->m_szMenuName, -1, pRect, DT_SINGLELINE | DT_END_ELLIPSIS, (i == m_nCurSel) ? MENU_HILITE_COLOR : MENU_COLOR);
                 if (m_ppChildMenu[i]->IsEnabled()) {
-                    MyMenuTextOut(SIMPLE_FONT, m_ppChildMenu[i]->m_szMenuName, (i == m_nCurSel) ? MENU_HILITE_COLOR : MENU_COLOR, &rect, bCalcRect, pCalcRect);
+                    MyMenuTextOut(SIMPLE_FONT, m_ppChildMenu[i]->m_szMenuName, CARD_TEXT, &rect, bCalcRect, pCalcRect, i == m_nCurSel);   // SURI: card colours + band
                     nLinesDrawn++;
                 }
-
-				if (g_plugin.m_bShowMenuToolTips && i == m_nCurSel && !bCalcRect)
-				{
-					// tooltip:
-                    g_plugin.DrawTooltip(wasabiApiLangString(IDS_SZ_MENU_NAV_TOOLTIP), xR, yB);
-				}
+				// SURI: the tooltip is the menu card's last line now (GetCurToolTip)
 			}
 		}
 
@@ -321,27 +315,15 @@ void CMilkMenu::DrawMenu(RECT rect, int xR, int yB, int bCalcRect, RECT* pCalcRe
 					break;
 				case MENUITEMTYPE_BOOL:
 					swprintf(szItemText, L"%s [%s]", pItem->m_szName,
-							 wasabiApiLangString(*((bool *)(addr)) ? IDS_ON : IDS_OFF));
+							 LoadResString(*((bool *)(addr)) ? IDS_ON : IDS_OFF));
 					break;
 				default:
 					lstrcpyW(szItemText, pItem->m_szName);
 					break;
 				}
 
-				if (i == m_nCurSel)
-				{
-                    MyMenuTextOut(SIMPLE_FONT, szItemText, MENU_HILITE_COLOR, &rect, bCalcRect, pCalcRect);
-
-					if (g_plugin.m_bShowMenuToolTips && !bCalcRect)
-					{
-						// tooltip:
-                        g_plugin.DrawTooltip(pItem->m_szToolTip, xR, yB);
-					}
-				}
-				else
-				{
-                    MyMenuTextOut(SIMPLE_FONT, szItemText, MENU_COLOR, &rect, bCalcRect, pCalcRect);
-				}
+				// SURI: card colours; the selected row gets a band, its tooltip is the card's last line
+                MyMenuTextOut(SIMPLE_FONT, szItemText, CARD_TEXT, &rect, bCalcRect, pCalcRect, i == m_nCurSel);
                 nLinesDrawn++;
 			}
 
@@ -361,9 +343,9 @@ void CMilkMenu::DrawMenu(RECT rect, int xR, int yB, int bCalcRect, RECT* pCalcRe
 
 		wchar_t buf[256];
 
-        MyMenuTextOut(SIMPLE_FONT, wasabiApiLangString(IDS_USE_UP_DOWN_ARROW_KEYS), MENU_COLOR, &rect, bCalcRect, pCalcRect);
-		swprintf(buf, wasabiApiLangString(IDS_CURRENT_VALUE_OF_X), pItem->m_szName);
-        MyMenuTextOut(SIMPLE_FONT, buf, MENU_COLOR, &rect, bCalcRect, pCalcRect);
+        MyMenuTextOut(SIMPLE_FONT, LoadResString(IDS_USE_UP_DOWN_ARROW_KEYS), CARD_TEXT_2, &rect, bCalcRect, pCalcRect);   // SURI: card colours
+		swprintf(buf, LoadResString(IDS_CURRENT_VALUE_OF_X), pItem->m_szName);
+        MyMenuTextOut(SIMPLE_FONT, buf, CARD_TEXT, &rect, bCalcRect, pCalcRect);
 
 		switch(pItem->m_type)
 		{
@@ -383,14 +365,20 @@ void CMilkMenu::DrawMenu(RECT rect, int xR, int yB, int bCalcRect, RECT* pCalcRe
 			break;
 		}
 
-        MyMenuTextOut(SIMPLE_FONT, buf, MENU_HILITE_COLOR, &rect, bCalcRect, pCalcRect);
-
-		// tooltip:
-		if (g_plugin.m_bShowMenuToolTips && !bCalcRect)
-		{
-            g_plugin.DrawTooltip(pItem->m_szToolTip, xR, yB);
-		}
+        MyMenuTextOut(SIMPLE_FONT, buf, CARD_TEXT, &rect, bCalcRect, pCalcRect, true);
+		// SURI: the tooltip is the menu card's last line now (GetCurToolTip)
 	}
+}
+
+// SURI: what DrawMenu used to show as a corner tooltip for the current row
+const wchar_t* CMilkMenu::GetCurToolTip()
+{
+	if (!m_bEditingCurSel && m_nCurSel < m_nChildMenus)
+		return LoadResString(IDS_SZ_MENU_NAV_TOOLTIP);
+	CMilkMenuItem *pItem = m_pFirstChildItem;
+	for (int i=m_nChildMenus; pItem && i < m_nCurSel; i++)
+		pItem = pItem->m_pNext;
+	return pItem ? pItem->m_szToolTip : NULL;
 }
 
 void CMilkMenu::OnWaitStringAccept(wchar_t *szNewString)
@@ -520,9 +508,9 @@ LRESULT CMilkMenu::HandleKeydown(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 			            g_plugin.m_waitstring.nMaxLen = min(sizeof(g_plugin.m_waitstring.szText)-1, MAX_PATH - wcslen(g_plugin.GetPresetDir()) - 6);	// 6 for the extension + null char.    We set this because win32 LoadFile, MoveFile, etc. barf if the path+filename+ext are > MAX_PATH chars.
 						swprintf(g_plugin.m_waitstring.szText, L"%sfile.dat", g_plugin.m_szPresetDir);
                         if (g_plugin.m_UI_mode==UI_IMPORT_WAVE || g_plugin.m_UI_mode==UI_IMPORT_SHAPE)
-							wasabiApiLangString(IDS_LOAD_FROM_FILE,g_plugin.m_waitstring.szPrompt,512);
+							LoadResString(IDS_LOAD_FROM_FILE,g_plugin.m_waitstring.szPrompt,512);
                         else
-							wasabiApiLangString(IDS_SAVE_TO_FILE,g_plugin.m_waitstring.szPrompt,512);
+							LoadResString(IDS_SAVE_TO_FILE,g_plugin.m_waitstring.szPrompt,512);
 			            g_plugin.m_waitstring.szToolTip[0] = 0;
 			            g_plugin.m_waitstring.nCursorPos = wcslen(g_plugin.m_waitstring.szText);	// set the starting edit position
                     }
@@ -543,8 +531,6 @@ LRESULT CMilkMenu::HandleKeydown(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 				case MENUITEMTYPE_LOGBLENDABLE:
 					m_bEditingCurSel = true;
 					{
-						//CBlendableFloat *p = (CBlendableFloat*)(pItem->m_pVariable);
-						//*p = 0.99f;
 						fTemp = ((CBlendableFloat*)addr)->eval(-1);//p->eval(-1);
 					}
 					pItem->m_original_value = (LPARAM)(fTemp*10000L);
@@ -559,20 +545,13 @@ LRESULT CMilkMenu::HandleKeydown(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 					g_plugin.m_waitstring.nSelAnchorPos = -1;
                     g_plugin.m_waitstring.nMaxLen = pItem->m_wParam ? pItem->m_wParam : 8190;
                     g_plugin.m_waitstring.nMaxLen = min(g_plugin.m_waitstring.nMaxLen, sizeof(g_plugin.m_waitstring.szText)-16);
-					//lstrcpyW(g_plugin.m_waitstring.szText, (wchar_t *)addr);
 					lstrcpyA((char*)g_plugin.m_waitstring.szText, (char*)addr);
-					swprintf(g_plugin.m_waitstring.szPrompt, wasabiApiLangString(IDS_ENTER_THE_NEW_STRING), pItem->m_szName);
+					swprintf(g_plugin.m_waitstring.szPrompt, LoadResString(IDS_ENTER_THE_NEW_STRING), pItem->m_szName);
 					lstrcpyW(g_plugin.m_waitstring.szToolTip, pItem->m_szToolTip);
 					g_plugin.m_waitstring.nCursorPos = strlen/*wcslen*/((char*)g_plugin.m_waitstring.szText);
 					if (pItem->m_nLastCursorPos < g_plugin.m_waitstring.nCursorPos)
 						g_plugin.m_waitstring.nCursorPos = pItem->m_nLastCursorPos;
 					break;
-				/*
-				case MENUITEMTYPE_OSC:
-					m_bEditingCurSel = true;
-					pItem->m_bEditingSubSel = false;
-					break;
-					*/
 				}
 			}
 			return 0; // we processed (or absorbed) the key
@@ -644,7 +623,6 @@ LRESULT CMilkMenu::HandleKeydown(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 			{
 				USHORT mask = 1 << (sizeof(USHORT)*8 - 1);	// we want the highest-order bit
 				bool bShiftHeldDown = (GetKeyState(VK_SHIFT) & mask) != 0;
-				//bool bCtrlHeldDown = (GetKeyState(VK_CONTROL) & mask) != 0;
 				if (bShiftHeldDown && (wParam==VK_UP || wParam==VK_DOWN))
 					fMult *= 0.1f;
 			}
@@ -696,46 +674,6 @@ LRESULT CMilkMenu::HandleKeydown(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 					if (pBlend->eval(-1) > pItem->m_fMax) *pBlend = pItem->m_fMax;
 				}
 				break;
-			/*
-			case MENUITEMTYPE_OSC:
-				if (pItem->m_bEditingSubSel)
-				{
-					if (wParam == VK_UP)
-					{
-						pItem->m_nSubSel--;
-						if (pItem->m_nSubSel < 0) pItem->m_nSubSel = 4;
-					}
-					else if (wParam == VK_DOWN)
-					{
-						pItem->m_nSubSel++;
-						if (pItem->m_nSubSel > 4) pItem->m_nSubSel = 0;
-					}
-				}
-				else
-				{
-					switch(pItem->m_nSubSel)
-					{
-						also to do: make 'drawtext' draw it properly
-
-					case 0:
-						fixme	- what are the bounds for each type?  and are incs constant or log?
-						break;
-					case 1:
-						fixme
-						break;
-					case 2:
-						fixme
-						break;
-					case 3:
-						fixme
-						break;
-					case 4:
-						fixme
-						break;
-					}
-				}
-				break;
-				*/
 			}
 			return 0;
 

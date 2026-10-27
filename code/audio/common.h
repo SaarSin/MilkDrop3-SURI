@@ -12,5 +12,6 @@
 #include "log.h"
 #include "cleanup.h"
 #include "prefs.h"
+#include "device-watch.h"
 #include "loopback-capture.h"
 #include "audiobuf.h"

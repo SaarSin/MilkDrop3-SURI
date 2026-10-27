@@ -243,8 +243,6 @@ void FFT::time_to_frequency_domain(float *in_wavedata, float *out_spectraldata)
     float wr, wi, wpi, wpr, wtemp, tempr, tempi;
 
     if (!bitrevtable) return;
-    //if (!envelope) return;
-    //if (!equalize) return;
     if (!temp1) return;
     if (!temp2) return;
     if (!cossintable) return;
