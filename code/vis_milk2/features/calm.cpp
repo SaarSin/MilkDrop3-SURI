@@ -149,6 +149,8 @@ void ScaleMotion(CalmMotion* m, float k)
 
 float ShapeAudio(float rel, float sens)
 {
+    if (sens == 1.0f)
+        return rel;   // bit-identical at the default
     float v = 1.0f + (rel - 1.0f) * sens;
     return v < 0 ? 0 : v;
 }

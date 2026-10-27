@@ -116,6 +116,8 @@ TEST(TestCalm_ScaleMotionNegativeAndZero) {
 
 TEST(TestCalm_Audio) {
     CHECK(Near(ShapeAudio(1.7f, 1.0f), 1.7f));
+    CHECK(ShapeAudio(3.7f, 1.0f) == 3.7f);
+    CHECK(ShapeAudio(0.3f, 1.0f) == 0.3f);
     CHECK(ShapeAudio(1.7f, 0.0f) == 1.0f);
     CHECK(Near(ShapeAudio(1.7f, 0.5f), 1.35f));
     CHECK(ShapeAudio(0.1f, 2.0f) == 0.0f);

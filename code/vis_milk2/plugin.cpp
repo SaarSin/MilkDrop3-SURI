@@ -604,6 +604,12 @@ void CPlugin::MyPreInitialize()
 	m_bShowSongTime		= false;
 	m_bShowSongLen		= false;
 	m_fShowRatingUntilThisTime = -1.0f;
+	// SURI: calm motion
+	m_fAnimPresetStart = 0;
+	m_fCalmStepFps = 60.0f;
+	for (int ci = 0; ci < 3; ci++) { m_presetImm[ci] = 1.0f; m_presetAtt[ci] = 1.0f; }
+	memset(m_calmWave, 0, sizeof(m_calmWave));
+	memset(m_calmSpec, 0, sizeof(m_calmSpec));
 	m_ui_band_left = m_ui_band_right = 0;   // SURI
 	m_toast_top = m_toast_xL = m_toast_xR = 0;
 	SetRect(&m_toast_avoid, 0, 0, 0, 0);
@@ -3279,6 +3285,7 @@ void CPlugin::MyRenderFn(int redraw)
     {
         float dt = GetTime() - m_prev_time;
         m_prev_time = GetTime(); // note: m_prev_time is not for general use!
+        m_animClock.Advance(dt, m_calm.speed);   // SURI: the clock presets see
         m_bPresetLockedByCode = (m_UI_mode != UI_REGULAR);
         if (m_bPresetLockedByUser || m_bPresetLockedByCode)
         {
@@ -3288,6 +3295,7 @@ void CPlugin::MyRenderFn(int redraw)
             // OR, to freeze time @ [preset] zero, so that when you exit menus,
             //   you don't run the risk of it changing the preset on you right away:
             m_fPresetStartTime = GetTime();
+            m_fAnimPresetStart = m_animClock.Now();   // SURI
         	m_fNextPresetTime = -1.0f;		// flags UpdateTime() to recompute this.
         }
 
@@ -3345,6 +3353,7 @@ void CPlugin::MyRenderFn(int redraw)
     if (!redraw)
         DoCustomSoundAnalysis();    // emulates old pre-vms milkdrop sound analysis
 
+    m_fCalmStepFps = StepFps(GetFps());   // SURI: at most 60 steps/s; what presets see as fps
     RenderFrame(redraw);  // see milkdropfs.cpp
 
     if (!redraw)
@@ -7733,6 +7742,7 @@ void CPlugin::LoadPreset(const wchar_t *szPresetFilename, float fBlendTime)
 
 
 	    m_fPresetStartTime = GetTime();
+	    m_fAnimPresetStart = m_animClock.Now();   // SURI
 	    m_fNextPresetTime = -1.0f;		// flags UpdateTime() to recompute this
 
         // release stuff from m_OldShaders, then move m_shaders to m_OldShaders, then load the new shaders.
@@ -7806,6 +7816,7 @@ void CPlugin::LoadPresetTick()
 		    m_pState->StartBlendFrom(m_pOldState, GetTime(), m_fLoadingPresetBlendTime);
 
 	    m_fPresetStartTime = GetTime();
+	    m_fAnimPresetStart = m_animClock.Now();   // SURI
 	    m_fNextPresetTime = -1.0f;		// flags UpdateTime() to recompute this
 
         // release stuff from m_OldShaders, then move m_shaders to m_OldShaders, then load the new shaders.
@@ -9620,6 +9631,40 @@ void CPlugin::DoCustomSoundAnalysis()
 			mysound.avg_rel[i]  = 1.0f;
 		else
 			mysound.avg_rel[i]  = mysound.avg[i] / mysound.long_avg[i];
+	}
+
+	// SURI: what presets see - smoothed (Anti-flicker), then scaled around 1.0 (Sensitivity).
+	// Hard cuts keep using the raw imm_rel.
+	const float dtAudio = 1.0f / max(GetFps(), 1.0f);
+	for (i=0; i<3; i++)
+	{
+		m_presetImm[i] = ShapeAudio(m_audioSmooth[i  ].Step(mysound.imm_rel[i], dtAudio, m_calm.antiFlicker), m_calm.sensitivity);
+		m_presetAtt[i] = ShapeAudio(m_audioSmooth[i+3].Step(mysound.avg_rel[i], dtAudio, m_calm.antiFlicker), m_calm.sensitivity);
+	}
+
+	// SURI: the waveform and spectrum presets draw. Speed < 100% lets them change only gradually;
+	// Sensitivity < 100% makes them smaller. (The bands above use the raw data.)
+	const float spd    = m_calm.speed < 1.0f ? m_calm.speed : 1.0f;
+	const float follow = WaveFollow(spd, dtAudio);
+	const float amp    = WaveAmplitude(m_calm.sensitivity);
+	const bool  shape  = (follow != 1.0f || amp != 1.0f);
+	for (int ch=0; ch<2; ch++)
+	{
+		for (int s=0; s<576; s++)
+		{
+			m_calmWave[ch][s] += (m_sound.fWaveform[ch][s] - m_calmWave[ch][s]) * follow;
+			if (shape)
+			{
+				m_sound.fWaveform[ch][s] = m_calmWave[ch][s] * amp;
+				mysound.fWave[ch][s] = m_sound.fWaveform[ch][s];
+			}
+		}
+		for (int s=0; s<NUM_FREQUENCIES; s++)
+		{
+			m_calmSpec[ch][s] += (m_sound.fSpectrum[ch][s] - m_calmSpec[ch][s]) * follow;
+			if (shape)
+				m_sound.fSpectrum[ch][s] = m_calmSpec[ch][s] * amp;
+		}
 	}
 }
 

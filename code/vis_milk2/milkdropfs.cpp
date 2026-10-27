@@ -387,14 +387,14 @@ void CPlugin::LoadPerFrameEvallibVars(CState* pState)
 	*pState->var_pf_sx			= (double)pState->m_fStretchX.eval(-1);//GetTime());
 	*pState->var_pf_sy			= (double)pState->m_fStretchY.eval(-1);//GetTime());
 	// read-only:
-	*pState->var_pf_time		= (double)(GetTime() - m_fStartTime);
-	*pState->var_pf_fps         = (double)GetFps();
-	*pState->var_pf_bass		= (double)mysound.imm_rel[0];
-	*pState->var_pf_mid			= (double)mysound.imm_rel[1];
-	*pState->var_pf_treb		= (double)mysound.imm_rel[2];
-	*pState->var_pf_bass_att	= (double)mysound.avg_rel[0];
-	*pState->var_pf_mid_att		= (double)mysound.avg_rel[1];
-	*pState->var_pf_treb_att	= (double)mysound.avg_rel[2];
+	*pState->var_pf_time		= (double)m_animClock.Now();
+	*pState->var_pf_fps         = (double)m_fCalmStepFps;   // SURI: steps per second
+	*pState->var_pf_bass		= (double)m_presetImm[0];
+	*pState->var_pf_mid			= (double)m_presetImm[1];
+	*pState->var_pf_treb		= (double)m_presetImm[2];
+	*pState->var_pf_bass_att	= (double)m_presetAtt[0];
+	*pState->var_pf_mid_att		= (double)m_presetAtt[1];
+	*pState->var_pf_treb_att	= (double)m_presetAtt[2];
 	*pState->var_pf_frame		= (double)GetFrame();
 	//*pState->var_pf_monitor     = 0;   -leave this as it was set in the per-frame INIT code!
     for (int vi=0; vi<NUM_Q_VAR; vi++)
@@ -665,6 +665,8 @@ void CPlugin::RenderFrame(int bRedraw)
 	{
 		m_fStartTime = GetTime();
 		m_fPresetStartTime = GetTime();
+		m_animClock.Reset();   // SURI: calm motion
+		m_fAnimPresetStart = 0;
 	}
 
 	if (m_fNextPresetTime < 0)
@@ -1415,7 +1417,7 @@ void CPlugin::ComputeGridAlphaValues()
 
 
 	// warp stuff
-	float fWarpTime = GetTime() * m_pState->m_fWarpAnimSpeed;
+	float fWarpTime = m_animClock.Now() * m_pState->m_fWarpAnimSpeed;
 	float fWarpScaleInv = 1.0f / m_pState->m_fWarpScale.eval(GetTime());
 	float f[4];
 	f[0] = 11.68f + 4.0f*cosf(fWarpTime*1.413f + 10);
@@ -1501,6 +1503,13 @@ void CPlugin::ComputeGridAlphaValues()
 					fDY   = (float)(*pState->var_pv_dy);
 					fSX   = (float)(*pState->var_pv_sx);
 					fSY   = (float)(*pState->var_pv_sy);
+				}
+
+				if (m_calm.speed != 1.0f)   // SURI: Speed scales the motion asked for in this frame
+				{
+					CalmMotion cm = { fZoom, fRot, fWarp, fDX, fDY, fSX, fSY };
+					ScaleMotion(&cm, m_calm.speed);
+					fZoom = cm.zoom; fRot = cm.rot; fWarp = cm.warp; fDX = cm.dx; fDY = cm.dy; fSX = cm.sx; fSY = cm.sy;
 				}
 
 				float fZoom2 = powf(fZoom, powf(fZoomExp, m_vertinfo[n].rad*2.0f - 1.0f));
@@ -1972,16 +1981,16 @@ void CPlugin::DrawCustomShapes()
 
 void CPlugin::LoadCustomShapePerFrameEvallibVars(CState* pState, int i, int instance)
 {
-	*pState->m_shape[i].var_pf_time		= (double)(GetTime() - m_fStartTime);
+	*pState->m_shape[i].var_pf_time		= (double)m_animClock.Now();
 	*pState->m_shape[i].var_pf_frame	= (double)GetFrame();
-	*pState->m_shape[i].var_pf_fps      = (double)GetFps();
+	*pState->m_shape[i].var_pf_fps      = (double)m_fCalmStepFps;   // SURI: steps per second
 	*pState->m_shape[i].var_pf_progress = (GetTime() - m_fPresetStartTime) / (m_fNextPresetTime - m_fPresetStartTime);
-	*pState->m_shape[i].var_pf_bass		= (double)mysound.imm_rel[0];
-	*pState->m_shape[i].var_pf_mid		= (double)mysound.imm_rel[1];
-	*pState->m_shape[i].var_pf_treb		= (double)mysound.imm_rel[2];
-	*pState->m_shape[i].var_pf_bass_att	= (double)mysound.avg_rel[0];
-	*pState->m_shape[i].var_pf_mid_att	= (double)mysound.avg_rel[1];
-	*pState->m_shape[i].var_pf_treb_att	= (double)mysound.avg_rel[2];
+	*pState->m_shape[i].var_pf_bass		= (double)m_presetImm[0];
+	*pState->m_shape[i].var_pf_mid		= (double)m_presetImm[1];
+	*pState->m_shape[i].var_pf_treb		= (double)m_presetImm[2];
+	*pState->m_shape[i].var_pf_bass_att	= (double)m_presetAtt[0];
+	*pState->m_shape[i].var_pf_mid_att	= (double)m_presetAtt[1];
+	*pState->m_shape[i].var_pf_treb_att	= (double)m_presetAtt[2];
     for (int vi=0; vi<NUM_Q_VAR; vi++)
         *pState->m_shape[i].var_pf_q[vi] = *pState->var_pf_q[vi];
     for (vi=0; vi<NUM_T_VAR; vi++)
@@ -2014,16 +2023,16 @@ void CPlugin::LoadCustomShapePerFrameEvallibVars(CState* pState, int i, int inst
 
 void CPlugin::LoadCustomWavePerFrameEvallibVars(CState* pState, int i)
 {
-	*pState->m_wave[i].var_pf_time		= (double)(GetTime() - m_fStartTime);
+	*pState->m_wave[i].var_pf_time		= (double)m_animClock.Now();
 	*pState->m_wave[i].var_pf_frame		= (double)GetFrame();
-	*pState->m_wave[i].var_pf_fps       = (double)GetFps();
+	*pState->m_wave[i].var_pf_fps       = (double)m_fCalmStepFps;   // SURI: steps per second
 	*pState->m_wave[i].var_pf_progress  = (GetTime() - m_fPresetStartTime) / (m_fNextPresetTime - m_fPresetStartTime);
-	*pState->m_wave[i].var_pf_bass		= (double)mysound.imm_rel[0];
-	*pState->m_wave[i].var_pf_mid		= (double)mysound.imm_rel[1];
-	*pState->m_wave[i].var_pf_treb		= (double)mysound.imm_rel[2];
-	*pState->m_wave[i].var_pf_bass_att	= (double)mysound.avg_rel[0];
-	*pState->m_wave[i].var_pf_mid_att	= (double)mysound.avg_rel[1];
-	*pState->m_wave[i].var_pf_treb_att	= (double)mysound.avg_rel[2];
+	*pState->m_wave[i].var_pf_bass		= (double)m_presetImm[0];
+	*pState->m_wave[i].var_pf_mid		= (double)m_presetImm[1];
+	*pState->m_wave[i].var_pf_treb		= (double)m_presetImm[2];
+	*pState->m_wave[i].var_pf_bass_att	= (double)m_presetAtt[0];
+	*pState->m_wave[i].var_pf_mid_att	= (double)m_presetAtt[1];
+	*pState->m_wave[i].var_pf_treb_att	= (double)m_presetAtt[2];
     for (int vi=0; vi<NUM_Q_VAR; vi++)
 	    *pState->m_wave[i].var_pf_q[vi] = *pState->var_pf_q[vi];
     for (vi=0; vi<NUM_T_VAR; vi++)
@@ -2335,7 +2344,7 @@ void CPlugin::DrawWave(float *fL, float *fR)
 			sample_offset = (NUM_WAVEFORM_SAMPLES-nVerts)/2;//mysound.GoGoAlignatron(nVerts * 12/10);	// only call this once nVerts is final!
 
 			if (m_pState->m_bModWaveAlphaByVolume)
-				alpha *= ((mysound.imm_rel[0] + mysound.imm_rel[1] + mysound.imm_rel[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
+				alpha *= ((m_presetImm[0] + m_presetImm[1] + m_presetImm[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
 			if (alpha < 0) alpha = 0;
 			if (alpha > 1) alpha = 1;
 
@@ -2345,7 +2354,7 @@ void CPlugin::DrawWave(float *fL, float *fR)
 				for (i=0; i<nVerts; i++)
 				{
 					float rad = 0.5f + 0.4f*fR[i+sample_offset] + fWaveParam2;
-					float ang = (i)*inv_nverts_minus_one*6.28f + GetTime()*0.2f;
+					float ang = (i)*inv_nverts_minus_one*6.28f + m_animClock.Now()*0.2f;
 					if (i < nVerts/10)
 					{
 						float mix = i/(nVerts*0.1f);
@@ -2372,7 +2381,7 @@ void CPlugin::DrawWave(float *fL, float *fR)
 
 			alpha *= 1.25f;
 			if (m_pState->m_bModWaveAlphaByVolume)
-				alpha *= ((mysound.imm_rel[0] + mysound.imm_rel[1] + mysound.imm_rel[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
+				alpha *= ((m_presetImm[0] + m_presetImm[1] + m_presetImm[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
 			if (alpha < 0) alpha = 0;
 			if (alpha > 1) alpha = 1;
 
@@ -2381,7 +2390,7 @@ void CPlugin::DrawWave(float *fL, float *fR)
 			for (i=0; i<nVerts; i++)
 			{
 				float rad = 0.53f + 0.43f*fR[i] + fWaveParam2;
-				float ang = fL[i+32] * 1.57f + GetTime()*2.3f;
+				float ang = fL[i+32] * 1.57f + m_animClock.Now()*2.3f;
 				v[i].x = rad*cosf(ang) *m_fAspectY + fWavePosX;		// 0.75 = adj. for aspect ratio
 				v[i].y = rad*sinf(ang) *m_fAspectX + fWavePosY;
 			}
@@ -2402,7 +2411,7 @@ void CPlugin::DrawWave(float *fL, float *fR)
 			}
 
 			if (m_pState->m_bModWaveAlphaByVolume)
-				alpha *= ((mysound.imm_rel[0] + mysound.imm_rel[1] + mysound.imm_rel[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
+				alpha *= ((m_presetImm[0] + m_presetImm[1] + m_presetImm[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
 			if (alpha < 0) alpha = 0;
 			if (alpha > 1) alpha = 1;
 
@@ -2429,7 +2438,7 @@ void CPlugin::DrawWave(float *fL, float *fR)
 			alpha *= 1.3f;
 			alpha *= powf(treble_rel, 2.0f);
 			if (m_pState->m_bModWaveAlphaByVolume)
-				alpha *= ((mysound.imm_rel[0] + mysound.imm_rel[1] + mysound.imm_rel[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
+				alpha *= ((m_presetImm[0] + m_presetImm[1] + m_presetImm[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
 			if (alpha < 0) alpha = 0;
 			if (alpha > 1) alpha = 1;
 
@@ -2449,7 +2458,7 @@ void CPlugin::DrawWave(float *fL, float *fR)
 
 
 			if (m_pState->m_bModWaveAlphaByVolume)
-				alpha *= ((mysound.imm_rel[0] + mysound.imm_rel[1] + mysound.imm_rel[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
+				alpha *= ((m_presetImm[0] + m_presetImm[1] + m_presetImm[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
 			if (alpha < 0) alpha = 0;
 			if (alpha > 1) alpha = 1;
 
@@ -2489,13 +2498,13 @@ void CPlugin::DrawWave(float *fL, float *fR)
 			}
 
 			if (m_pState->m_bModWaveAlphaByVolume)
-				alpha *= ((mysound.imm_rel[0] + mysound.imm_rel[1] + mysound.imm_rel[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
+				alpha *= ((m_presetImm[0] + m_presetImm[1] + m_presetImm[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
 			if (alpha < 0) alpha = 0;
 			if (alpha > 1) alpha = 1;
 
 			{
-				float cos_rot = cosf(GetTime()*0.3f);
-				float sin_rot = sinf(GetTime()*0.3f);
+				float cos_rot = cosf(m_animClock.Now()*0.3f);
+				float sin_rot = sinf(m_animClock.Now()*0.3f);
 
 				for (i=0; i<nVerts; i++)
 				{
@@ -2532,7 +2541,7 @@ void CPlugin::DrawWave(float *fL, float *fR)
 				sample_offset = (NUM_WAVEFORM_SAMPLES-nVerts)/2;//mysound.GoGoAlignatron(nVerts);	// only call this once nVerts is final!
 
 			if (m_pState->m_bModWaveAlphaByVolume)
-				alpha *= ((mysound.imm_rel[0] + mysound.imm_rel[1] + mysound.imm_rel[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
+				alpha *= ((m_presetImm[0] + m_presetImm[1] + m_presetImm[2])*0.333f - m_pState->m_fModWaveAlphaStart.eval(GetTime()))/(m_pState->m_fModWaveAlphaEnd.eval(GetTime()) - m_pState->m_fModWaveAlphaStart.eval(GetTime()));
 			if (alpha < 0) alpha = 0;
 			if (alpha > 1) alpha = 1;
 
@@ -2917,12 +2926,12 @@ void CPlugin::DrawUserSprites()	// from system memory, to back buffer.
 			*(m_texmgr.m_tex[iSlot].var_frame)    = (double)(GetFrame() - m_texmgr.m_tex[iSlot].nStartFrame);
 			*(m_texmgr.m_tex[iSlot].var_fps)      = (double)GetFps();
 			*(m_texmgr.m_tex[iSlot].var_progress) = (double)m_pState->m_fBlendProgress;
-			*(m_texmgr.m_tex[iSlot].var_bass)     = (double)mysound.imm_rel[0];
-			*(m_texmgr.m_tex[iSlot].var_mid)      = (double)mysound.imm_rel[1];
-			*(m_texmgr.m_tex[iSlot].var_treb)     = (double)mysound.imm_rel[2];
-			*(m_texmgr.m_tex[iSlot].var_bass_att) = (double)mysound.avg_rel[0];
-			*(m_texmgr.m_tex[iSlot].var_mid_att)  = (double)mysound.avg_rel[1];
-			*(m_texmgr.m_tex[iSlot].var_treb_att) = (double)mysound.avg_rel[2];
+			*(m_texmgr.m_tex[iSlot].var_bass)     = (double)m_presetImm[0];
+			*(m_texmgr.m_tex[iSlot].var_mid)      = (double)m_presetImm[1];
+			*(m_texmgr.m_tex[iSlot].var_treb)     = (double)m_presetImm[2];
+			*(m_texmgr.m_tex[iSlot].var_bass_att) = (double)m_presetAtt[0];
+			*(m_texmgr.m_tex[iSlot].var_mid_att)  = (double)m_presetAtt[1];
+			*(m_texmgr.m_tex[iSlot].var_treb_att) = (double)m_presetAtt[2];
 
 			// evaluate expressions
 			#ifndef _NO_EXPR_
@@ -3270,9 +3279,9 @@ void CPlugin::ApplyShaderParams(CShaderParams* p, LPD3DXCONSTANTTABLE pCT, CStat
         pCT->SetVector( lpDevice, q->texsize_param, &D3DXVECTOR4((float)q->w,(float)q->h,1.0f/q->w,1.0f/q->h));
     }
 
-    float time_since_preset_start = GetTime() - pState->GetPresetStartTime();
+    float time_since_preset_start = (pState == m_pState) ? m_animClock.Now() - m_fAnimPresetStart : GetTime() - pState->GetPresetStartTime();   // SURI
     float time_since_preset_start_wrapped = time_since_preset_start - (int)(time_since_preset_start/10000)*10000;
-    float time = GetTime() - m_fStartTime;
+    float time = m_animClock.Now();   // SURI
     float progress = (GetTime() - m_fPresetStartTime) / (m_fNextPresetTime - m_fPresetStartTime);
     float mip_x = logf((float)GetWidth())/logf(2.0f);
     float mip_y = logf((float)GetWidth())/logf(2.0f);
@@ -3293,9 +3302,9 @@ void CPlugin::ApplyShaderParams(CShaderParams* p, LPD3DXCONSTANTTABLE pCT, CStat
     D3DXHANDLE* h = p->const_handles;
     if (h[0]) pCT->SetVector( lpDevice, h[0], &D3DXVECTOR4( aspect_x, aspect_y, 1.0f/aspect_x, 1.0f/aspect_y ));
     if (h[1]) pCT->SetVector( lpDevice, h[1], &D3DXVECTOR4(0, 0, 0, 0 ));
-    if (h[2]) pCT->SetVector( lpDevice, h[2], &D3DXVECTOR4(time_since_preset_start_wrapped, GetFps(), (float)GetFrame(), progress));
-    if (h[3]) pCT->SetVector( lpDevice, h[3], &D3DXVECTOR4(mysound.imm_rel[0], mysound.imm_rel[1], mysound.imm_rel[2], 0.3333f*(mysound.imm_rel[0], mysound.imm_rel[1], mysound.imm_rel[2]) ));
-    if (h[4]) pCT->SetVector( lpDevice, h[4], &D3DXVECTOR4(mysound.avg_rel[0], mysound.avg_rel[1], mysound.avg_rel[2], 0.3333f*(mysound.avg_rel[0], mysound.avg_rel[1], mysound.avg_rel[2]) ));
+    if (h[2]) pCT->SetVector( lpDevice, h[2], &D3DXVECTOR4(time_since_preset_start_wrapped, m_fCalmStepFps, (float)GetFrame(), progress));
+    if (h[3]) pCT->SetVector( lpDevice, h[3], &D3DXVECTOR4(m_presetImm[0], m_presetImm[1], m_presetImm[2], 0.3333f*(m_presetImm[0], m_presetImm[1], m_presetImm[2]) ));
+    if (h[4]) pCT->SetVector( lpDevice, h[4], &D3DXVECTOR4(m_presetAtt[0], m_presetAtt[1], m_presetAtt[2], 0.3333f*(m_presetAtt[0], m_presetAtt[1], m_presetAtt[2]) ));
     if (h[5]) pCT->SetVector( lpDevice, h[5], &D3DXVECTOR4( blur_max[0]-blur_min[0], blur_min[0], blur_max[1]-blur_min[1], blur_min[1] ));
     if (h[6]) pCT->SetVector( lpDevice, h[6], &D3DXVECTOR4( blur_max[2]-blur_min[2], blur_min[2], blur_min[0], blur_max[0] ));
     if (h[7]) pCT->SetVector( lpDevice, h[7], &D3DXVECTOR4((float)m_nTexSizeX, (float)m_nTexSizeY, 1.0f/(float)m_nTexSizeX, 1.0f/(float)m_nTexSizeY ));
@@ -3452,9 +3461,9 @@ void CPlugin::ShowToUser_NoShaders()//int bRedraw, int nPassOverride)
 		{
 			for (int i=0; i<4; i++)
 			{
-				shade[i][0] = 0.6f + 0.3f*sinf(GetTime()*30.0f*0.0143f + 3 + i*21 + m_fRandStart[3]);
-				shade[i][1] = 0.6f + 0.3f*sinf(GetTime()*30.0f*0.0107f + 1 + i*13 + m_fRandStart[1]);
-				shade[i][2] = 0.6f + 0.3f*sinf(GetTime()*30.0f*0.0129f + 6 + i*9  + m_fRandStart[2]);
+				shade[i][0] = 0.6f + 0.3f*sinf(m_animClock.Now()*30.0f*0.0143f + 3 + i*21 + m_fRandStart[3]);
+				shade[i][1] = 0.6f + 0.3f*sinf(m_animClock.Now()*30.0f*0.0107f + 1 + i*13 + m_fRandStart[1]);
+				shade[i][2] = 0.6f + 0.3f*sinf(m_animClock.Now()*30.0f*0.0129f + 6 + i*9  + m_fRandStart[2]);
 				float max = ((shade[i][0] > shade[i][1]) ? shade[i][0] : shade[i][1]);
 				if (shade[i][2] > max) max = shade[i][2];
 				for (int k=0; k<3; k++)
@@ -3719,9 +3728,9 @@ void CPlugin::ShowToUser_Shaders(int nPass, bool bAlphaBlend, bool bFlipAlpha, b
         // pick 4 colors for the 4 corners
 		for (int i=0; i<4; i++)
 		{
-			shade[i][0] = 0.6f + 0.3f*sinf(GetTime()*30.0f*0.0143f + 3 + i*21 + m_fRandStart[3]);
-			shade[i][1] = 0.6f + 0.3f*sinf(GetTime()*30.0f*0.0107f + 1 + i*13 + m_fRandStart[1]);
-			shade[i][2] = 0.6f + 0.3f*sinf(GetTime()*30.0f*0.0129f + 6 + i*9  + m_fRandStart[2]);
+			shade[i][0] = 0.6f + 0.3f*sinf(m_animClock.Now()*30.0f*0.0143f + 3 + i*21 + m_fRandStart[3]);
+			shade[i][1] = 0.6f + 0.3f*sinf(m_animClock.Now()*30.0f*0.0107f + 1 + i*13 + m_fRandStart[1]);
+			shade[i][2] = 0.6f + 0.3f*sinf(m_animClock.Now()*30.0f*0.0129f + 6 + i*9  + m_fRandStart[2]);
 			float max = ((shade[i][0] > shade[i][1]) ? shade[i][0] : shade[i][1]);
 			if (shade[i][2] > max) max = shade[i][2];
 			for (int k=0; k<3; k++)
