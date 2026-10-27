@@ -5,7 +5,7 @@ reacting to the sound playing through the speakers (WASAPI loopback).
 
 **Base:** https://github.com/milkdrop2077/MilkDrop3 (commit `6b39088`, version 3.0.A). All changes since are listed in [CHANGES.md](../CHANGES.md).
 
-Last updated: 2026-10-27
+Last updated: 2026-10-28
 
 ---
 
@@ -58,6 +58,7 @@ To move it to another computer, copy the whole `build\Release` folder, or use th
 | `code/vis_milk2/features/shader_fx.*` | Effects (phase 5): injecting and removing `// SURI-FX` blocks in the comp shader, and stripping them before saving |
 | `code/vis_milk2/features/ui_scale.*` | DPI-based font sizes and the toast queue (phase 6) |
 | `code/vis_milk2/features/help_text.*` | F1 help text, paged by topic, 5 topics (phase 6) |
+| `code/vis_milk2/features/calm.*` | Calm motion (phase 14): speed, sensitivity and anti-flicker maths, the animation clock and the per-preset settings; pure code, tested in `code/tests/` |
 | `code/vis_milk2/features/desktop_mode.*` | Desktop mode logic: WorkerW selection, reattach rules and tray menu layout (phase 7, testable without Win32) |
 | `code/vis_milk2/features/desktop_mode_win32.cpp` | The Win32 part: `SetParent`, tray icon, `RegisterHotKey`, `TaskbarCreated` (phase 7) |
 | `code/audio/` | WASAPI loopback capture (`loopback-capture.cpp`), device selection (`prefs.cpp`), buffer (`audiobuf.cpp`) |

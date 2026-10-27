@@ -114,6 +114,22 @@ Everything below was added or changed on top of that commit. How each part was p
   - `.m3u` save and load in `playlists\`.
 - **Code:** `features/drop_import.*`, `features/playlist*`.
 
+### Calm motion (phase 14)
+Three settings that tame presets which move too fast or flicker. They belong to the preset on screen, like its rating.
+- **Speed** (10%-150%, step 5%): Ctrl+Shift+ + / - (also the numpad keys). Presets see a clock that runs at Speed times real time, each step's motion is scaled, and the waveform and spectrum change more slowly. Changing it never makes a preset jump.
+- **Sensitivity** (0%-200%, step 10%): Ctrl+ + / - (also the numpad keys). Reshapes the audio values the preset reads; below 100% the drawn waveform and spectrum are smaller too. Hard-cut detection keeps the real audio. It is always shown in the info card (F5), for example `60 fps  Sensitivity 100%`.
+- **Anti-flicker** (Off / Soft / Strong): right-click, View, Motion. Audio rises quickly and falls slowly, colours and single shapes may change only so much per second, and each new image is blended with the previous one.
+- **Ctrl+0** sets the current preset back to the defaults (Speed 100%, Sensitivity 100%, Anti-flicker Off). Plain `+` / `-` still rate the preset. The keys need a preset file and do nothing while a text prompt is open.
+- **Step cap:** a preset runs at most 60 steps per second, so a 144 Hz display does not speed presets up. A slower display runs one step per frame. Between steps the last image is shown again (hold frames), and presets see `fps` = 60.
+- **Per preset:** when MilkDrop blends to the next preset, speed and sensitivity slide from the old values to the new ones.
+- **Preset file:** the values are written at once into `[preset00]`, next to `fRating`, only when they are not the default (a default value deletes its key, so an untuned file is unchanged): `fCalmSpeed`, `fCalmSensitivity` and `nCalmAntiFlicker`. The file that changes is the copy in the program folder (`build\Release\plugins\Milkdrop2\presets`, not in git); `content/presets` is never touched. `.\build.ps1 -Clean`, deleting `build\Release` or a fresh `-Package` start without the values; a rebuild without `-Clean` keeps them.
+- **Limits:**
+  - Presets that count with `frame` or their own `q` variables are not slowed beyond the 60-step cap.
+  - Strong persistence makes strobing presets greyer.
+  - A very low Speed makes waveform-driven presets darker.
+  - Shapes drawn as many instances (`instances > 1`) are not limited by Anti-flicker (persistence still applies).
+- **Code:** `features/calm.*`.
+
 ## Content
 
 - **`content/presets/`:** 9,795 presets from the "Cream of the Crop" pack by ISOSCELES, as distributed by projectM. Upstream ships no presets.
@@ -139,6 +155,7 @@ The project was planned on top of the upstream commit above, as a roadmap of pha
 | [Phases 8–9](docs/superpowers/plans/2026-10-25-phase-8-9-now-playing-sprites.md) | Song info, sprites and messages |
 | [Phase 10 design](docs/superpowers/specs/2026-10-25-phase-10-drag-drop-playlist-design.md) and [plan](docs/superpowers/plans/2026-10-25-phase-10-drag-drop-playlist.md) | Drag & drop and Playlist |
 | [Phase 13](docs/superpowers/plans/2026-10-27-phase-13-packaging.md) | Packaging |
+| [Phases 14-15](docs/superpowers/plans/2026-10-27-phase-14-calm-motion.md) | Calm motion (built) and the calm meter (not started) |
 
 Not built, by decision: webcam input, sending the image to other programs (Spout), and an x64 build. The Audio device menu is postponed until the audio code exposes device selection.
 
