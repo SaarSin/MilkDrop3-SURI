@@ -286,3 +286,12 @@ TEST(TestCalm_SuggestNeverApplied) {
         SuggestCalm(Stats(f, m, c), cur);
     CHECK(memcmp(&cur, &copy, sizeof cur) == 0);
 }
+TEST(TestCalm_MotionTrackerCorrelationBeat) {
+    const float dt = 1.0f / 60.0f;
+    MotionTracker a;
+    for (int i = 0; i < 360; i++) {      // 6 s, 2 Hz bass
+        float bass = 1.0f + 0.5f * sinf(i * dt * 2.0f * 3.14159265f * 2.0f);
+        a.Add(0.005f * bass, 60.0f, bass, dt);
+    }
+    CHECK(a.BassCorrelation() > 0.8f);
+}

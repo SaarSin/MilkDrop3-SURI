@@ -336,7 +336,7 @@ float MeshMotion(const float* du, const float* dv, int n)
 
 void MotionTracker::Reset()
 {
-    m_motion = 0; m_init = false; m_acc = 0; m_head = 0; m_count = 0;
+    m_motion = 0; m_bass = 0; m_init = false; m_acc = 0; m_head = 0; m_count = 0;
     for (int i = 0; i < kSlots; i++) { m_m[i] = 0; m_b[i] = 0; }
 }
 
@@ -346,14 +346,15 @@ void MotionTracker::Add(float meshMotion, float stepsPerSec, float bass, float d
         return;
     const float dt = Clamp(dtSec, 0.0001f, 0.25f);
     const float inst = meshMotion * stepsPerSec * 100.0f;
-    if (!m_init) { m_motion = inst; m_init = true; }
-    else         m_motion += (inst - m_motion) * (1.0f - expf(-dt / 0.5f));
+    const float k = 1.0f - expf(-dt / 0.5f);        // bass gets the same filter, so both series lag alike
+    if (!m_init) { m_motion = inst; m_bass = bass; m_init = true; }
+    else         { m_motion += (inst - m_motion) * k; m_bass += (bass - m_bass) * k; }
     m_acc += dt;
     if (m_acc >= 0.1f) {
         m_acc -= 0.1f;
         if (m_acc > 0.1f) m_acc = 0;                 // a long frame stores one sample, not a burst
         m_m[m_head] = m_motion;
-        m_b[m_head] = bass;
+        m_b[m_head] = m_bass;
         m_head = (m_head + 1) % kSlots;
         if (m_count < kSlots) m_count++;
     }

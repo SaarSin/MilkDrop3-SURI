@@ -123,6 +123,7 @@ public:
 private:
     static const int kSlots = 40;
     float m_motion = 0;
+    float m_bass = 0;                                // smoothed like motion (tau 0.5 s)
     bool  m_init = false;
     float m_acc = 0;
     float m_m[kSlots] = {};
