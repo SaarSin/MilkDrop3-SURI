@@ -125,13 +125,22 @@ float StepFps(float displayFps)
     return r < 1.0f ? 1.0f : r;
 }
 
+// SURI: presets may give a negative (mirroring) or zero zoom/stretch; powf would return NaN or inf.
+static float SignedPow(float v, float k)
+{
+    if (v == 0.0f || !(v == v))
+        return v;
+    const float r = powf(fabsf(v), k);
+    return v < 0 ? -r : r;
+}
+
 void ScaleMotion(CalmMotion* m, float k)
 {
     if (k == 1.0f)
         return;
-    m->zoom = powf(m->zoom, k);
-    m->sx   = powf(m->sx, k);
-    m->sy   = powf(m->sy, k);
+    m->zoom = SignedPow(m->zoom, k);
+    m->sx   = SignedPow(m->sx, k);
+    m->sy   = SignedPow(m->sy, k);
     m->rot  *= k;
     m->warp *= k;
     m->dx   *= k;

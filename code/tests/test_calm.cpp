@@ -102,6 +102,18 @@ TEST(TestCalm_ScaleMotion) {
     CHECK(c.sx == 1.0f);
 }
 
+TEST(TestCalm_ScaleMotionNegativeAndZero) {
+    CalmMotion m = { -1.21f, 0.2f, 0.0f, 0.0f, 0.0f, -4.0f, 0.0f };
+    ScaleMotion(&m, 0.5f);
+    CHECK(Near(m.zoom, -1.1f));
+    CHECK(Near(m.sx, -2.0f));
+    CHECK(m.sy == 0.0f);
+    CHECK(isfinite(m.zoom) && isfinite(m.sx) && isfinite(m.sy));
+    CalmMotion z = { 0.0f, 0, 0, 0, 0, 0.0f, 1.0f };
+    ScaleMotion(&z, 0.5f);
+    CHECK(z.zoom == 0.0f && z.sx == 0.0f && z.sy == 1.0f);
+}
+
 TEST(TestCalm_Audio) {
     CHECK(Near(ShapeAudio(1.7f, 1.0f), 1.7f));
     CHECK(ShapeAudio(1.7f, 0.0f) == 1.0f);
