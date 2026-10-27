@@ -213,6 +213,7 @@ CState::CState()
 	// it is a SUBSET of the per-vertex calculation variable list.
 	m_pf_codehandle = NULL;
 	m_pp_codehandle = NULL;
+	m_calmSlew.Reset();   // SURI
 	m_pf_eel = NSEEL_VM_alloc();
 	m_pv_eel = NSEEL_VM_alloc();
     for (int i=0; i<MAX_CUSTOM_WAVES; i++)
@@ -1348,6 +1349,8 @@ bool CState::Import(const wchar_t *szIniFile, float fTime, CState* pOldState, DW
 	RecompileExpressions();
 
     fclose(f);
+
+    m_calmSlew.Reset();   // SURI: a new preset starts without the old one's anti-flicker history
 
     return true;
 }

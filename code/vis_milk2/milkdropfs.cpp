@@ -585,6 +585,9 @@ void CPlugin::RunPerFrameEquations(int code)
         *pState->var_pf_gamma     = max(0    , min(    8, *pState->var_pf_gamma    ));
         *pState->var_pf_echo_zoom = max(0.001, min( 1000, *pState->var_pf_echo_zoom));
 
+        // SURI: anti-flicker limits how fast the colour outputs may change per step
+        CalmSlewMainOutputs(pState, 1.0f / m_fCalmStepFps);
+
 	}
 
 	if (m_pState->m_bBlending)
@@ -1029,6 +1032,8 @@ void CPlugin::RenderFrame(int bRedraw)
 	}
 
 	DrawUserSprites();
+
+	CalmPostFrame();   // SURI: persistence, and a copy of the image for hold frames
 
 	// flip buffers
 	IDirect3DTexture9* pTemp = m_lpVS[0];
@@ -1864,6 +1869,9 @@ void CPlugin::DrawCustomShapes()
 					        NSEEL_code_execute(pState->m_shape[i].m_pf_codehandle);
 				        }
 			        #endif
+
+                    if (pState->m_shape[i].instances == 1)   // SURI: anti-flicker on the shape's outputs
+                        CalmSlewShapeOutputs(pState, i, 1.0f / m_fCalmStepFps);
 
                     // save changes to t1-t8 this frame
 
@@ -4092,4 +4100,168 @@ void CPlugin::ShowSongTitleAnim(int w, int h, float fProgress, float fAlpha)
 	}
 
 	lpDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+}
+// SURI: calm motion ---------------------------------------------------------------------------
+
+// Anti-flicker on the per-frame colour outputs (channels 0..13 of the state's CalmSlew).
+void CPlugin::CalmSlewMainOutputs(CState* pState, float dt)
+{
+    const AntiFlicker a = m_calm.antiFlicker;
+    if (a == AntiFlicker::Off)
+        return;
+    const float c = SlewRate(a, SlewKind::Colour);
+    double* v[14] = {
+        pState->var_pf_wave_r, pState->var_pf_wave_g, pState->var_pf_wave_b, pState->var_pf_wave_a,
+        pState->var_pf_ob_r,   pState->var_pf_ob_g,   pState->var_pf_ob_b,   pState->var_pf_ob_a,
+        pState->var_pf_ib_r,   pState->var_pf_ib_g,   pState->var_pf_ib_b,   pState->var_pf_ib_a,
+        pState->var_pf_gamma,  pState->var_pf_echo_alpha };
+    for (int ch = 0; ch < 14; ch++)
+        *v[ch] = pState->m_calmSlew.Step(ch, (float)*v[ch], ch == 12 ? c * 4.0f : c, dt);   // gamma: 4 x the colour rate
+}
+
+// Anti-flicker on a custom shape's outputs (channels 16 + shape*12 + j).
+void CPlugin::CalmSlewShapeOutputs(CState* pState, int shape, float dt)
+{
+    const AntiFlicker a = m_calm.antiFlicker;
+    if (a == AntiFlicker::Off)
+        return;
+    CShape& s = pState->m_shape[shape];
+    struct { double* p; SlewKind k; } v[12] = {
+        { s.var_pf_x,   SlewKind::Size   }, { s.var_pf_y,       SlewKind::Size  }, { s.var_pf_rad,      SlewKind::Size },
+        { s.var_pf_ang, SlewKind::Angle  }, { s.var_pf_tex_ang, SlewKind::Angle }, { s.var_pf_tex_zoom, SlewKind::Size },
+        { s.var_pf_r,   SlewKind::Colour }, { s.var_pf_g,       SlewKind::Colour }, { s.var_pf_b,       SlewKind::Colour },
+        { s.var_pf_r2,  SlewKind::Colour }, { s.var_pf_g2,      SlewKind::Colour }, { s.var_pf_b2,      SlewKind::Colour } };
+    for (int j = 0; j < 12; j++)
+    {
+        const int ch = 16 + shape * 12 + j;
+        if (ch < kSlewChannels)
+            *v[j].p = pState->m_calmSlew.Step(ch, (float)*v[j].p, SlewRate(a, v[j].k), dt);
+    }
+}
+
+// Draws tex over the whole render target: alpha 1 replaces it, alpha < 1 blends over it.
+// The device state is saved and restored with a state block.
+void CPlugin::CalmDrawTexture(LPDIRECT3DTEXTURE9 tex, float alpha)
+{
+    LPDIRECT3DDEVICE9 dev = GetDevice();
+    if (!dev || !tex)
+        return;
+    D3DSURFACE_DESC d;
+    if (FAILED(tex->GetLevelDesc(0, &d)))
+        return;
+    IDirect3DStateBlock9* sb = NULL;
+    if (FAILED(dev->CreateStateBlock(D3DSBT_ALL, &sb)) || !sb)
+        return;   // could not restore the state afterwards: draw nothing
+
+    struct V { float x, y, z, rhw, u, v; };
+    const float w = (float)d.Width, h = (float)d.Height;
+    V v[4] = {
+        { -0.5f,     -0.5f,     0, 1, 0, 0 }, { w - 0.5f, -0.5f,     0, 1, 1, 0 },
+        { -0.5f,     h - 0.5f,  0, 1, 0, 1 }, { w - 0.5f, h - 0.5f,  0, 1, 1, 1 } };
+    const float a = alpha < 0.0f ? 0.0f : alpha > 1.0f ? 1.0f : alpha;
+    D3DVIEWPORT9 vp = { 0, 0, d.Width, d.Height, 0.0f, 1.0f };
+
+    dev->SetViewport(&vp);
+    dev->SetVertexShader(NULL);
+    dev->SetPixelShader(NULL);
+    dev->SetFVF(D3DFVF_XYZRHW | D3DFVF_TEX1);
+    dev->SetTexture(0, tex);
+    dev->SetTexture(1, NULL);
+    dev->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+    dev->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
+    dev->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
+    dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    dev->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    dev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+    dev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+    dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+    dev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TFACTOR);
+    dev->SetTextureStageState(0, D3DTSS_TEXCOORDINDEX, 0);
+    dev->SetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+    dev->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+    dev->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+    dev->SetRenderState(D3DRS_TEXTUREFACTOR, D3DCOLOR_ARGB((int)(a * 255.0f + 0.5f), 255, 255, 255));
+    dev->SetRenderState(D3DRS_ZENABLE, FALSE);
+    dev->SetRenderState(D3DRS_STENCILENABLE, FALSE);
+    dev->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+    dev->SetRenderState(D3DRS_FOGENABLE, FALSE);
+    dev->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+    dev->SetRenderState(D3DRS_LIGHTING, FALSE);
+    dev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+    dev->SetRenderState(D3DRS_COLORWRITEENABLE, 0x0000000F);
+    dev->SetRenderState(D3DRS_ALPHABLENDENABLE, a < 1.0f ? TRUE : FALSE);
+    dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+    dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+    dev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(V));
+
+    sb->Apply();
+    sb->Release();
+}
+
+// After a preset step: blend the previous shown image over it (persistence, Anti-flicker only)
+// and keep a copy of the result for hold frames and the next blend. The copy is made at every
+// Anti-flicker level because hold frames need it.
+void CPlugin::CalmPostFrame()
+{
+    LPDIRECT3DDEVICE9 dev = GetDevice();
+    if (!dev)
+    {
+        m_bCalmPrevValid = false;
+        return;
+    }
+    LPDIRECT3DSURFACE9 bb = NULL;
+    if (FAILED(dev->GetRenderTarget(0, &bb)) || !bb)
+    {
+        m_bCalmPrevValid = false;
+        return;
+    }
+    D3DSURFACE_DESC bd;
+    if (FAILED(bb->GetDesc(&bd)))
+    {
+        bb->Release();
+        m_bCalmPrevValid = false;
+        return;
+    }
+
+    if (m_calmPrevTex)
+    {
+        D3DSURFACE_DESC td;
+        if (FAILED(m_calmPrevTex->GetLevelDesc(0, &td)) || td.Width != bd.Width || td.Height != bd.Height)
+        {
+            SafeRelease(m_calmPrevTex);
+            m_bCalmPrevValid = false;
+        }
+    }
+    if (!m_calmPrevTex && !m_bCalmPrevFailed &&
+        FAILED(dev->CreateTexture(bd.Width, bd.Height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_X8R8G8B8, D3DPOOL_DEFAULT, &m_calmPrevTex, NULL)))
+    {
+        m_calmPrevTex = NULL;
+        m_bCalmPrevFailed = true;   // every frame steps; tried again after the next device reset
+    }
+    if (!m_calmPrevTex)
+    {
+        bb->Release();
+        m_bCalmPrevValid = false;
+        return;
+    }
+
+    const float p = PersistenceAmount(m_calm.antiFlicker, m_fCalmStepFps);
+    if (p > 0 && m_bCalmPrevValid)
+        CalmDrawTexture(m_calmPrevTex, p);
+
+    m_bCalmPrevValid = false;
+    LPDIRECT3DSURFACE9 ts = NULL;
+    if (SUCCEEDED(m_calmPrevTex->GetSurfaceLevel(0, &ts)) && ts)
+    {
+        m_bCalmPrevValid = SUCCEEDED(dev->StretchRect(bb, NULL, ts, NULL, D3DTEXF_NONE));
+        ts->Release();
+    }
+    bb->Release();
+}
+
+// A display frame without a preset step: show the last image again.
+void CPlugin::CalmHoldFrame()
+{
+    if (m_bCalmPrevValid && m_calmPrevTex)
+        CalmDrawTexture(m_calmPrevTex, 1.0f);
 }

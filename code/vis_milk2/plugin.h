@@ -471,6 +471,15 @@ public:
         float          m_calmWave[2][576];              // waveform / spectrum history for Speed and Sensitivity
         float          m_calmSpec[2][NUM_FREQUENCIES];
         float          m_fCalmStepFps;                  // preset steps per second (what presets see as 'fps')
+        float          m_calmStepAccum;                 // step pacing (StepDue)
+        LPDIRECT3DTEXTURE9 m_calmPrevTex;               // last shown image (hold frames and persistence)
+        bool           m_bCalmPrevValid;
+        bool           m_bCalmPrevFailed;               // creating m_calmPrevTex failed; retried after a device reset
+        void           CalmPostFrame();
+        void           CalmHoldFrame();
+        void           CalmDrawTexture(LPDIRECT3DTEXTURE9 tex, float alpha);
+        void           CalmSlewMainOutputs(CState* pState, float dt);
+        void           CalmSlewShapeOutputs(CState* pState, int shape, float dt);
 
         // stuff for displaying text to user:
         bool		m_bShowFPS;

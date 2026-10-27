@@ -607,6 +607,10 @@ void CPlugin::MyPreInitialize()
 	// SURI: calm motion
 	m_fAnimPresetStart = 0;
 	m_fCalmStepFps = 60.0f;
+	m_calmStepAccum = 0;
+	m_calmPrevTex = NULL;
+	m_bCalmPrevValid = false;
+	m_bCalmPrevFailed = false;
 	for (int ci = 0; ci < 3; ci++) { m_presetImm[ci] = 1.0f; m_presetAtt[ci] = 1.0f; }
 	memset(m_calmWave, 0, sizeof(m_calmWave));
 	memset(m_calmSpec, 0, sizeof(m_calmSpec));
@@ -3151,6 +3155,11 @@ void CPlugin::CleanUpMyDX9Stuff(int final_cleanup)
         m_nLoadingPreset = 8;
         LoadPresetTick();
     }
+
+    // SURI: calm motion - the last shown image (D3DPOOL_DEFAULT: must go before the device Reset)
+    SafeRelease(m_calmPrevTex);
+    m_bCalmPrevValid = false;
+    m_bCalmPrevFailed = false;
     // just force this:
     m_pState->m_bBlending = false;
 
@@ -3354,7 +3363,11 @@ void CPlugin::MyRenderFn(int redraw)
         DoCustomSoundAnalysis();    // emulates old pre-vms milkdrop sound analysis
 
     m_fCalmStepFps = StepFps(GetFps());   // SURI: at most 60 steps/s; what presets see as fps
-    RenderFrame(redraw);  // see milkdropfs.cpp
+    // SURI: the preset steps at most 60 times per second; other display frames show the last image
+    if (redraw || !m_bCalmPrevValid || StepDue(&m_calmStepAccum, 1.0f / max(GetFps(), 1.0f)))
+        RenderFrame(redraw);  // see milkdropfs.cpp
+    else
+        CalmHoldFrame();
 
     if (!redraw)
     {

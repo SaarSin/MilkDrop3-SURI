@@ -35,6 +35,7 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include "texmgr.h"
 #include "features/sprite_preset.h"  // SURI
+#include "features/calm.h"           // SURI
 
 #include <d3dx9math.h> // for D3DXVECTOR3
 
@@ -240,6 +241,7 @@ public:
 	int                 m_nSprites;              // SURI: sprites saved with the preset (suri_sprite* keys)
 	SpriteDesc          m_sprites[kMaxPresetSprites];
 	float				m_fRating;		// 0..5
+	CalmSlew			m_calmSlew;		// SURI: anti-flicker history of this state's outputs (POD)
 	// post-processing:
 	CBlendableFloat		m_fGammaAdj;	// +0 -> +1.0 (double), +2.0 (triple)...
 	CBlendableFloat		m_fVideoEchoZoom;
