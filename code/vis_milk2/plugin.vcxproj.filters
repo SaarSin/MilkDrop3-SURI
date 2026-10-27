@@ -103,6 +103,9 @@
     <ClCompile Include="..\audio\device-watch.cpp">
       <Filter>musikcube</Filter>
     </ClCompile>
+    <ClCompile Include="features\calm.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
     <ClCompile Include="features\commands.cpp">
       <Filter>features</Filter>
     </ClCompile>
@@ -164,6 +167,9 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="features\calm.h">
+      <Filter>features</Filter>
+    </ClInclude>
     <ClInclude Include="features\commands.h">
       <Filter>features</Filter>
     </ClInclude>

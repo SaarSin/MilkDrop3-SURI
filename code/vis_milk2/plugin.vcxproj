@@ -145,6 +145,7 @@ if exist "$(RepoRoot)content\textures" xcopy /Y /Q /E /I /D "$(RepoRoot)content\
     <ClCompile Include="textmgr.cpp" />
     <ClCompile Include="utility.cpp" />
     <ClCompile Include="resstrings.cpp" />
+    <ClCompile Include="features\calm.cpp" />
     <ClCompile Include="features\commands.cpp" />
     <ClCompile Include="features\context_menu.cpp" />
     <ClCompile Include="features\context_menu_win32.cpp" />
@@ -172,6 +173,7 @@ if exist "$(RepoRoot)content\textures" xcopy /Y /Q /E /I /D "$(RepoRoot)content\
     <Image Include="plugin_icon.ico" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="features\calm.h" />
     <ClInclude Include="features\commands.h" />
     <ClInclude Include="features\context_menu.h" />
     <ClInclude Include="features\desktop_mode.h" />
