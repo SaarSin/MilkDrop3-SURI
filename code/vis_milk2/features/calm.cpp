@@ -333,3 +333,68 @@ float MeshMotion(const float* du, const float* dv, int n)
     }
     return used ? (float)(sum / used) : 0.0f;
 }
+
+void MotionTracker::Reset()
+{
+    m_motion = 0; m_init = false; m_acc = 0; m_head = 0; m_count = 0;
+    for (int i = 0; i < kSlots; i++) { m_m[i] = 0; m_b[i] = 0; }
+}
+
+void MotionTracker::Add(float meshMotion, float stepsPerSec, float bass, float dtSec)
+{
+    if (!isfinite(meshMotion) || !isfinite(stepsPerSec) || !isfinite(bass) || !isfinite(dtSec))
+        return;
+    const float dt = Clamp(dtSec, 0.0001f, 0.25f);
+    const float inst = meshMotion * stepsPerSec * 100.0f;
+    if (!m_init) { m_motion = inst; m_init = true; }
+    else         m_motion += (inst - m_motion) * (1.0f - expf(-dt / 0.5f));
+    m_acc += dt;
+    if (m_acc >= 0.1f) {
+        m_acc -= 0.1f;
+        if (m_acc > 0.1f) m_acc = 0;                 // a long frame stores one sample, not a burst
+        m_m[m_head] = m_motion;
+        m_b[m_head] = bass;
+        m_head = (m_head + 1) % kSlots;
+        if (m_count < kSlots) m_count++;
+    }
+}
+
+float MotionTracker::BassCorrelation() const
+{
+    if (m_count < 10)
+        return 0.0f;
+    double mm = 0, mb = 0;
+    for (int i = 0; i < m_count; i++) { mm += m_m[i]; mb += m_b[i]; }
+    mm /= m_count; mb /= m_count;
+    double sxx = 0, syy = 0, sxy = 0;
+    for (int i = 0; i < m_count; i++) {
+        const double x = m_m[i] - mm, y = m_b[i] - mb;
+        sxx += x * x; syy += y * y; sxy += x * y;
+    }
+    if (sxx < 1e-9 || syy < 1e-9)
+        return 0.0f;
+    const double r = sxy / sqrt(sxx * syy);
+    return (float)(r > 1.0 ? 1.0 : (r < -1.0 ? -1.0 : r));
+}
+
+CalmSettings SuggestCalm(const CalmStats& s, const CalmSettings& current)
+{
+    CalmSettings r = current;
+    if (s.flashesPerSec >= 3.0f)
+        r.antiFlicker = AntiFlicker::Strong;
+    else if (s.flashesPerSec >= 1.5f && (int)r.antiFlicker < (int)AntiFlicker::Soft)
+        r.antiFlicker = AntiFlicker::Soft;
+
+    if (s.motionPct > kTargetMotionPct) {
+        const float ratio = kTargetMotionPct / s.motionPct;
+        float sp = Snap(current.speed * ratio, kSpeedStep, kSpeedMin, current.speed);
+        if (sp > current.speed) sp = current.speed;
+        r.speed = sp;
+        if (s.bassCorrelation > 0.5f) {
+            float se = Snap(current.sensitivity * ratio, kSensStep, kSensMin, current.sensitivity);
+            if (se > current.sensitivity) se = current.sensitivity;
+            r.sensitivity = se;
+        }
+    }
+    return r;
+}

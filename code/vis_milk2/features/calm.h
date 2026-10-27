@@ -111,3 +111,26 @@ private:
 // Non-finite entries are skipped; null pointers or n <= 0 give 0.
 // motionPct = MeshMotion * steps/s * 100, smoothed over 0.5 s by the caller.
 float MeshMotion(const float* du, const float* dv, int n);
+
+// Smooths motionPct (one-pole, tau 0.5 s) and keeps the Pearson correlation of motion with bass
+// over the last 4 s (40 samples, one per 0.1 s). Fixed arrays, no heap. Measures only.
+class MotionTracker {
+public:
+    void  Add(float meshMotion, float stepsPerSec, float bass, float dtSec);   // non-finite inputs ignored
+    void  Reset();
+    float MotionPct() const { return m_motion; }
+    float BassCorrelation() const;                   // 0 with < 10 samples or (near-)zero variance
+private:
+    static const int kSlots = 40;
+    float m_motion = 0;
+    bool  m_init = false;
+    float m_acc = 0;
+    float m_m[kSlots] = {};
+    float m_b[kSlots] = {};
+    int   m_head = 0, m_count = 0;
+};
+
+// What the meter would suggest. Pure: only lowers speed / sensitivity, never weakens
+// Anti-flicker, never applied here (the user presses Ctrl+7).
+const float kTargetMotionPct = 40.0f;
+CalmSettings SuggestCalm(const CalmStats& s, const CalmSettings& current);

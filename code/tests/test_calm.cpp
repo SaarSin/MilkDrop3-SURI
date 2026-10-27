@@ -212,3 +212,77 @@ TEST(TestCalm_MeshMotion) {
     du[0] = NAN; dv[1] = INFINITY; du[2] = 0.03f; dv[2] = 0.04f;
     CHECK(Near(MeshMotion(du, dv, 3), 0.05f));   // non-finite entries are skipped, not averaged in
 }
+
+TEST(TestCalm_MotionTrackerSmoothing) {
+    MotionTracker t;
+    for (int i = 0; i < 120; i++) t.Add(0.01f, 60.0f, 0.5f, 1.0f / 60.0f);   // 2 s
+    CHECK(Near(t.MotionPct(), 60.0f, 60.0f * 0.03f));
+    MotionTracker u;
+    for (int i = 0; i < 120; i++) u.Add(0.0f, 60.0f, 0.5f, 1.0f / 60.0f);
+    u.Add(0.1f, 60.0f, 0.5f, 1.0f / 60.0f);                                   // one spike of 600 %
+    CHECK(u.MotionPct() < 600.0f * 0.1f);
+    u.Add(NAN, 60.0f, 0.5f, 1.0f / 60.0f);                                    // ignored
+    CHECK(isfinite(u.MotionPct()));
+}
+TEST(TestCalm_MotionTrackerCorrelation) {
+    const float dt = 1.0f / 60.0f;
+    MotionTracker a;
+    for (int i = 0; i < 400; i++) {
+        float bass = 1.0f + 0.5f * sinf(i * dt * 2.0f * 3.14159265f * 0.1f);
+        a.Add(0.005f * bass, 60.0f, bass, dt);
+    }
+    CHECK(a.BassCorrelation() > 0.8f);
+    MotionTracker b;
+    for (int i = 0; i < 400; i++) {
+        float bass = 1.0f + 0.5f * sinf(i * dt * 2.0f * 3.14159265f * 0.1f);
+        b.Add(0.005f, 60.0f, bass, dt);
+    }
+    CHECK(fabsf(b.BassCorrelation()) < 0.2f);
+    MotionTracker c;
+    for (int i = 0; i < 40; i++) c.Add(0.005f * (i % 7), 60.0f, (float)(i % 5), dt);   // 0.67 s: < 10 samples
+    CHECK(c.BassCorrelation() == 0.0f);
+    c.Reset();
+    CHECK(c.MotionPct() == 0.0f);
+}
+
+static CalmStats Stats(float flashes, float motion, float corr) {
+    CalmStats s; s.flashesPerSec = flashes; s.motionPct = motion; s.bassCorrelation = corr; return s;
+}
+TEST(TestCalm_SuggestStrobe) {
+    CalmSettings cur;
+    CHECK(SuggestCalm(Stats(4, 0, 0), cur).antiFlicker == AntiFlicker::Strong);
+    CHECK(SuggestCalm(Stats(2, 0, 0), cur).antiFlicker == AntiFlicker::Soft);
+    cur.antiFlicker = AntiFlicker::Strong;
+    CHECK(SuggestCalm(Stats(2, 0, 0), cur).antiFlicker == AntiFlicker::Strong);   // never weakened
+    CHECK(SuggestCalm(Stats(0, 0, 0), cur).antiFlicker == AntiFlicker::Strong);
+}
+TEST(TestCalm_SuggestSlowsSelfMotion) {
+    CalmSettings cur; cur.speed = 1.0f; cur.sensitivity = 0.8f;
+    CalmSettings r = SuggestCalm(Stats(0, 160, 0), cur);
+    CHECK(Near(r.speed, 0.25f));
+    CHECK(r.speed <= 0.30f);
+    CHECK(r.sensitivity == cur.sensitivity);
+}
+TEST(TestCalm_SuggestLowersSensitivityForAudioMotion) {
+    CalmSettings cur; cur.speed = 1.0f; cur.sensitivity = 1.0f;
+    CalmSettings r = SuggestCalm(Stats(0, 80, 0.8f), cur);
+    CHECK(Near(r.sensitivity, 0.5f));
+    CHECK(Near(r.speed, 0.5f));
+}
+TEST(TestCalm_SuggestNeverRaises) {
+    CalmSettings cur; cur.speed = 0.15f; cur.sensitivity = 0.3f;
+    CalmSettings q = SuggestCalm(Stats(0, 10, 0.9f), cur);
+    CHECK(q.speed == cur.speed && q.sensitivity == cur.sensitivity && q.antiFlicker == cur.antiFlicker);
+    CalmSettings r = SuggestCalm(Stats(0, 4000, 0.9f), cur);
+    CHECK(r.speed <= cur.speed && r.speed >= kSpeedMin);
+    CHECK(r.sensitivity <= cur.sensitivity && r.sensitivity >= kSensMin);
+}
+TEST(TestCalm_SuggestNeverApplied) {
+    CalmSettings cur; cur.speed = 0.7f; cur.sensitivity = 1.3f; cur.antiFlicker = AntiFlicker::Soft;
+    CalmSettings copy = cur;
+    const float flashes[] = { 0, 2, 5, 100 };
+    const float motions[] = { 0, 50, 5000, 1e9f };
+    for (float f : flashes) for (float m : motions) for (float c : { 0.0f, 0.9f })
+        SuggestCalm(Stats(f, m, c), cur);
+    CHECK(memcmp(&cur, &copy, sizeof cur) == 0);
+}
