@@ -193,7 +193,7 @@ Decisions made during the phase:
 
 - **What:** a meter that measures the image on screen and suggests values for the current preset. Nothing it computes changes a setting or a preset file unless the user presses Ctrl+7.
 
-**Status:** not started. Starts only after phase 14 is approved. Plan: [2026-10-27-phase-14-calm-motion.md](2026-10-27-phase-14-calm-motion.md).
+**Status (2026-10-28):** implemented, waiting for the user's manual test. Ctrl+9 shows the meter, Ctrl+7 applies the suggestion; nothing is ever applied by itself. Plan: [2026-10-27-phase-14-calm-motion.md](2026-10-27-phase-14-calm-motion.md).
 
 ---
 
@@ -215,5 +215,5 @@ Decisions made during the phase:
 | ~~12 x64~~ | – | – | **Removed from the plan by the user's decision (2026-10-27):** a 32-bit exe runs normally on 64-bit Windows, and no phase requires x64 |
 | 13 Packaging | 0 | Small | Done and manually tested ([plan](2026-10-27-phase-13-packaging.md)) |
 | 14 Calm motion | 0 | Medium | Implemented, waiting for the user's manual test ([plan](2026-10-27-phase-14-calm-motion.md)) |
-| 15 Calm meter | 14 | Medium | Not started; suggests only, applies on Ctrl+7 ([plan](2026-10-27-phase-14-calm-motion.md)) |
+| 15 Calm meter | 14 | Medium | Implemented, waiting for the user's manual test; suggests only, applies on Ctrl+7 ([plan](2026-10-27-phase-14-calm-motion.md)) |
 | ~~Webcam~~ | – | – | **Not in the plan, by the user's decision** |

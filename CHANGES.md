@@ -120,7 +120,7 @@ Three settings that tame presets which move too fast or flicker. They belong to 
 - **Sensitivity** (0%-200%, step 10%): Ctrl+ + / - (also the numpad keys). Reshapes the audio values the preset reads; below 100% the drawn waveform and spectrum are smaller too. Hard-cut detection keeps the real audio. It is always shown in the info card (F5), for example `60 fps  Sensitivity 100%`.
 - **Anti-flicker** (Off / Soft / Strong): right-click, View, Motion. Audio rises quickly and falls slowly, colours and single shapes may change only so much per second, and each new image is blended with the previous one.
 - **Ctrl+0** sets the current preset back to the defaults (Speed 100%, Sensitivity 100%, Anti-flicker Off). Plain `+` / `-` still rate the preset. The keys need a preset file and do nothing while a text prompt is open.
-- **Step cap:** a preset runs at most 60 steps per second, so a 144 Hz display does not speed presets up. A slower display runs one step per frame. Between steps the last image is shown again (hold frames), and presets see `fps` = 60.
+- **Step cap:** a preset runs at most 60 steps per second, so a 144 Hz display does not speed presets up. A slower display runs one step per frame. Between steps the last image is shown again (hold frames), and presets see the step rate, `fps` = min(display rate, 60).
 - **Per preset:** when MilkDrop blends to the next preset, speed and sensitivity slide from the old values to the new ones.
 - **Preset file:** the values are written at once into `[preset00]`, next to `fRating`, only when they are not the default (a default value deletes its key, so an untuned file is unchanged): `fCalmSpeed`, `fCalmSensitivity` and `nCalmAntiFlicker`. The file that changes is the copy in the program folder (`build\Release\plugins\Milkdrop2\presets`, not in git); `content/presets` is never touched. `.\build.ps1 -Clean`, deleting `build\Release` or a fresh `-Package` start without the values; a rebuild without `-Clean` keeps them.
 - **Limits:**
@@ -129,6 +129,20 @@ Three settings that tame presets which move too fast or flicker. They belong to 
   - A very low Speed makes waveform-driven presets darker.
   - Shapes drawn as many instances (`instances > 1`) are not limited by Anti-flicker (persistence still applies).
 - **Code:** `features/calm.*`.
+
+### Calm meter (phase 15)
+A meter that measures the image and suggests Speed, Sensitivity and Anti-flicker for the current preset. It only suggests: **it never changes anything by itself**. There is no timer and no action on preset load; it measures only while it is on.
+- **Ctrl+9** turns the meter on or off. It adds one line to the corner card, for example `flash 2.1/s  motion 55%/s  -> Speed 70% · Sensitivity 100% · Anti-flicker Soft`. Flashes per second come from the image on screen, motion is in % of screen width per second from the warp mesh, and the arrow shows the suggested values.
+- **Ctrl+7** applies the shown suggestion to the current preset and saves it into the preset file like any calm change. Also in right-click, View, Motion: Calm meter, Apply suggestion. Both keys need a preset file and do nothing while a text prompt is open.
+- **Suggestion rules:**
+  - Flashes of 3 per second or more suggest Strong anti-flicker; 1.5 per second or more suggest at least Soft.
+  - Motion above 40 % per second lowers Speed in proportion (for example 80 %/s halves it).
+  - Sensitivity is lowered the same way, but only when the motion follows the bass.
+  - A suggestion never raises a value and never weakens Anti-flicker.
+- **Limits:**
+  - `meter not available` is shown when the GPU read-back of the image cannot be created.
+  - The 40 %/s target is a starting value to calibrate.
+- **Code:** `features/calm.*` (flicker meter, mesh motion, suggestion).
 
 ## Content
 
@@ -155,7 +169,7 @@ The project was planned on top of the upstream commit above, as a roadmap of pha
 | [Phases 8–9](docs/superpowers/plans/2026-10-25-phase-8-9-now-playing-sprites.md) | Song info, sprites and messages |
 | [Phase 10 design](docs/superpowers/specs/2026-10-25-phase-10-drag-drop-playlist-design.md) and [plan](docs/superpowers/plans/2026-10-25-phase-10-drag-drop-playlist.md) | Drag & drop and Playlist |
 | [Phase 13](docs/superpowers/plans/2026-10-27-phase-13-packaging.md) | Packaging |
-| [Phases 14-15](docs/superpowers/plans/2026-10-27-phase-14-calm-motion.md) | Calm motion (built) and the calm meter (not started) |
+| [Phases 14-15](docs/superpowers/plans/2026-10-27-phase-14-calm-motion.md) | Calm motion and the calm meter (built, waiting for the manual test) |
 
 Not built, by decision: webcam input, sending the image to other programs (Spout), and an x64 build. The Audio device menu is postponed until the audio code exposes device selection.
 
