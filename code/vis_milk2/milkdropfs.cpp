@@ -654,7 +654,7 @@ void CPlugin::RenderFrame(int bRedraw)
 {
 	int i;
 
-    float fDeltaT = 1.0f/GetFps();
+    float fDeltaT = 1.0f/m_fCalmStepFps;   // SURI: RenderFrame runs once per step (<= 60 per second)
 
     if (bRedraw)
     {
@@ -669,7 +669,9 @@ void CPlugin::RenderFrame(int bRedraw)
 		m_fStartTime = GetTime();
 		m_fPresetStartTime = GetTime();
 		m_animClock.Reset();   // SURI: calm motion
-		m_fAnimPresetStart = 0;
+		m_pState->m_fAnimStart = 0;   // SURI: the clock restarts, so do the presets' starts on it
+		m_pOldState->m_fAnimStart = 0;
+		m_pNewState->m_fAnimStart = 0;
 	}
 
 	if (m_fNextPresetTime < 0)
@@ -739,7 +741,7 @@ void CPlugin::RenderFrame(int bRedraw)
 		    }
 		    else
 		    {
-			    float k = -1.3863f / (m_fHardCutHalflife*GetFps());
+			    float k = -1.3863f / (m_fHardCutHalflife*m_fCalmStepFps);   // SURI: once per step
 			    float single_frame_multiplier = expf(k);
 			    m_fHardCutThresh = (m_fHardCutThresh - m_fHardCutLoudnessThresh)*single_frame_multiplier + m_fHardCutLoudnessThresh;
 		    }
@@ -1422,7 +1424,7 @@ void CPlugin::ComputeGridAlphaValues()
 
 
 	// warp stuff
-	float fWarpTime = m_animClock.Now() * m_pState->m_fWarpAnimSpeed;
+	float fWarpTime = (float)(m_animClock.Now() * m_pState->m_fWarpAnimSpeed);
 	float fWarpScaleInv = 1.0f / m_pState->m_fWarpScale.eval(GetTime());
 	float f[4];
 	f[0] = 11.68f + 4.0f*cosf(fWarpTime*1.413f + 10);
@@ -2386,7 +2388,7 @@ void CPlugin::DrawWave(float *fL, float *fR)
 				for (i=0; i<nVerts; i++)
 				{
 					float rad = 0.5f + 0.4f*fR[i+sample_offset] + fWaveParam2;
-					float ang = (i)*inv_nverts_minus_one*6.28f + m_animClock.Now()*0.2f;
+					float ang = (i)*inv_nverts_minus_one*6.28f + (float)(m_animClock.Now()*0.2f);
 					if (i < nVerts/10)
 					{
 						float mix = i/(nVerts*0.1f);
@@ -2422,7 +2424,7 @@ void CPlugin::DrawWave(float *fL, float *fR)
 			for (i=0; i<nVerts; i++)
 			{
 				float rad = 0.53f + 0.43f*fR[i] + fWaveParam2;
-				float ang = fL[i+32] * 1.57f + m_animClock.Now()*2.3f;
+				float ang = fL[i+32] * 1.57f + (float)(m_animClock.Now()*2.3f);
 				v[i].x = rad*cosf(ang) *m_fAspectY + fWavePosX;		// 0.75 = adj. for aspect ratio
 				v[i].y = rad*sinf(ang) *m_fAspectX + fWavePosY;
 			}
@@ -2535,8 +2537,8 @@ void CPlugin::DrawWave(float *fL, float *fR)
 			if (alpha > 1) alpha = 1;
 
 			{
-				float cos_rot = cosf(m_animClock.Now()*0.3f);
-				float sin_rot = sinf(m_animClock.Now()*0.3f);
+				float cos_rot = cosf((float)(m_animClock.Now()*0.3f));
+				float sin_rot = sinf((float)(m_animClock.Now()*0.3f));
 
 				for (i=0; i<nVerts; i++)
 				{
@@ -3311,9 +3313,10 @@ void CPlugin::ApplyShaderParams(CShaderParams* p, LPD3DXCONSTANTTABLE pCT, CStat
         pCT->SetVector( lpDevice, q->texsize_param, &D3DXVECTOR4((float)q->w,(float)q->h,1.0f/q->w,1.0f/q->h));
     }
 
-    float time_since_preset_start = (pState == m_pState) ? m_animClock.Now() - m_fAnimPresetStart : GetTime() - pState->GetPresetStartTime();   // SURI
-    float time_since_preset_start_wrapped = time_since_preset_start - (int)(time_since_preset_start/10000)*10000;
-    float time = m_animClock.Now();   // SURI
+    // SURI: every state (incoming or outgoing) counts its own time on the animation clock, from its own start
+    double time_since_preset_start = m_animClock.Now() - pState->m_fAnimStart;
+    float time_since_preset_start_wrapped = (float)(time_since_preset_start - (int)(time_since_preset_start/10000)*10000);
+    float time = (float)m_animClock.Now();   // SURI
     float progress = (GetTime() - m_fPresetStartTime) / (m_fNextPresetTime - m_fPresetStartTime);
     float mip_x = logf((float)GetWidth())/logf(2.0f);
     float mip_y = logf((float)GetWidth())/logf(2.0f);
@@ -3493,9 +3496,9 @@ void CPlugin::ShowToUser_NoShaders()//int bRedraw, int nPassOverride)
 		{
 			for (int i=0; i<4; i++)
 			{
-				shade[i][0] = 0.6f + 0.3f*sinf(m_animClock.Now()*30.0f*0.0143f + 3 + i*21 + m_fRandStart[3]);
-				shade[i][1] = 0.6f + 0.3f*sinf(m_animClock.Now()*30.0f*0.0107f + 1 + i*13 + m_fRandStart[1]);
-				shade[i][2] = 0.6f + 0.3f*sinf(m_animClock.Now()*30.0f*0.0129f + 6 + i*9  + m_fRandStart[2]);
+				shade[i][0] = 0.6f + 0.3f*sinf((float)(m_animClock.Now()*30.0f*0.0143f) + 3 + i*21 + m_fRandStart[3]);
+				shade[i][1] = 0.6f + 0.3f*sinf((float)(m_animClock.Now()*30.0f*0.0107f) + 1 + i*13 + m_fRandStart[1]);
+				shade[i][2] = 0.6f + 0.3f*sinf((float)(m_animClock.Now()*30.0f*0.0129f) + 6 + i*9  + m_fRandStart[2]);
 				float max = ((shade[i][0] > shade[i][1]) ? shade[i][0] : shade[i][1]);
 				if (shade[i][2] > max) max = shade[i][2];
 				for (int k=0; k<3; k++)
@@ -3760,9 +3763,9 @@ void CPlugin::ShowToUser_Shaders(int nPass, bool bAlphaBlend, bool bFlipAlpha, b
         // pick 4 colors for the 4 corners
 		for (int i=0; i<4; i++)
 		{
-			shade[i][0] = 0.6f + 0.3f*sinf(m_animClock.Now()*30.0f*0.0143f + 3 + i*21 + m_fRandStart[3]);
-			shade[i][1] = 0.6f + 0.3f*sinf(m_animClock.Now()*30.0f*0.0107f + 1 + i*13 + m_fRandStart[1]);
-			shade[i][2] = 0.6f + 0.3f*sinf(m_animClock.Now()*30.0f*0.0129f + 6 + i*9  + m_fRandStart[2]);
+			shade[i][0] = 0.6f + 0.3f*sinf((float)(m_animClock.Now()*30.0f*0.0143f) + 3 + i*21 + m_fRandStart[3]);
+			shade[i][1] = 0.6f + 0.3f*sinf((float)(m_animClock.Now()*30.0f*0.0107f) + 1 + i*13 + m_fRandStart[1]);
+			shade[i][2] = 0.6f + 0.3f*sinf((float)(m_animClock.Now()*30.0f*0.0129f) + 6 + i*9  + m_fRandStart[2]);
 			float max = ((shade[i][0] > shade[i][1]) ? shade[i][0] : shade[i][1]);
 			if (shade[i][2] > max) max = shade[i][2];
 			for (int k=0; k<3; k++)
@@ -4322,14 +4325,24 @@ void CPlugin::CalmMeasureFrame()
         m_flicker.Reset();   // new surfaces (first use, or after a device reset): start afresh
     }
 
+    // SURI: a copy that keeps failing means the meter cannot work here: after 30 frames in a row
+    // the card shows "meter not available" (instead of "flash 0.0/s"); a success resets the count.
     LPDIRECT3DSURFACE9 bb = NULL;
-    if (FAILED(dev->GetRenderTarget(0, &bb)) || !bb)
-        return;
+    bool copied = false;
     const int cur = m_calmFrame % 3;
-    HRESULT hr = dev->StretchRect(bb, NULL, m_calmRT[cur], NULL, D3DTEXF_LINEAR);
-    bb->Release();
-    if (FAILED(hr) || FAILED(dev->GetRenderTargetData(m_calmRT[cur], m_calmSys[cur])))
+    if (SUCCEEDED(dev->GetRenderTarget(0, &bb)) && bb)
+    {
+        HRESULT hr = dev->StretchRect(bb, NULL, m_calmRT[cur], NULL, D3DTEXF_LINEAR);
+        bb->Release();
+        copied = SUCCEEDED(hr) && SUCCEEDED(dev->GetRenderTargetData(m_calmRT[cur], m_calmSys[cur]));
+    }
+    if (!copied)
+    {
+        if (++m_nCalmCopyFails >= 30)
+            m_bCalmMeterFailed = true;
         return;
+    }
+    m_nCalmCopyFails = 0;
 
     const float now = GetTime();
     if (m_calmFrame >= 2)

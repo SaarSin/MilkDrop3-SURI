@@ -216,6 +216,7 @@ CState::CState()
 	m_pf_codehandle = NULL;
 	m_pp_codehandle = NULL;
 	m_calmSlew.Reset();   // SURI
+	m_fAnimStart = 0;     // SURI
 	m_pf_eel = NSEEL_VM_alloc();
 	m_pv_eel = NSEEL_VM_alloc();
     for (int i=0; i<MAX_CUSTOM_WAVES; i++)
@@ -515,6 +516,7 @@ void CState::Default(DWORD ApplyFlags)
         lstrcpyW(m_szDesc, INVALID_PRESET_DESC);
 
         m_fPresetStartTime = -1;
+        m_fAnimStart = 0;   // SURI
 
         // SURI: sprites belong to the whole preset (like the name), so mash-ups keep them
         m_nSprites = 0;
@@ -1156,7 +1158,7 @@ int  CShape::Import(FILE* f, const wchar_t* szFile, int i)
     return 1;
 }
 
-bool CState::Import(const wchar_t *szIniFile, float fTime, CState* pOldState, DWORD ApplyFlags)
+bool CState::Import(const wchar_t *szIniFile, float fTime, double fAnimTime, CState* pOldState, DWORD ApplyFlags)
 {
     // if any ApplyFlags are missing, the settings will be copied from pOldState.  =)
 
@@ -1185,6 +1187,7 @@ bool CState::Import(const wchar_t *szIniFile, float fTime, CState* pOldState, DW
         )
     {
         m_fPresetStartTime = fTime;
+        m_fAnimStart = fAnimTime;   // SURI: shader time of this preset runs on the animation clock
 
 	    // extract a description of the preset from the filename
 	    {

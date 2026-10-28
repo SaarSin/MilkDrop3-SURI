@@ -225,7 +225,7 @@ public:
 	void Default(DWORD ApplyFlags=STATE_ALL);
 	void Randomize(int nMode);
 	void StartBlendFrom(CState *s_from, float fAnimTime, float fTimespan);
-	bool Import(const wchar_t *szIniFile, float fTime, CState* pOldState, DWORD ApplyFlags=STATE_ALL);
+	bool Import(const wchar_t *szIniFile, float fTime, double fAnimTime, CState* pOldState, DWORD ApplyFlags=STATE_ALL);   // SURI: fAnimTime = animation-clock time
 	bool Export(const wchar_t *szIniFile);
 	void RecompileExpressions(int flags=0xFFFFFFFF, int bReInit=1);
     void GenDefaultWarpShader();
@@ -243,6 +243,7 @@ public:
 	float				m_fRating;		// 0..5
 	CalmSettings		m_calm;			// SURI: Speed / Sensitivity / Anti-flicker of this preset (stored in the preset file)
 	CalmSlew			m_calmSlew;		// SURI: anti-flicker history of this state's outputs (POD)
+	double				m_fAnimStart;	// SURI: animation-clock time when this preset started (set with m_fPresetStartTime)
 	// post-processing:
 	CBlendableFloat		m_fGammaAdj;	// +0 -> +1.0 (double), +2.0 (triple)...
 	CBlendableFloat		m_fVideoEchoZoom;

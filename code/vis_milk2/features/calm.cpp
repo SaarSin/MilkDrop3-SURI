@@ -227,7 +227,7 @@ float PersistenceAmount(AntiFlicker a, float stepFps)
 
 void AnimClock::Advance(float dtSec, float speed)
 {
-    m_t += Clamp(dtSec, 0.0f, 0.25f) * speed;
+    m_t += (double)Clamp(dtSec, 0.0f, 0.25f) * (double)speed;
 }
 
 void FlickerMeter::Reset()

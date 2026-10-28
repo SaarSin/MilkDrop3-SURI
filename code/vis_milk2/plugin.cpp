@@ -606,7 +606,6 @@ void CPlugin::MyPreInitialize()
 	m_fShowRatingUntilThisTime = -1.0f;
 	m_fShowCalmUntilThisTime = -1.0f;	// SURI
 	// SURI: calm motion
-	m_fAnimPresetStart = 0;
 	m_fCalmStepFps = 60.0f;
 	m_calmStepAccum = 0;
 	m_calmPrevTex = NULL;
@@ -616,6 +615,7 @@ void CPlugin::MyPreInitialize()
 	for (int ci = 0; ci < 3; ci++) { m_calmRT[ci] = NULL; m_calmSys[ci] = NULL; }
 	m_calmFrame = 0;
 	m_bCalmMeterFailed = false;
+	m_nCalmCopyFails = 0;
 	m_calmMeasureTime = 0;
 	for (int ci = 0; ci < 3; ci++) { m_presetImm[ci] = 1.0f; m_presetAtt[ci] = 1.0f; }
 	memset(m_calmWave, 0, sizeof(m_calmWave));
@@ -3170,6 +3170,7 @@ void CPlugin::CleanUpMyDX9Stuff(int final_cleanup)
     for (int ci = 0; ci < 3; ci++) { SafeRelease(m_calmRT[ci]); SafeRelease(m_calmSys[ci]); }
     m_calmFrame = 0;
     m_bCalmMeterFailed = false;
+    m_nCalmCopyFails = 0;
     // just force this:
     m_pState->m_bBlending = false;
 
@@ -3319,7 +3320,6 @@ void CPlugin::MyRenderFn(int redraw)
             // OR, to freeze time @ [preset] zero, so that when you exit menus,
             //   you don't run the risk of it changing the preset on you right away:
             m_fPresetStartTime = GetTime();
-            m_fAnimPresetStart = m_animClock.Now();   // SURI
         	m_fNextPresetTime = -1.0f;		// flags UpdateTime() to recompute this.
         }
 
@@ -4117,7 +4117,7 @@ void CPlugin::MyRenderUI(
                         wchar_t szFile[MAX_PATH];
                         swprintf(szFile, L"%s%s", m_szPresetDir, m_presets[m_nMashPreset[mash]].szFilename.c_str());
 
-                        m_pState->Import(szFile, GetTime(), m_pState, ApplyFlags);
+                        m_pState->Import(szFile, GetTime(), m_animClock.Now(), m_pState, ApplyFlags);
                         if (ApplyFlags & STATE_COMP)
                             ApplyFxToState(m_pState);   // SURI: the imported comp shader gets the live effects too
 
@@ -7873,13 +7873,12 @@ void CPlugin::LoadPreset(const wchar_t *szPresetFilename, float fBlendTime)
         ApplyFlags ^= (m_bWarpShaderLock ? STATE_WARP : 0);
         ApplyFlags ^= (m_bCompShaderLock ? STATE_COMP : 0);
 
-        m_pState->Import(m_szCurrentPresetFile, GetTime(), m_pOldState, ApplyFlags);
+        m_pState->Import(m_szCurrentPresetFile, GetTime(), m_animClock.Now(), m_pOldState, ApplyFlags);
         ApplyFxToState(m_pState);  // SURI
         LaunchPresetSprites(m_pState);  // SURI
 
 
 	    m_fPresetStartTime = GetTime();
-	    m_fAnimPresetStart = m_animClock.Now();   // SURI
 	    CalmMeterReset();   // SURI: the meter measures the new preset from scratch
 	    m_fNextPresetTime = -1.0f;		// flags UpdateTime() to recompute this
 
@@ -7906,7 +7905,7 @@ void CPlugin::LoadPreset(const wchar_t *szPresetFilename, float fBlendTime)
         ApplyFlags ^= (m_bWarpShaderLock ? STATE_WARP : 0);
         ApplyFlags ^= (m_bCompShaderLock ? STATE_COMP : 0);
 
-        m_pNewState->Import(szPresetFilename, GetTime(), m_pOldState, ApplyFlags);
+        m_pNewState->Import(szPresetFilename, GetTime(), m_animClock.Now(), m_pOldState, ApplyFlags);
         ApplyFxToState(m_pNewState);  // SURI
         LaunchPresetSprites(m_pNewState);  // SURI
 
@@ -7954,7 +7953,6 @@ void CPlugin::LoadPresetTick()
 		    m_pState->StartBlendFrom(m_pOldState, GetTime(), m_fLoadingPresetBlendTime);
 
 	    m_fPresetStartTime = GetTime();
-	    m_fAnimPresetStart = m_animClock.Now();   // SURI
 	    CalmMeterReset();   // SURI: the meter measures the new preset from scratch
 	    m_fNextPresetTime = -1.0f;		// flags UpdateTime() to recompute this
 

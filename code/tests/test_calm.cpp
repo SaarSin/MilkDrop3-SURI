@@ -158,13 +158,24 @@ TEST(TestCalm_AnimClockNoJump) {
     AnimClock c; c.Reset();
     for (int i = 0; i < 60; i++) c.Advance(1.0f / 60.0f, 1.0f);
     for (int i = 0; i < 60; i++) c.Advance(1.0f / 60.0f, 0.5f);
-    CHECK(Near(c.Now(), 1.5f, 1e-3f));
-    float before = c.Now();
+    CHECK(Near((float)c.Now(), 1.5f, 1e-3f));
+    double before = c.Now();
     c.Advance(5.0f, 1.0f);
-    CHECK(Near(c.Now() - before, 0.25f));
+    CHECK(Near((float)(c.Now() - before), 0.25f));
     before = c.Now();
     c.Advance(-1.0f, 1.0f);
     CHECK(c.Now() == before);
+}
+
+TEST(TestCalm_AnimClockLongRun) {
+    // 10 h at 144 Hz, Speed 10%: a float clock would stall; the double one keeps counting
+    AnimClock c; c.Reset();
+    const int frames = 10 * 3600 * 144;
+    for (int i = 0; i < frames; i++) c.Advance(1.0f / 144.0f, 0.1f);
+    CHECK(fabs(c.Now() - 3600.0) <= 1.0);
+    double before = c.Now();
+    c.Advance(1.0f / 144.0f, 0.1f);
+    CHECK(c.Now() > before);
 }
 
 TEST(TestCalm_FlickerMeterCountsStrobe) {

@@ -465,7 +465,6 @@ public:
         // SURI: calm motion (features/calm.h)
         CalmSettings   m_calm;                          // effective values this frame
         AnimClock      m_animClock;                     // the clock presets see (advances by dt x Speed)
-        float          m_fAnimPresetStart;
         float          m_presetImm[3], m_presetAtt[3];  // bass/mid/treb as presets see them
         AudioSmoother  m_audioSmooth[6];
         float          m_calmWave[2][576];              // waveform / spectrum history for Speed and Sensitivity
@@ -487,7 +486,8 @@ public:
         LPDIRECT3DSURFACE9 m_calmRT[3];                 // 32x18 render targets (D3DPOOL_DEFAULT)
         LPDIRECT3DSURFACE9 m_calmSys[3];                // their system-memory copies, read 2 frames later
         int            m_calmFrame;                     // frames measured since the surfaces were (re)made
-        bool           m_bCalmMeterFailed;              // creating the surfaces failed; retried after a device reset
+        bool           m_bCalmMeterFailed;              // creating the surfaces failed, or the copy failed 30 frames running; retried after a device reset
+        int            m_nCalmCopyFails;                // consecutive frames whose GPU copy failed
         float          m_calmMeasureTime;               // GetTime() of the previous measured frame
         std::vector<float> m_calmDu, m_calmDv;          // per-vertex motion of the current step (warp mesh)
         void           CalmMeasureFrame();

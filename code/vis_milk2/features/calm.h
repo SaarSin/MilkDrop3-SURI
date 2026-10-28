@@ -70,10 +70,10 @@ float PersistenceAmount(AntiFlicker a, float stepFps);   // Off 0; Soft 0.5, Str
 class AnimClock {
 public:
     void  Advance(float dtSec, float speed);         // t += clamp(dt, 0, 0.25) * speed
-    float Now() const { return m_t; }
+    double Now() const { return m_t; }              // double: stays exact over hours (subtract, then convert to float)
     void  Reset() { m_t = 0; }
 private:
-    float m_t = 0;
+    double m_t = 0;
 };
 
 // Calm meter (phase 15): measures the final image and the preset's own motion. Only measures;

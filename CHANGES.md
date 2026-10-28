@@ -163,7 +163,7 @@ The project was planned on top of the upstream commit above, as a roadmap of pha
 
 | Document | Contents |
 |---|---|
-| [Roadmap](docs/superpowers/plans/2026-10-24-milkdrop-suri-roadmap.md) | The full plan: phases -1 (cleanup), 0 (infrastructure), 2 (audio), 3–10 and 13, with each phase's status |
+| [Roadmap](docs/superpowers/plans/2026-10-24-milkdrop-suri-roadmap.md) | The full plan: phases -1 (cleanup), 0 (infrastructure), 2 (audio), 3–10, 13 and 14–15, with each phase's status |
 | [Phases 3–4](docs/superpowers/plans/2026-10-24-phase-3-4-commands-and-context-menu.md) | Command table and right-click menu |
 | [Phases 5–7](docs/superpowers/plans/2026-10-25-phase-5-7-effects-screens-desktop.md) | Effects, friendlier screens and Desktop mode |
 | [Phases 8–9](docs/superpowers/plans/2026-10-25-phase-8-9-now-playing-sprites.md) | Song info, sprites and messages |
