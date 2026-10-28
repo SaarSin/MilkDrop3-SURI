@@ -1437,6 +1437,15 @@ void CPlugin::ComputeGridAlphaValues()
     int num_reps = (m_pState->m_bBlending) ? 2 : 1;
     int start_rep = 0;
 
+    // SURI: calm meter - per-vertex motion of the current preset (rep 0), only while the meter is on
+    const int nMeshVerts = (m_nGridX + 1) * (m_nGridY + 1);
+    const bool bMeasureMesh = m_bCalmMeter && nMeshVerts > 0;
+    if (bMeasureMesh && (int)m_calmDu.size() < nMeshVerts)
+    {
+        m_calmDu.resize(nMeshVerts);
+        m_calmDv.resize(nMeshVerts);
+    }
+
     // FIRST WE HAVE 1-2 PASSES FOR CRUNCHING THE PER-VERTEX EQUATIONS
     for (int rep=start_rep; rep<num_reps; rep++)
 	{
@@ -1563,6 +1572,15 @@ void CPlugin::ComputeGridAlphaValues()
 					m_verts[n].tu = u;
 					m_verts[n].tv = v;
 					m_verts[n].Diffuse = 0xFFFFFFFF;
+					if (bMeasureMesh)
+					{
+						// SURI: calm meter - (u0, v0) is this vertex's texcoord with no motion
+						// (zoom 1, no stretch, warp, rotation or shift), through the same steps
+						float u0 = ( m_verts[n].x*m_fAspectX*0.5f + 0.5f - 0.5f)*m_fInvAspectX + 0.5f + texel_offset_x;
+						float v0 = (-m_verts[n].y*m_fAspectY*0.5f + 0.5f - 0.5f)*m_fInvAspectY + 0.5f + texel_offset_y;
+						m_calmDu[n] = u - u0;
+						m_calmDv[n] = v - v0;
+					}
 				}
 				else
 				{
@@ -1581,6 +1599,12 @@ void CPlugin::ComputeGridAlphaValues()
 			}
 		}
 
+	}
+
+	if (bMeasureMesh)   // SURI: calm meter - measures only; raw bass for the correlation
+	{
+		const float mesh = MeshMotion(m_calmDu.data(), m_calmDv.data(), nMeshVerts);
+		m_motionTracker.Add(mesh, m_fCalmStepFps, mysound.imm_rel[0], 1.0f / m_fCalmStepFps);
 	}
 }
 
@@ -4242,6 +4266,8 @@ void CPlugin::CalmPostFrame()
     {
         bb->Release();
         m_bCalmPrevValid = false;
+        if (m_bCalmMeter)
+            CalmMeasureFrame();   // SURI: calm meter - the image on screen is still this one
         return;
     }
 
@@ -4257,6 +4283,8 @@ void CPlugin::CalmPostFrame()
         ts->Release();
     }
     bb->Release();
+    if (m_bCalmMeter)
+        CalmMeasureFrame();   // SURI: calm meter - the final image, after persistence
 }
 
 // A display frame without a preset step: show the last image again.
@@ -4264,4 +4292,86 @@ void CPlugin::CalmHoldFrame()
 {
     if (m_bCalmPrevValid && m_calmPrevTex)
         CalmDrawTexture(m_calmPrevTex, 1.0f);
+    if (m_bCalmMeter)
+        CalmMeasureFrame();   // SURI: calm meter
+}
+
+// SURI: calm meter (phase 15). Shrinks the image on screen to 32x18 on the GPU, copies it to
+// system memory and reads the copy made two frames ago, so the CPU never waits for the GPU.
+// The surfaces are made on first use and released in CleanUpMyDX9Stuff (device reset).
+// Measures only: nothing here changes a setting.
+void CPlugin::CalmMeasureFrame()
+{
+    LPDIRECT3DDEVICE9 dev = GetDevice();
+    if (!dev || m_bCalmMeterFailed)
+        return;
+    const int W = 32, H = 18;
+    if (!m_calmRT[0])
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            if (FAILED(dev->CreateRenderTarget(W, H, D3DFMT_X8R8G8B8, D3DMULTISAMPLE_NONE, 0, FALSE, &m_calmRT[i], NULL)) || !m_calmRT[i] ||
+                FAILED(dev->CreateOffscreenPlainSurface(W, H, D3DFMT_X8R8G8B8, D3DPOOL_SYSTEMMEM, &m_calmSys[i], NULL)) || !m_calmSys[i])
+            {
+                for (int j = 0; j < 3; j++) { SafeRelease(m_calmRT[j]); SafeRelease(m_calmSys[j]); }
+                m_bCalmMeterFailed = true;   // the card shows "meter not available"; retried after a device reset
+                return;
+            }
+        }
+        m_calmFrame = 0;
+        m_flicker.Reset();   // new surfaces (first use, or after a device reset): start afresh
+    }
+
+    LPDIRECT3DSURFACE9 bb = NULL;
+    if (FAILED(dev->GetRenderTarget(0, &bb)) || !bb)
+        return;
+    const int cur = m_calmFrame % 3;
+    HRESULT hr = dev->StretchRect(bb, NULL, m_calmRT[cur], NULL, D3DTEXF_LINEAR);
+    bb->Release();
+    if (FAILED(hr) || FAILED(dev->GetRenderTargetData(m_calmRT[cur], m_calmSys[cur])))
+        return;
+
+    const float now = GetTime();
+    if (m_calmFrame >= 2)
+    {
+        const int old = (m_calmFrame - 2) % 3;
+        D3DLOCKED_RECT lr;
+        if (SUCCEEDED(m_calmSys[old]->LockRect(&lr, NULL, D3DLOCK_READONLY)))
+        {
+            float luma[W * H];
+            for (int y = 0; y < H; y++)
+            {
+                const DWORD* row = (const DWORD*)((const BYTE*)lr.pBits + y * lr.Pitch);
+                for (int x = 0; x < W; x++)
+                {
+                    const DWORD px = row[x];   // Rec.709 luma
+                    luma[y * W + x] = (0.2126f * ((px >> 16) & 255) + 0.7152f * ((px >> 8) & 255) + 0.0722f * (px & 255)) / 255.0f;
+                }
+            }
+            m_calmSys[old]->UnlockRect();
+            m_flicker.AddFrame(luma, W, H, now - m_calmMeasureTime);
+        }
+    }
+    m_calmMeasureTime = now;
+    if (++m_calmFrame >= 3000000)
+        m_calmFrame = 3;   // no overflow on long runs; same slot (multiple of 3), past the first 2 frames
+}
+
+// Meter switched on, or a new preset loaded: forget what was measured before.
+void CPlugin::CalmMeterReset()
+{
+    m_flicker.Reset();
+    m_motionTracker.Reset();
+    m_calmFrame = 0;   // the copies in flight still show the old image
+    m_calmMeasureTime = GetTime();
+}
+
+CalmStats CPlugin::CalmCurrentStats() const
+{
+    CalmStats s;
+    s.flashesPerSec   = m_flicker.FlashesPerSec();
+    s.changePct       = m_flicker.ChangePct();
+    s.motionPct       = m_motionTracker.MotionPct();
+    s.bassCorrelation = m_motionTracker.BassCorrelation();
+    return s;
 }

@@ -47,6 +47,8 @@ static const KeyBinding g_keyBindings[] = {
     { KeyScope::VKeyCtrl, VK_OEM_MINUS, Cmd::SensitivityDown },
     { KeyScope::VKeyCtrl, VK_SUBTRACT, Cmd::SensitivityDown },
     { KeyScope::VKeyCtrl, '0', Cmd::CalmReset },
+    { KeyScope::VKeyCtrl, '9', Cmd::CalmMeterToggle },       // SURI: calm meter (phase 15)
+    { KeyScope::VKeyCtrl, '7', Cmd::CalmApplySuggestion },
     { KeyScope::VKeyCtrlShift, VK_OEM_PLUS, Cmd::SpeedUp },
     { KeyScope::VKeyCtrlShift, VK_ADD, Cmd::SpeedUp },
     { KeyScope::VKeyCtrlShift, VK_OEM_MINUS, Cmd::SpeedDown },
@@ -179,6 +181,11 @@ CmdState QueryState(Cmd c, const AppSnapshot& s)
     case Cmd::AntiFlickerOff: case Cmd::AntiFlickerSoft: case Cmd::AntiFlickerStrong:
         st.enabled = s.hasPresetFile && !s.textEditActive;
         st.checked = s.antiFlicker == (int)((unsigned)c - (unsigned)Cmd::AntiFlickerOff); break;
+    // SURI: calm meter. Applying needs the meter on: it applies what the meter shows (phase 15 rule).
+    case Cmd::CalmMeterToggle:
+        st.enabled = s.hasPresetFile && !s.textEditActive; st.checked = s.calmMeterOn; break;
+    case Cmd::CalmApplySuggestion:
+        st.enabled = s.hasPresetFile && !s.textEditActive && s.calmMeterOn; break;
     default: break;
     }
 

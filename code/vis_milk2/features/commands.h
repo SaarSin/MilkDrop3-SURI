@@ -24,6 +24,7 @@ enum class Cmd : unsigned short {
     // SURI: calm motion - the current preset's own Speed / Sensitivity / Anti-flicker (calm.h)
     SpeedUp, SpeedDown, SensitivityUp, SensitivityDown, CalmReset,
     AntiFlickerOff, AntiFlickerSoft, AntiFlickerStrong,
+    CalmMeterToggle, CalmApplySuggestion,   // SURI: calm meter (phase 15): measure / apply the suggestion
     // effects (right-click menu only)
     FxMirrorX, FxMirrorY, FxKaleido, FxRipple, FxZoomIn, FxSwapAxes, FxTunnel,
     FxInvert, FxMono, FxPosterize, FxHueSpin,
@@ -82,6 +83,7 @@ struct AppSnapshot {
     int selectedSpriteBlend = -1;     // SURI: blend mode of the selected sprite (0..5), -1 = none
     int  antiFlicker = 0;             // SURI: AntiFlicker of the current preset (0 Off, 1 Soft, 2 Strong)
     bool hasPresetFile = false;       // SURI: a preset file is loaded, so the calm settings can be saved
+    bool calmMeterOn = false;         // SURI: CPlugin::m_bCalmMeter (Ctrl+9)
 };
 // Effect commands <-> FxId (FxMirrorX.. FxHueSpin are in FxId order).
 Cmd  FxCmd(FxId id);

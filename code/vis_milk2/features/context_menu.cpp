@@ -40,6 +40,8 @@ UINT CmdLabelId(Cmd c)
     case Cmd::AntiFlickerOff:     return IDS_MENU_AF_OFF;
     case Cmd::AntiFlickerSoft:    return IDS_MENU_AF_SOFT;
     case Cmd::AntiFlickerStrong:  return IDS_MENU_AF_STRONG;
+    case Cmd::CalmMeterToggle:    return IDS_MENU_CALM_METER;       // SURI: calm meter (phase 15)
+    case Cmd::CalmApplySuggestion: return IDS_MENU_CALM_APPLY;
     case Cmd::FpsLimitCycle:      return IDS_MENU_FPS_LIMIT;
     case Cmd::AutoChangeCycle:    return IDS_MENU_AUTO_CHANGE;
     case Cmd::FxMirrorX: return IDS_MENU_FX_MIRROR_X;
@@ -134,6 +136,9 @@ const std::vector<MenuNode>& MenuLayout()
                 Item(Cmd::AntiFlickerOff),
                 Item(Cmd::AntiFlickerSoft),
                 Item(Cmd::AntiFlickerStrong),
+                Separator(),
+                Item(Cmd::CalmMeterToggle),     // SURI: calm meter (phase 15)
+                Item(Cmd::CalmApplySuggestion),
             }),
         }),
         Submenu(IDS_MENU_EFFECTS, {

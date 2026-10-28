@@ -480,6 +480,19 @@ public:
         void           CalmDrawTexture(LPDIRECT3DTEXTURE9 tex, float alpha);
         void           CalmSlewMainOutputs(CState* pState, float dt);
         void           CalmSlewShapeOutputs(CState* pState, int shape, float dt);
+        // SURI: calm meter (phase 15, Ctrl+9). Measures only while on; it never changes a setting.
+        bool           m_bCalmMeter;                    // on/off, not saved
+        FlickerMeter   m_flicker;                       // flashes and frame change of the shown image
+        MotionTracker  m_motionTracker;                 // warp-mesh motion and its correlation with bass
+        LPDIRECT3DSURFACE9 m_calmRT[3];                 // 32x18 render targets (D3DPOOL_DEFAULT)
+        LPDIRECT3DSURFACE9 m_calmSys[3];                // their system-memory copies, read 2 frames later
+        int            m_calmFrame;                     // frames measured since the surfaces were (re)made
+        bool           m_bCalmMeterFailed;              // creating the surfaces failed; retried after a device reset
+        float          m_calmMeasureTime;               // GetTime() of the previous measured frame
+        std::vector<float> m_calmDu, m_calmDv;          // per-vertex motion of the current step (warp mesh)
+        void           CalmMeasureFrame();
+        void           CalmMeterReset();                // meter on, or a new preset: start measuring afresh
+        CalmStats      CalmCurrentStats() const;
 
         // stuff for displaying text to user:
         bool		m_bShowFPS;

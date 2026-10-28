@@ -509,6 +509,8 @@
 #define IDS_MENU_AF_OFF                 848
 #define IDS_MENU_AF_SOFT                849
 #define IDS_MENU_AF_STRONG              850
+#define IDS_MENU_CALM_METER             851   // SURI: calm meter (phase 15)
+#define IDS_MENU_CALM_APPLY             852
 
 // Next default values for new objects
 // 

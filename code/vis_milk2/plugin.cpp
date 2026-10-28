@@ -612,6 +612,11 @@ void CPlugin::MyPreInitialize()
 	m_calmPrevTex = NULL;
 	m_bCalmPrevValid = false;
 	m_bCalmPrevFailed = false;
+	m_bCalmMeter = false;	// SURI: calm meter (phase 15)
+	for (int ci = 0; ci < 3; ci++) { m_calmRT[ci] = NULL; m_calmSys[ci] = NULL; }
+	m_calmFrame = 0;
+	m_bCalmMeterFailed = false;
+	m_calmMeasureTime = 0;
 	for (int ci = 0; ci < 3; ci++) { m_presetImm[ci] = 1.0f; m_presetAtt[ci] = 1.0f; }
 	memset(m_calmWave, 0, sizeof(m_calmWave));
 	memset(m_calmSpec, 0, sizeof(m_calmSpec));
@@ -3161,6 +3166,10 @@ void CPlugin::CleanUpMyDX9Stuff(int final_cleanup)
     SafeRelease(m_calmPrevTex);
     m_bCalmPrevValid = false;
     m_bCalmPrevFailed = false;
+    // SURI: calm meter - the measuring surfaces (the render targets are D3DPOOL_DEFAULT)
+    for (int ci = 0; ci < 3; ci++) { SafeRelease(m_calmRT[ci]); SafeRelease(m_calmSys[ci]); }
+    m_calmFrame = 0;
+    m_bCalmMeterFailed = false;
     // just force this:
     m_pState->m_bBlending = false;
 
@@ -4533,7 +4542,8 @@ void CPlugin::DrawInfoCard(RECT* pCard, int* upper_right_corner_y, int xL, int x
     const bool showRating = m_bShowRating || GetTime() < m_fShowRatingUntilThisTime;
     const bool showFps    = m_bShowFPS;
     const bool showCalm   = GetTime() < m_fShowCalmUntilThisTime;   // SURI: 2.5 s after a calm command
-    const bool showAny    = showName || showRating || showFps || showCalm;
+    const bool showMeter  = m_bCalmMeter;   // SURI: calm meter (phase 15) keeps the card up
+    const bool showAny    = showName || showRating || showFps || showCalm || showMeter;
     const bool showLock   = showAny && (m_bPresetLockedByUser || m_bPresetLockedByCode);   // SURI: with any of F4/F5/F6
     LPD3DXFONT fTitle = GetUiFont(UIF_TITLE), fMeta = GetUiFont(UIF_META), fStars = GetUiFont(UIF_STARS);
     if (!showAny || !fTitle || !fMeta || !fStars)
@@ -4593,8 +4603,31 @@ void CPlugin::DrawInfoCard(RECT* pCard, int* upper_right_corner_y, int xL, int x
         if (it.h > metaH) metaH = it.h;
     }
 
-    const int innerW = min(max(nameW, metaW), maxInnerW);
-    const int innerH = nameH + (nameH && metaH ? lineGap : 0) + metaH;
+    // SURI: calm meter line: what it measures and what Ctrl+7 would apply (display only)
+    std::wstring meter;
+    DWORD meterColor = CARD_TEXT_2;
+    int meterW = 0, meterH = 0;
+    if (showMeter)
+    {
+        if (m_bCalmMeterFailed)
+            meter = L"meter not available";
+        else
+        {
+            const CalmStats stats = CalmCurrentStats();
+            const CalmSettings shown = SuggestCalm(stats, m_pState->m_calm);   // shown only; Ctrl+7 applies it
+            wchar_t buf[64];
+            swprintf(buf, 64, L"flash %.1f/s  motion %.0f%%/s  \x2192 ", stats.flashesPerSec, stats.motionPct);
+            meter = buf + SpeedLabel(shown.speed) + L" \x00B7 " + SensitivityLabel(shown.sensitivity) + L" \x00B7 " + AntiFlickerLabel(shown.antiFlicker);
+            if (stats.flashesPerSec >= 3.0f)
+                meterColor = CARD_STAR;
+        }
+        RECT r = { 0, 0, 4096, 0 };
+        meterH = UiMeasure(fMeta, meter.c_str(), &r, DT_SINGLELINE);
+        meterW = r.right - r.left;
+    }
+
+    const int innerW = min(max(max(nameW, metaW), meterW), maxInnerW);
+    const int innerH = nameH + (nameH && metaH ? lineGap : 0) + metaH + (meterH ? lineGap + meterH : 0);
     const int right = xR + UiPx(TEXT_MARGIN) - UiPx(28);   // SURI: 28 px in from the window edge (xR is the scaled margin in)
     const int top = *upper_right_corner_y - UiPx(TEXT_MARGIN) + UiPx(28);
     SetRect(pCard, right - innerW - 2*padX, top, right, top + innerH + 2*padY);
@@ -4615,6 +4648,12 @@ void CPlugin::DrawInfoCard(RECT* pCard, int* upper_right_corner_y, int xL, int x
         RECT r = { x, y + (metaH - it.h)/2, min(x + it.w + 2, (int)(pCard->left + padX + innerW)), y + (metaH - it.h)/2 + it.h };
         UiText(it.f, it.s.c_str(), &r, DT_SINGLELINE, it.color);
         x += it.w;
+    }
+    if (meterH)
+    {
+        const int my = y + metaH + lineGap;
+        RECT r = { pCard->left + padX, my, pCard->left + padX + innerW, my + meterH };
+        UiText(fMeta, meter.c_str(), &r, DT_SINGLELINE, meterColor);
     }
     *upper_right_corner_y = pCard->bottom + UiPx(10);
 }
@@ -6023,9 +6062,12 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 	case Cmd::AntiFlickerOff:
 	case Cmd::AntiFlickerSoft:
 	case Cmd::AntiFlickerStrong:
+	case Cmd::CalmApplySuggestion:	// SURI: phase 15 - the only path from the meter to a setting or file
 		{
 			if (!m_szCurrentPresetFile[0])
 				return false;
+			if (c == Cmd::CalmApplySuggestion && !m_bCalmMeter)
+				return false;	// applies only what the meter is showing
 			CalmSettings& cs = m_pState->m_calm;
 			std::wstring msg;
 			switch (c)
@@ -6037,7 +6079,11 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 			case Cmd::CalmReset:       cs = CalmSettings();                             msg = L"Speed 100% \x00B7 Sensitivity 100%"; break;
 			case Cmd::AntiFlickerOff:    cs.antiFlicker = AntiFlicker::Off;    msg = AntiFlickerLabel(cs.antiFlicker); break;
 			case Cmd::AntiFlickerSoft:   cs.antiFlicker = AntiFlicker::Soft;   msg = AntiFlickerLabel(cs.antiFlicker); break;
-			default:                     cs.antiFlicker = AntiFlicker::Strong; msg = AntiFlickerLabel(cs.antiFlicker); break;
+			case Cmd::CalmApplySuggestion:
+				cs = SuggestCalm(CalmCurrentStats(), cs);
+				msg = L"Applied: " + SpeedLabel(cs.speed) + L" \x00B7 " + SensitivityLabel(cs.sensitivity) + L" \x00B7 " + AntiFlickerLabel(cs.antiFlicker);
+				break;
+			default:                    cs.antiFlicker = AntiFlicker::Strong; msg = AntiFlickerLabel(cs.antiFlicker); break;
 			}
 			const bool saved = SaveCalmToPreset();
 			m_fShowCalmUntilThisTime = GetTime() + 2.5f;	// SURI: show the info card with the values
@@ -6049,6 +6095,20 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 				AddError(&msg[0], 2.5f, ERR_NOTIFY, false);
 			else
 				{ wchar_t err[] = L"Couldn't save to the preset file"; AddError(err, 6.0f, ERR_MISC, false); }
+		}
+		return true;
+
+	// SURI: calm meter (phase 15) on / off. It only measures and shows: nothing is saved here.
+	case Cmd::CalmMeterToggle:
+		{
+			if (!m_szCurrentPresetFile[0])
+				return false;
+			m_bCalmMeter = !m_bCalmMeter;
+			if (m_bCalmMeter)
+				CalmMeterReset();
+			wchar_t msg[32];
+			StringCchCopyW(msg, _countof(msg), m_bCalmMeter ? L"Calm meter on" : L"Calm meter off");
+			AddError(msg, 2.5f, ERR_NOTIFY, false);
 		}
 		return true;
 
@@ -6102,6 +6162,7 @@ AppSnapshot CPlugin::GetAppSnapshot() const
 	s.hasSongTitle       = m_szSongTitle[0] != 0;
 	s.antiFlicker        = (int)m_pState->m_calm.antiFlicker;   // SURI: calm motion
 	s.hasPresetFile      = m_szCurrentPresetFile[0] != 0;
+	s.calmMeterOn        = m_bCalmMeter;   // SURI: calm meter (phase 15)
 	// SURI: sprites (phase 9)
 	for (int i=0; i<NUM_TEX; i++)
 		if (m_texmgr.m_tex[i].pSurface)
@@ -7819,6 +7880,7 @@ void CPlugin::LoadPreset(const wchar_t *szPresetFilename, float fBlendTime)
 
 	    m_fPresetStartTime = GetTime();
 	    m_fAnimPresetStart = m_animClock.Now();   // SURI
+	    CalmMeterReset();   // SURI: the meter measures the new preset from scratch
 	    m_fNextPresetTime = -1.0f;		// flags UpdateTime() to recompute this
 
         // release stuff from m_OldShaders, then move m_shaders to m_OldShaders, then load the new shaders.
@@ -7893,6 +7955,7 @@ void CPlugin::LoadPresetTick()
 
 	    m_fPresetStartTime = GetTime();
 	    m_fAnimPresetStart = m_animClock.Now();   // SURI
+	    CalmMeterReset();   // SURI: the meter measures the new preset from scratch
 	    m_fNextPresetTime = -1.0f;		// flags UpdateTime() to recompute this
 
         // release stuff from m_OldShaders, then move m_shaders to m_OldShaders, then load the new shaders.

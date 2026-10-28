@@ -893,6 +893,8 @@ BEGIN
     IDS_MENU_AF_OFF                 "Anti-flicker: Off"
     IDS_MENU_AF_SOFT                "Anti-flicker: Soft"
     IDS_MENU_AF_STRONG              "Anti-flicker: Strong"
+    IDS_MENU_CALM_METER             "Calm meter"
+    IDS_MENU_CALM_APPLY             "Apply suggestion"
 END
 
 #endif    // English (United Kingdom) resources

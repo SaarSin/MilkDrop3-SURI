@@ -272,3 +272,26 @@ TEST(TestCommands_AntiFlickerRadio) {
     s.textEditActive = false; s.hasPresetFile = false;
     for (Cmd c : calm) CHECK(!QueryState(c, s).enabled);
 }
+TEST(TestCommands_CalmMeterKeys) {   // SURI: calm meter (phase 15)
+    CHECK(LookupKey(KeyScope::VKeyCtrl, '9') == Cmd::CalmMeterToggle);
+    CHECK(LookupKey(KeyScope::VKeyCtrl, '7') == Cmd::CalmApplySuggestion);
+    CHECK(PrimaryKeyLabel(Cmd::CalmMeterToggle) == L"Ctrl+9");
+    CHECK(PrimaryKeyLabel(Cmd::CalmApplySuggestion) == L"Ctrl+7");
+    AppSnapshot s; s.hasPresetFile = true; s.calmMeterOn = true;
+    CHECK(QueryState(Cmd::CalmMeterToggle, s).enabled);
+    CHECK(QueryState(Cmd::CalmMeterToggle, s).checked);
+    CHECK(QueryState(Cmd::CalmApplySuggestion, s).enabled);
+    CHECK(!QueryState(Cmd::CalmApplySuggestion, s).checked);
+    s.textEditActive = true;
+    CHECK(!QueryState(Cmd::CalmMeterToggle, s).enabled);
+    CHECK(!QueryState(Cmd::CalmApplySuggestion, s).enabled);
+    s.textEditActive = false; s.hasPresetFile = false;
+    CHECK(!QueryState(Cmd::CalmMeterToggle, s).enabled);
+    CHECK(!QueryState(Cmd::CalmApplySuggestion, s).enabled);
+}
+TEST(TestCommands_CalmApplyNeedsMeterOn) {   // SURI: phase 15 rule - nothing applies while the meter is off
+    AppSnapshot s; s.hasPresetFile = true; s.calmMeterOn = false;
+    CHECK(QueryState(Cmd::CalmMeterToggle, s).enabled);
+    CHECK(!QueryState(Cmd::CalmMeterToggle, s).checked);
+    CHECK(!QueryState(Cmd::CalmApplySuggestion, s).enabled);
+}

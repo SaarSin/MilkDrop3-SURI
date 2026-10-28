@@ -27,6 +27,8 @@ const wchar_t* HelpText()
     L"Ctrl+ +/-\taudio sensitivity of this preset: higher / lower (saved in the preset)\n"
     L"Ctrl+Shift+ +/-\tspeed of this preset: faster / slower (saved in the preset)\n"
     L"Ctrl+0\tthis preset back to normal speed and sensitivity\n"
+    L"Ctrl+9\tcalm meter\n"
+    L"Ctrl+7\tapply the suggested calm values\n"
     L"D\tcycle shader locks (warp, comp, both, none)\n"
     L"F3\tauto-change timing: 15 s, 30 s, 60 s, 2 min, 3 min, off\n"
     L"\n"

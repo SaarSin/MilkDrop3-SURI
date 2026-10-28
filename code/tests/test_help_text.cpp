@@ -110,3 +110,8 @@ TEST(TestHelpText_CalmKeys) {   // SURI: calm motion
     CHECK(t.find(L"Ctrl+Shift+ +/-\tspeed") != std::wstring::npos);
     CHECK(t.find(L"Ctrl+0\tthis preset back to normal speed and sensitivity") != std::wstring::npos);
 }
+TEST(TestHelpText_CalmMeterKeys) {   // SURI: calm meter (phase 15)
+    std::wstring t = HelpText();
+    CHECK(t.find(L"Ctrl+9\tcalm meter") != std::wstring::npos);
+    CHECK(t.find(L"Ctrl+7\tapply the suggested calm values") != std::wstring::npos);
+}

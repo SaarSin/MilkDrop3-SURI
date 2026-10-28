@@ -67,9 +67,10 @@ TEST(TestMenu_MotionSubmenuInView) {   // SURI: calm motion
         if (n.kind == MenuNodeKind::Submenu && n.labelId == IDS_MENU_MOTION) motion = &n;
     CHECK(motion != nullptr);
     const Cmd want[] = { Cmd::SpeedUp, Cmd::SpeedDown, Cmd::SensitivityUp, Cmd::SensitivityDown, Cmd::CalmReset,
-                         Cmd::None, Cmd::AntiFlickerOff, Cmd::AntiFlickerSoft, Cmd::AntiFlickerStrong };
-    CHECK(motion->children.size() == 9);
-    for (size_t i = 0; i < 9 && i < motion->children.size(); i++) {
+                         Cmd::None, Cmd::AntiFlickerOff, Cmd::AntiFlickerSoft, Cmd::AntiFlickerStrong,
+                         Cmd::None, Cmd::CalmMeterToggle, Cmd::CalmApplySuggestion };   // SURI: calm meter (phase 15)
+    CHECK(motion->children.size() == 12);
+    for (size_t i = 0; i < 12 && i < motion->children.size(); i++) {
         const MenuNode& n = motion->children[i];
         if (want[i] == Cmd::None) CHECK(n.kind == MenuNodeKind::Separator);
         else CHECK(n.kind == MenuNodeKind::Item && n.cmd == want[i]);
