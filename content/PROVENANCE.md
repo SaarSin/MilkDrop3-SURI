@@ -6,7 +6,8 @@ This file records where everything in `content/` comes from. None of it was made
 |---|---|---|
 | `presets/` (9,795 files, top level) | The **"Cream of the Crop"** pack selected and organized by ISOSCELES, as distributed by projectM: https://github.com/projectM-visualizer/presets-cream-of-the-crop (commit `0180df21f5e0bd39b9060cc5de420ed2f1f9e509`) | No specific license; see projectM's notice below |
 | `presets/Milkdrop2077/` (762 files) | The **Milkdrop2077** preset folder shipped with **Milkwave** (presets by MilkDrop2077 and other authors named in the file names): https://github.com/IkeC/Milkwave, path `Visualizer/resources/presets/Milkdrop2077` (commit `002dedcb9f2ea731b16392ca8e70ca87a9bcf1d7`). Copied byte for byte; `Webcam.milk` is left out (no webcam features in this build). | No specific license; Milkwave's README: "The presets themselves are not covered by either of these licenses, they either have their own license or none." |
-| `textures/` (67 files) | projectM's **Milkdrop Texture Pack** (the original MilkDrop textures and more): https://github.com/projectM-visualizer/presets-milkdrop-texture-pack (commit `6368812f27bc747b517218fbf89d21d59afce4d9`) | No license stated in the pack |
+| `textures/` (67 of the 98 files) | projectM's **Milkdrop Texture Pack** (the original MilkDrop textures and more): https://github.com/projectM-visualizer/presets-milkdrop-texture-pack (commit `6368812f27bc747b517218fbf89d21d59afce4d9`) | No license stated in the pack |
+| `textures/`, the other 31 files: `MilkDrop3_002.jpg`, `MilkDrop3_002b.jpg`, `MilkDrop3_003.jpg`, `MilkDrop3_004.jpg`, `MilkDrop3_008.jpg`, `MilkDrop3_010.jpg`, `MilkDrop3_016.jpg`, `MilkDrop3_017.jpg`, `MilkDrop3_019.jpg`, `MilkDrop3_020.jpg`, `MilkDrop3_022.jpg`, `Pattern_001.jpg`, `Pattern_002.jpg`, `Pattern_008.jpg`, `Pattern_009.jpg`, `Pattern_010.jpg`, `Pattern_011.jpg`, `Pattern_015.png`, `Pattern_017.jpg`, `Pattern_028.jpg`, `Pattern_030.jpg`, `Pattern_031.jpg`, `Pattern_039.jpg`, `Pattern_040.jpg`, `Pattern_041.jpg`, `Pattern_045.jpg`, `Pattern_046.jpg`, `Pattern_047.jfif`, `clipboard03.jpg`, `grace.jpg`, `stoy_london.jpg` | **Milkwave**'s texture folder: https://github.com/IkeC/Milkwave, path `Visualizer/resources/textures` (commit `002dedcb9f2ea731b16392ca8e70ca87a9bcf1d7`), copied byte for byte. They are used by the Milkdrop2077 presets. | No license stated. Some are renders, others are third-party photos or illustrations (for example `stoy_london` comes from Shadertoy's texture set); their authors are not named |
 
 **projectM's notice about the presets** ([LICENSE.md](https://github.com/projectM-visualizer/presets-cream-of-the-crop/blob/master/LICENSE.md) of the pack), quoted in full:
 
@@ -15,8 +16,6 @@ This file records where everything in `content/` comes from. None of it was made
 > If any preset author doesn't want their own creation in this repository, please contact the projectM team and we will remove the preset(s) from future releases.
 
 Milkwave asks that preset authors be respected by showing the preset file name, at least briefly; this build shows it in the info card (F4/F5) and the preset list.
-
-Some Milkdrop2077 presets use textures from Milkwave's texture folder that are not part of this build (`MilkDrop3_0xx`, `Pattern_0xx`, `clipboard03`, `grace`, `stoy_london`); those presets draw with a fallback texture instead.
 
 The same applies here: **if a preset or texture author wants their work removed from this build, open an issue in this repository and it will be removed.** The preset file names keep the authors' names as published.
 
