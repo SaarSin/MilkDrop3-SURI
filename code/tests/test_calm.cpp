@@ -150,8 +150,9 @@ TEST(TestCalm_SlewFirstSamplePassesThrough) {
 
 TEST(TestCalm_Persistence) {
     CHECK(PersistenceAmount(AntiFlicker::Off, 60.0f) == 0.0f);
-    CHECK(Near(PersistenceAmount(AntiFlicker::Strong, 60.0f), 0.8f));
-    CHECK(Near(PersistenceAmount(AntiFlicker::Strong, 30.0f), 0.64f));
+    CHECK(Near(PersistenceAmount(AntiFlicker::Strong, 60.0f), 0.65f));   // manual test: 0.8 smeared everything
+    CHECK(Near(PersistenceAmount(AntiFlicker::Strong, 30.0f), 0.4225f));
+    CHECK(Near(PersistenceAmount(AntiFlicker::Soft, 60.0f), 0.5f));
 }
 
 TEST(TestCalm_AnimClockNoJump) {

@@ -65,7 +65,7 @@ struct CalmSlew {                                    // POD: CState is memcpy'd
 enum class SlewKind { Colour, Angle, Size };
 float SlewRate(AntiFlicker a, SlewKind k);           // Off 0 (no limit). Soft: 4 / 8 / 3 per s. Strong: 1.5 / 3 / 1
 
-float PersistenceAmount(AntiFlicker a, float stepFps);   // Off 0; Soft 0.5, Strong 0.8 at 60 steps/s, ^(60/stepFps)
+float PersistenceAmount(AntiFlicker a, float stepFps);   // Off 0; Soft 0.5, Strong 0.65 at 60 steps/s, ^(60/stepFps)
 
 class AnimClock {
 public:

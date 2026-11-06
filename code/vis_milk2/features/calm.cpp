@@ -220,7 +220,7 @@ float PersistenceAmount(AntiFlicker a, float stepFps)
 {
     if (a == AntiFlicker::Off)
         return 0;
-    const float p60 = (a == AntiFlicker::Strong) ? 0.8f : 0.5f;
+    const float p60 = (a == AntiFlicker::Strong) ? 0.65f : 0.5f;   // 0.8 smeared the image (manual test)
     if (!(stepFps == stepFps)) stepFps = kRefFps;
     return powf(p60, kRefFps / Clamp(stepFps, 10.0f, 1000.0f));
 }
