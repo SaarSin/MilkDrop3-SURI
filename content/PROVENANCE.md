@@ -4,7 +4,8 @@ This file records where everything in `content/` comes from. None of it was made
 
 | Folder | Source | License |
 |---|---|---|
-| `presets/` (9,795 files) | The **"Cream of the Crop"** pack selected and organized by ISOSCELES, as distributed by projectM: https://github.com/projectM-visualizer/presets-cream-of-the-crop (commit `0180df21f5e0bd39b9060cc5de420ed2f1f9e509`) | No specific license; see projectM's notice below |
+| `presets/` (9,795 files, top level) | The **"Cream of the Crop"** pack selected and organized by ISOSCELES, as distributed by projectM: https://github.com/projectM-visualizer/presets-cream-of-the-crop (commit `0180df21f5e0bd39b9060cc5de420ed2f1f9e509`) | No specific license; see projectM's notice below |
+| `presets/Milkdrop2077/` (762 files) | The **Milkdrop2077** preset folder shipped with **Milkwave** (presets by MilkDrop2077 and other authors named in the file names): https://github.com/IkeC/Milkwave, path `Visualizer/resources/presets/Milkdrop2077` (commit `002dedcb9f2ea731b16392ca8e70ca87a9bcf1d7`). Copied byte for byte; `Webcam.milk` is left out (no webcam features in this build). | No specific license; Milkwave's README: "The presets themselves are not covered by either of these licenses, they either have their own license or none." |
 | `textures/` (67 files) | projectM's **Milkdrop Texture Pack** (the original MilkDrop textures and more): https://github.com/projectM-visualizer/presets-milkdrop-texture-pack (commit `6368812f27bc747b517218fbf89d21d59afce4d9`) | No license stated in the pack |
 
 **projectM's notice about the presets** ([LICENSE.md](https://github.com/projectM-visualizer/presets-cream-of-the-crop/blob/master/LICENSE.md) of the pack), quoted in full:
@@ -12,6 +13,10 @@ This file records where everything in `content/` comes from. None of it was made
 > Milkdrop presets were, in almost all cases, not released under any specific license. Theoretically, each preset author holds the full copyright on any released presets. Since the presets were freely released and have been used in so many packages and applications in the past two decades, it is safe to assume them to be in the public domain.
 >
 > If any preset author doesn't want their own creation in this repository, please contact the projectM team and we will remove the preset(s) from future releases.
+
+Milkwave asks that preset authors be respected by showing the preset file name, at least briefly; this build shows it in the info card (F4/F5) and the preset list.
+
+Some Milkdrop2077 presets use textures from Milkwave's texture folder that are not part of this build (`MilkDrop3_0xx`, `Pattern_0xx`, `clipboard03`, `grace`, `stoy_london`); those presets draw with a fallback texture instead.
 
 The same applies here: **if a preset or texture author wants their work removed from this build, open an issue in this repository and it will be removed.** The preset file names keep the authors' names as published.
 
