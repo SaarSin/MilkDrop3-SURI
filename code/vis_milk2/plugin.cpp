@@ -4545,7 +4545,7 @@ void CPlugin::DrawInfoCard(RECT* pCard, int* upper_right_corner_y, int xL, int x
     const bool showCalm   = GetTime() < m_fShowCalmUntilThisTime;   // SURI: 2.5 s after a calm command
     const bool showMeter  = m_bCalmMeter;   // SURI: calm meter (phase 15) keeps the card up
     const bool showAny    = showName || showRating || showFps || showCalm || showMeter;
-    const bool showLock   = showAny && (m_bPresetLockedByUser || m_bPresetLockedByCode);   // SURI: with any of F4/F5/F6
+    const bool showLock   = showAny && (m_bPresetLockedByUser || m_bPresetLockedByCode);   // SURI: whenever the card is up (F4/F5/F6, the 2.5 s calm card, the meter)
     LPD3DXFONT fTitle = GetUiFont(UIF_TITLE), fMeta = GetUiFont(UIF_META), fStars = GetUiFont(UIF_STARS);
     if (!showAny || !fTitle || !fMeta || !fStars)
         return;
@@ -6090,7 +6090,7 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 			case Cmd::SpeedDown:       cs.speed = StepSpeed(cs.speed, -1);              msg = SpeedLabel(cs.speed); break;
 			case Cmd::SensitivityUp:   cs.sensitivity = StepSensitivity(cs.sensitivity, +1); msg = SensitivityLabel(cs.sensitivity); break;
 			case Cmd::SensitivityDown: cs.sensitivity = StepSensitivity(cs.sensitivity, -1); msg = SensitivityLabel(cs.sensitivity); break;
-			case Cmd::CalmReset:       cs = CalmSettings();                             msg = L"Speed 100% \x00B7 Sensitivity 100%"; break;
+			case Cmd::CalmReset:       cs = CalmSettings();                             msg = SpeedLabel(cs.speed) + L" \x00B7 " + SensitivityLabel(cs.sensitivity) + L" \x00B7 " + AntiFlickerLabel(cs.antiFlicker); break;
 			case Cmd::AntiFlickerOff:    cs.antiFlicker = AntiFlicker::Off;    msg = AntiFlickerLabel(cs.antiFlicker); break;
 			case Cmd::AntiFlickerSoft:   cs.antiFlicker = AntiFlicker::Soft;   msg = AntiFlickerLabel(cs.antiFlicker); break;
 			case Cmd::CalmApplySuggestion:
