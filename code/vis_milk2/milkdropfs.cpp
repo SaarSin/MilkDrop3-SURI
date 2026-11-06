@@ -1473,6 +1473,17 @@ void CPlugin::ComputeGridAlphaValues()
 		float fSX		= (float)(*pState->var_pf_sx);
 		float fSY		= (float)(*pState->var_pf_sy);
 
+		// SURI: Speed scales the motion asked for in this frame, exactly once per vertex. Without
+		// per-vertex code the values above are shared by all vertices, so they are scaled here, once;
+		// scaling them inside the loop compounded it vertex after vertex (manual test, Royal - Mashup 451).
+		const bool bCalmScale = (m_calm.speed != 1.0f);
+		if (bCalmScale && !pState->m_pp_codehandle)
+		{
+			CalmMotion cm = { fZoom, fRot, fWarp, fDX, fDY, fSX, fSY };
+			ScaleMotion(&cm, m_calm.speed);
+			fZoom = cm.zoom; fRot = cm.rot; fWarp = cm.warp; fDX = cm.dx; fDY = cm.dy; fSX = cm.sx; fSY = cm.sy;
+		}
+
 		int n = 0;
 
 		for (int y=0; y<=m_nGridY; y++)
@@ -1521,7 +1532,7 @@ void CPlugin::ComputeGridAlphaValues()
 					fSY   = (float)(*pState->var_pv_sy);
 				}
 
-				if (m_calm.speed != 1.0f)   // SURI: Speed scales the motion asked for in this frame
+				if (bCalmScale && pState->m_pp_codehandle)   // SURI: per-vertex code wrote fresh values
 				{
 					CalmMotion cm = { fZoom, fRot, fWarp, fDX, fDY, fSX, fSY };
 					ScaleMotion(&cm, m_calm.speed);
