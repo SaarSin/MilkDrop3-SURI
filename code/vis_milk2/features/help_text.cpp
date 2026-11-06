@@ -47,7 +47,6 @@ const wchar_t* HelpText()
     L"\n"
     L"Double-click\ttoggle full screen\n"
     L"Alt+Enter\ttoggle full screen\n"
-    L"Alt+Shift\ttoggle stretch to fill the screen\n"
     L"F2\tframe rate limit: 30, 60, 90, 120, 144, 240, 360, unlimited\n"
     L"F4\tshow / hide preset info\n"
     L"F5\tshow / hide the frame rate\n"

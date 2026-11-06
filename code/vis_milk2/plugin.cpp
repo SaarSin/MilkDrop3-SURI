@@ -652,6 +652,7 @@ void CPlugin::MyPreInitialize()
 	m_nNumericInputMode   = NUMERIC_INPUT_MODE_CUST_MSG;
 	m_nNumericInputNum    = 0;
 	m_nNumericInputDigits = 0;
+	m_fNumericPromptUntil = 0;
 	m_nSelectedSprite     = -1;
 	m_bSpriteDrag         = false;
 	m_ptSpriteDrag.x      = 0;
@@ -5389,6 +5390,9 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
 			{
 				const KeyScope scope = (GetKeyState(VK_SHIFT) & 0x8000) ? KeyScope::VKeyCtrlShift : KeyScope::VKeyCtrl;
 				Cmd ctrlCmd = LookupKey(scope, (unsigned)wParam);
+				// a list, menu or K / Y prompt has the keys: swallow the key so it neither acts nor closes them
+				if (ctrlCmd != Cmd::None && !QueryState(ctrlCmd, GetAppSnapshot()).enabled)
+					return 0;
 				if (ctrlCmd != Cmd::None && DispatchCommand(ctrlCmd, hWnd))
 					return 0; // we processed (or absorbed) the key
 			}
@@ -5429,6 +5433,14 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
 			{
 				m_UI_mode = UI_REGULAR;
 				return 0; // we processed (or absorbed) the key
+			}
+			else if (m_UI_mode == UI_REGULAR && GetTime() < m_fNumericPromptUntil)
+			{
+				// SURI: Esc cancels a K / Shift+K / Y prompt that waits for its digits
+				m_fNumericPromptUntil = 0;
+				m_nNumericInputNum    = 0;
+				m_nNumericInputDigits = 0;
+				return 0;
 			}
 			else if (m_UI_mode == UI_LOAD_DEL)
 			{
@@ -6009,6 +6021,7 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 		m_nNumericInputMode   = NUMERIC_INPUT_MODE_SPRITE;
 		m_nNumericInputNum    = 0;
 		m_nNumericInputDigits = 0;
+		m_fNumericPromptUntil = GetTime() + 3.0f;	// as long as the prompt text is shown
 		AddError(LoadResString(IDS_TYPE_SPRITE_NUMBER), 3.0f, ERR_NOTIFY, false);
 		return true;
 
@@ -6019,6 +6032,7 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 		m_nNumericInputMode   = NUMERIC_INPUT_MODE_CUST_MSG;
 		m_nNumericInputNum    = 0;
 		m_nNumericInputDigits = 0;
+		m_fNumericPromptUntil = GetTime() + 3.0f;	// as long as the prompt text is shown
 		AddError(LoadResString(IDS_TYPE_MESSAGE_NUMBER), 3.0f, ERR_NOTIFY, false);
 		return true;
 
@@ -6150,6 +6164,8 @@ AppSnapshot CPlugin::GetAppSnapshot() const
 	s.textEditActive     = m_waitstring.bActive || m_UI_mode == UI_LOAD_DEL ||
 	                       m_UI_mode == UI_SAVE_OVERWRITE || m_UI_mode == UI_UPGRADE_PIXEL_SHADER ||
 	                       m_UI_mode == UI_IMPORT_NEW;   // SURI: the drop's "new presets" prompt
+	s.inputModeOpen      = m_UI_mode != UI_REGULAR ||
+	                       const_cast<CPlugin*>(this)->GetTime() < m_fNumericPromptUntil;   // GetTime only reads (not const in the shell)
 	s.canDeleteCurrent   = m_nCurrentPreset >= m_nDirs && m_nCurrentPreset < m_nPresets;
 	s.fpsLimit           = m_max_fps_w;
 	s.autoChangeSeconds  = m_fTimeBetweenPresets;
@@ -6236,6 +6252,7 @@ int CPlugin::HandleRegularKey(WPARAM wParam)
 
 				m_nNumericInputDigits = 0;
 				m_nNumericInputNum = 0;
+				m_fNumericPromptUntil = 0;	// SURI: the prompt is answered
 			}
 		}
 		return 0; // we processed (or absorbed) the key
@@ -6373,6 +6390,7 @@ int CPlugin::HandleRegularKey(WPARAM wParam)
 				m_nNumericInputMode   = NUMERIC_INPUT_MODE_SPRITE;
 			m_nNumericInputNum    = 0;
 			m_nNumericInputDigits = 0;
+			m_fNumericPromptUntil = GetTime() + 3.0f;	// SURI: Ctrl keys wait while it waits for digits
 		}
 		return 0; // we processed (or absorbed) the key
 
@@ -6400,6 +6418,7 @@ int CPlugin::HandleRegularKey(WPARAM wParam)
     case '*':
 		m_nNumericInputDigits = 0;
 		m_nNumericInputNum = 0;
+		m_fNumericPromptUntil = 0;
         return 0;
 
 	}
@@ -6786,6 +6805,7 @@ void CPlugin::OpenPlaylistScreen()
     m_show_help = 0;
     m_nNumericInputNum = 0;      // a k / y waiting for its digits is dropped
     m_nNumericInputDigits = 0;
+    m_fNumericPromptUntil = 0;
     m_UI_mode = UI_PLAYLIST;
 }
 

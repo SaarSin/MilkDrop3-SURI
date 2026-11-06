@@ -585,6 +585,7 @@ public:
         int         m_nNumericInputMode;	// NUMERIC_INPUT_MODE_CUST_MSG, NUMERIC_INPUT_MODE_SPRITE
         int         m_nNumericInputNum;
         int			m_nNumericInputDigits;
+        float       m_fNumericPromptUntil;	// SURI: GetTime() until which the K / Shift+K / Y prompt waits for digits (0 = closed)
         td_custom_msg_font   m_CustomMessageFont[MAX_CUSTOM_MESSAGE_FONTS];
         td_custom_msg        m_CustomMessage[MAX_CUSTOM_MESSAGES];
 

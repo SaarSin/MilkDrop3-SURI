@@ -69,6 +69,7 @@ struct AppSnapshot {
     bool loadMenuOpen = false, editMenuOpen = false;
     bool playlistOpen = false;     // SURI: m_UI_mode == UI_PLAYLIST
     bool textEditActive = false;   // waitstring active, or a Y/N prompt (UI_LOAD_DEL, UI_SAVE_OVERWRITE, UI_UPGRADE_PIXEL_SHADER)
+    bool inputModeOpen = false;    // SURI: a list, menu or number prompt has the keys (m_UI_mode != UI_REGULAR, K / Y prompt)
     bool canDeleteCurrent = false; // m_nDirs <= m_nCurrentPreset < m_nPresets
     int  fpsLimit = 0;             // m_max_fps_w, 0 = unlimited
     float autoChangeSeconds = 0;   // m_fTimeBetweenPresets

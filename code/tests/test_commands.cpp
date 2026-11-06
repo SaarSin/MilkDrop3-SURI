@@ -36,7 +36,7 @@ TEST(TestCommands_LegacyKeysPreserved) {
     CHECK(LookupKey(KeyScope::VKeyNormal, VK_BACK) == Cmd::PresetPrev);
     CHECK(LookupKey(KeyScope::VKeyNormal, VK_F1) == Cmd::HelpOverlay);
     CHECK(LookupKey(KeyScope::VKeyAlt, VK_RETURN) == Cmd::ViewFullscreen);
-    CHECK(LookupKey(KeyScope::VKeyAlt, VK_SHIFT) == Cmd::ViewStretch);
+    CHECK(LookupKey(KeyScope::VKeyAlt, VK_SHIFT) == Cmd::None);   // SURI: Alt+Shift switches the keyboard language
     CHECK(LookupKey(KeyScope::VKeyAlt, VK_F4) == Cmd::AppQuit);
 }
 
@@ -69,7 +69,7 @@ TEST(TestCommands_MenuIdRoundTrip) {
 TEST(TestCommands_KeyLabels) {
     CHECK(PrimaryKeyLabel(Cmd::ViewAlwaysOnTop) == L"F7");
     CHECK(PrimaryKeyLabel(Cmd::ViewFullscreen) == L"Alt+Enter");
-    CHECK(PrimaryKeyLabel(Cmd::ViewStretch) == L"Alt+Shift");
+    CHECK(PrimaryKeyLabel(Cmd::ViewStretch) == L"");   // menu only
     CHECK(PrimaryKeyLabel(Cmd::AppQuit) == L"Alt+F4");
     CHECK(PrimaryKeyLabel(Cmd::PresetPrev) == L"Backspace");
     CHECK(PrimaryKeyLabel(Cmd::PresetRandom) == L"Space");
@@ -270,6 +270,15 @@ TEST(TestCommands_AntiFlickerRadio) {
     s.textEditActive = true;
     for (Cmd c : calm) CHECK(!QueryState(c, s).enabled);
     s.textEditActive = false; s.hasPresetFile = false;
+    for (Cmd c : calm) CHECK(!QueryState(c, s).enabled);
+}
+TEST(TestCommands_CalmBlockedWhileInputOpen) {   // SURI: L list, M menu, K / Y number prompts
+    AppSnapshot s; s.hasPresetFile = true; s.calmMeterOn = true;
+    const Cmd calm[] = { Cmd::SpeedUp, Cmd::SpeedDown, Cmd::SensitivityUp, Cmd::SensitivityDown,
+                         Cmd::CalmReset, Cmd::AntiFlickerOff, Cmd::AntiFlickerSoft, Cmd::AntiFlickerStrong,
+                         Cmd::CalmMeterToggle, Cmd::CalmApplySuggestion };
+    for (Cmd c : calm) CHECK(QueryState(c, s).enabled);
+    s.inputModeOpen = true;
     for (Cmd c : calm) CHECK(!QueryState(c, s).enabled);
 }
 TEST(TestCommands_CalmMeterKeys) {   // SURI: calm meter (phase 15)

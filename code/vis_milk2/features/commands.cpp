@@ -39,7 +39,7 @@ static const KeyBinding g_keyBindings[] = {
     { KeyScope::VKeyNormal, VK_BACK, Cmd::PresetPrev },
     { KeyScope::VKeyNormal, VK_F1, Cmd::HelpOverlay },
     { KeyScope::VKeyAlt, VK_RETURN, Cmd::ViewFullscreen },
-    { KeyScope::VKeyAlt, VK_SHIFT, Cmd::ViewStretch },
+    // SURI: Stretch has no key. Alt+Shift is the Windows keyboard-language switch.
     { KeyScope::VKeyAlt, VK_F4, Cmd::AppQuit },
     // SURI: calm motion. The main-keyboard key comes first: it is the one shown in the menu.
     { KeyScope::VKeyCtrl, VK_OEM_PLUS, Cmd::SensitivityUp },
@@ -174,18 +174,19 @@ CmdState QueryState(Cmd c, const AppSnapshot& s)
     case Cmd::MessagePrompt:        st.enabled = !s.textEditActive; break;
     case Cmd::SpriteRemoveSelected: st.enabled = s.selectedSprite >= 0; break;
     case Cmd::SpriteRemoveAll:      st.enabled = s.spriteCount > 0; break;
-    // SURI: calm motion changes the preset file, so it needs one and no open text prompt
+    // SURI: calm motion changes the preset file, so it needs one, and no list, menu or prompt
+    // may have the keys
     case Cmd::SpeedUp: case Cmd::SpeedDown: case Cmd::SensitivityUp: case Cmd::SensitivityDown:
     case Cmd::CalmReset:
-        st.enabled = s.hasPresetFile && !s.textEditActive; break;
+        st.enabled = s.hasPresetFile && !s.textEditActive && !s.inputModeOpen; break;
     case Cmd::AntiFlickerOff: case Cmd::AntiFlickerSoft: case Cmd::AntiFlickerStrong:
-        st.enabled = s.hasPresetFile && !s.textEditActive;
+        st.enabled = s.hasPresetFile && !s.textEditActive && !s.inputModeOpen;
         st.checked = s.antiFlicker == (int)((unsigned)c - (unsigned)Cmd::AntiFlickerOff); break;
     // SURI: calm meter. Applying needs the meter on: it applies what the meter shows (phase 15 rule).
     case Cmd::CalmMeterToggle:
-        st.enabled = s.hasPresetFile && !s.textEditActive; st.checked = s.calmMeterOn; break;
+        st.enabled = s.hasPresetFile && !s.textEditActive && !s.inputModeOpen; st.checked = s.calmMeterOn; break;
     case Cmd::CalmApplySuggestion:
-        st.enabled = s.hasPresetFile && !s.textEditActive && s.calmMeterOn; break;
+        st.enabled = s.hasPresetFile && !s.textEditActive && !s.inputModeOpen && s.calmMeterOn; break;
     default: break;
     }
 
