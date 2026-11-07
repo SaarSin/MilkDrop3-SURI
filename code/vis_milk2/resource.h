@@ -500,6 +500,17 @@
 #define IDS_DROP_PLAYLIST_N             839
 #define IDS_DROP_COPY_FAILED            840
 #define IDS_DROP_NEW_TITLE_1            841
+#define IDS_MENU_MOTION                 842   // SURI: calm motion
+#define IDS_MENU_SPEED_UP               843
+#define IDS_MENU_SPEED_DOWN             844
+#define IDS_MENU_SENS_UP                845
+#define IDS_MENU_SENS_DOWN              846
+#define IDS_MENU_CALM_RESET             847
+#define IDS_MENU_AF_OFF                 848
+#define IDS_MENU_AF_SOFT                849
+#define IDS_MENU_AF_STRONG              850
+#define IDS_MENU_CALM_METER             851   // SURI: calm meter (phase 15)
+#define IDS_MENU_CALM_APPLY             852
 
 // Next default values for new objects
 // 

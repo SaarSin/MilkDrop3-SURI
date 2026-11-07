@@ -4,6 +4,7 @@
 
 #include "mini_test.h"
 #include "..\vis_milk2\features\context_menu.h"
+#include "..\vis_milk2\resource.h"
 
 static void CountItems(const std::vector<MenuNode>& nodes, int* seen) {
     for (const MenuNode& n : nodes) {
@@ -55,4 +56,23 @@ TEST(TestMenu_Anchor) {   // Review Focus 4
     POINT k = MenuAnchor((LPARAM)-1, r);                   CHECK(k.x == 500 && k.y == 400);
     POINT m = MenuAnchor(MAKELPARAM(250, 300), r);         CHECK(m.x == 250 && m.y == 300);
     POINT neg = MenuAnchor(MAKELPARAM((WORD)-500, 20), r); CHECK(neg.x == -500 && neg.y == 20);
+}
+TEST(TestMenu_MotionSubmenuInView) {   // SURI: calm motion
+    const MenuNode* view = nullptr;
+    for (const MenuNode& n : MenuLayout())
+        if (n.kind == MenuNodeKind::Submenu && n.labelId == IDS_MENU_VIEW) view = &n;
+    CHECK(view != nullptr);
+    const MenuNode* motion = nullptr;
+    for (const MenuNode& n : view->children)
+        if (n.kind == MenuNodeKind::Submenu && n.labelId == IDS_MENU_MOTION) motion = &n;
+    CHECK(motion != nullptr);
+    const Cmd want[] = { Cmd::SpeedUp, Cmd::SpeedDown, Cmd::SensitivityUp, Cmd::SensitivityDown, Cmd::CalmReset,
+                         Cmd::None, Cmd::AntiFlickerOff, Cmd::AntiFlickerSoft, Cmd::AntiFlickerStrong,
+                         Cmd::None, Cmd::CalmMeterToggle, Cmd::CalmApplySuggestion };   // SURI: calm meter (phase 15)
+    CHECK(motion->children.size() == 12);
+    for (size_t i = 0; i < 12 && i < motion->children.size(); i++) {
+        const MenuNode& n = motion->children[i];
+        if (want[i] == Cmd::None) CHECK(n.kind == MenuNodeKind::Separator);
+        else CHECK(n.kind == MenuNodeKind::Item && n.cmd == want[i]);
+    }
 }

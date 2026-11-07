@@ -42,6 +42,7 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "features/commands.h"
 #include "features/shader_fx.h"
 #include "features/ui_scale.h"
+#include "features/calm.h"
 #include "features/now_playing.h"
 #include "features/now_playing_winrt.h"
 #include "features/sprite_preset.h"
@@ -461,6 +462,38 @@ public:
         FFT            myfft;
         td_mysounddata mysound;
 
+        // SURI: calm motion (features/calm.h)
+        CalmSettings   m_calm;                          // effective values this frame
+        AnimClock      m_animClock;                     // the clock presets see (advances by dt x Speed)
+        float          m_presetImm[3], m_presetAtt[3];  // bass/mid/treb as presets see them
+        AudioSmoother  m_audioSmooth[6];
+        float          m_calmWave[2][576];              // waveform / spectrum history for Speed and Sensitivity
+        float          m_calmSpec[2][NUM_FREQUENCIES];
+        float          m_fCalmStepFps;                  // preset steps per second (what presets see as 'fps')
+        float          m_calmStepAccum;                 // step pacing (StepDue)
+        LPDIRECT3DTEXTURE9 m_calmPrevTex;               // last shown image (hold frames and persistence)
+        bool           m_bCalmPrevValid;
+        bool           m_bCalmPrevFailed;               // creating m_calmPrevTex failed; retried after a device reset
+        void           CalmPostFrame();
+        void           CalmHoldFrame();
+        void           CalmDrawTexture(LPDIRECT3DTEXTURE9 tex, float alpha);
+        void           CalmSlewMainOutputs(CState* pState, float dt);
+        void           CalmSlewShapeOutputs(CState* pState, int shape, float dt);
+        // SURI: calm meter (phase 15, Ctrl+9). Measures only while on; it never changes a setting.
+        bool           m_bCalmMeter;                    // on/off, not saved
+        FlickerMeter   m_flicker;                       // flashes and frame change of the shown image
+        MotionTracker  m_motionTracker;                 // warp-mesh motion and its correlation with bass
+        LPDIRECT3DSURFACE9 m_calmRT[3];                 // 32x18 render targets (D3DPOOL_DEFAULT)
+        LPDIRECT3DSURFACE9 m_calmSys[3];                // their system-memory copies, read 2 frames later
+        int            m_calmFrame;                     // frames measured since the surfaces were (re)made
+        bool           m_bCalmMeterFailed;              // creating the surfaces failed, or the copy failed 30 frames running; retried after a device reset
+        int            m_nCalmCopyFails;                // consecutive frames whose GPU copy failed
+        float          m_calmMeasureTime;               // GetTime() of the previous measured frame
+        std::vector<float> m_calmDu, m_calmDv;          // per-vertex motion of the current step (warp mesh)
+        void           CalmMeasureFrame();
+        void           CalmMeterReset();                // meter on, or a new preset: start measuring afresh
+        CalmStats      CalmCurrentStats() const;
+
         // stuff for displaying text to user:
         bool		m_bShowFPS;
         bool		m_bShowRating;
@@ -470,6 +503,7 @@ public:
         bool		m_bShowSongTime;
         bool		m_bShowSongLen;
         float		m_fShowRatingUntilThisTime;
+        float		m_fShowCalmUntilThisTime;   // SURI: info card shown until then after a calm command
 
         #define ERR_ALL    0
         #define ERR_INIT   1  //specifically, loading a preset
@@ -551,6 +585,7 @@ public:
         int         m_nNumericInputMode;	// NUMERIC_INPUT_MODE_CUST_MSG, NUMERIC_INPUT_MODE_SPRITE
         int         m_nNumericInputNum;
         int			m_nNumericInputDigits;
+        float       m_fNumericPromptUntil;	// SURI: GetTime() until which the K / Shift+K / Y prompt waits for digits (0 = closed)
         td_custom_msg_font   m_CustomMessageFont[MAX_CUSTOM_MESSAGE_FONTS];
         td_custom_msg        m_CustomMessage[MAX_CUSTOM_MESSAGES];
 
@@ -612,6 +647,7 @@ public:
 	    void		DeletePresetFile(wchar_t *szDelFile);
 	    void		RenamePresetFile(wchar_t *szOldFile, wchar_t *szNewFile);
 	    void		SetCurrentPresetRating(float fNewRating);
+	    bool		SaveCalmToPreset();   // SURI: writes m_pState->m_calm into the current preset file
 	    void		SeekToPreset(wchar_t cStartChar);
 	    bool		ReversePropagatePoint(float fx, float fy, float *fx2, float *fy2);
 	    int 		HandleRegularKey(WPARAM wParam);

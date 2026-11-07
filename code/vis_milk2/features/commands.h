@@ -21,6 +21,10 @@ enum class Cmd : unsigned short {
     ViewFullscreen, ViewStretch, ViewAlwaysOnTop, ViewFps, ViewPresetInfo,
     ViewRating, ViewShaderHelp, ViewSongTitle, ViewNowPlaying, FpsLimitCycle, AutoChangeCycle,
     ViewDesktopMode,   // SURI: wallpaper mode (desktop_mode.h)
+    // SURI: calm motion - the current preset's own Speed / Sensitivity / Anti-flicker (calm.h)
+    SpeedUp, SpeedDown, SensitivityUp, SensitivityDown, CalmReset,
+    AntiFlickerOff, AntiFlickerSoft, AntiFlickerStrong,
+    CalmMeterToggle, CalmApplySuggestion,   // SURI: calm meter (phase 15): measure / apply the suggestion
     // effects (right-click menu only)
     FxMirrorX, FxMirrorY, FxKaleido, FxRipple, FxZoomIn, FxSwapAxes, FxTunnel,
     FxInvert, FxMono, FxPosterize, FxHueSpin,
@@ -40,7 +44,9 @@ enum class KeyScope : unsigned char {
     Char,        // WM_CHAR, in CPlugin::HandleRegularKey
     VKeyGlobal,  // WM_KEYDOWN, top of CPlugin::MyWindowProc (works even while editing text, like F2-F9)
     VKeyNormal,  // WM_KEYDOWN, CPlugin::MyWindowProc "case 3" (after waitstring and on-screen menu)
-    VKeyAlt      // WM_SYSKEYDOWN, StaticWndProc
+    VKeyAlt,     // WM_SYSKEYDOWN, StaticWndProc
+    VKeyCtrl,       // SURI: WM_KEYDOWN, "case 3", Ctrl down (no Shift, no Alt)
+    VKeyCtrlShift   // SURI: WM_KEYDOWN, "case 3", Ctrl+Shift down (no Alt)
 };
 
 struct KeyBinding { KeyScope scope; unsigned short key; Cmd cmd; };
@@ -63,6 +69,7 @@ struct AppSnapshot {
     bool loadMenuOpen = false, editMenuOpen = false;
     bool playlistOpen = false;     // SURI: m_UI_mode == UI_PLAYLIST
     bool textEditActive = false;   // waitstring active, or a Y/N prompt (UI_LOAD_DEL, UI_SAVE_OVERWRITE, UI_UPGRADE_PIXEL_SHADER)
+    bool inputModeOpen = false;    // SURI: a list, menu or number prompt has the keys (m_UI_mode != UI_REGULAR, K / Y prompt)
     bool canDeleteCurrent = false; // m_nDirs <= m_nCurrentPreset < m_nPresets
     int  fpsLimit = 0;             // m_max_fps_w, 0 = unlimited
     float autoChangeSeconds = 0;   // m_fTimeBetweenPresets
@@ -75,6 +82,9 @@ struct AppSnapshot {
     int spriteCount = 0;              // SURI: sprite slots with a texture
     int selectedSprite = -1;          // SURI: CPlugin::m_nSelectedSprite (-1 = none)
     int selectedSpriteBlend = -1;     // SURI: blend mode of the selected sprite (0..5), -1 = none
+    int  antiFlicker = 0;             // SURI: AntiFlicker of the current preset (0 Off, 1 Soft, 2 Strong)
+    bool hasPresetFile = false;       // SURI: a preset file is loaded, so the calm settings can be saved
+    bool calmMeterOn = false;         // SURI: CPlugin::m_bCalmMeter (Ctrl+9)
 };
 // Effect commands <-> FxId (FxMirrorX.. FxHueSpin are in FxId order).
 Cmd  FxCmd(FxId id);

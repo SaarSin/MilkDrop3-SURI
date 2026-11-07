@@ -69,6 +69,7 @@ Order of Function Calls
 #include "features/image_load_win32.h"
 #include "features/sprite_layout.h"
 #include "features/title_anim.h"
+#include "features/preset_history.h"   // SURI
 #include <assert.h>
 #include <algorithm>
 #include <commdlg.h>
@@ -604,6 +605,22 @@ void CPlugin::MyPreInitialize()
 	m_bShowSongTime		= false;
 	m_bShowSongLen		= false;
 	m_fShowRatingUntilThisTime = -1.0f;
+	m_fShowCalmUntilThisTime = -1.0f;	// SURI
+	// SURI: calm motion
+	m_fCalmStepFps = 60.0f;
+	m_calmStepAccum = 0;
+	m_calmPrevTex = NULL;
+	m_bCalmPrevValid = false;
+	m_bCalmPrevFailed = false;
+	m_bCalmMeter = false;	// SURI: calm meter (phase 15)
+	for (int ci = 0; ci < 3; ci++) { m_calmRT[ci] = NULL; m_calmSys[ci] = NULL; }
+	m_calmFrame = 0;
+	m_bCalmMeterFailed = false;
+	m_nCalmCopyFails = 0;
+	m_calmMeasureTime = 0;
+	for (int ci = 0; ci < 3; ci++) { m_presetImm[ci] = 1.0f; m_presetAtt[ci] = 1.0f; }
+	memset(m_calmWave, 0, sizeof(m_calmWave));
+	memset(m_calmSpec, 0, sizeof(m_calmSpec));
 	m_ui_band_left = m_ui_band_right = 0;   // SURI
 	m_toast_top = m_toast_xL = m_toast_xR = 0;
 	SetRect(&m_toast_avoid, 0, 0, 0, 0);
@@ -636,6 +653,7 @@ void CPlugin::MyPreInitialize()
 	m_nNumericInputMode   = NUMERIC_INPUT_MODE_CUST_MSG;
 	m_nNumericInputNum    = 0;
 	m_nNumericInputDigits = 0;
+	m_fNumericPromptUntil = 0;
 	m_nSelectedSprite     = -1;
 	m_bSpriteDrag         = false;
 	m_ptSpriteDrag.x      = 0;
@@ -3145,6 +3163,16 @@ void CPlugin::CleanUpMyDX9Stuff(int final_cleanup)
         m_nLoadingPreset = 8;
         LoadPresetTick();
     }
+
+    // SURI: calm motion - the last shown image (D3DPOOL_DEFAULT: must go before the device Reset)
+    SafeRelease(m_calmPrevTex);
+    m_bCalmPrevValid = false;
+    m_bCalmPrevFailed = false;
+    // SURI: calm meter - the measuring surfaces (the render targets are D3DPOOL_DEFAULT)
+    for (int ci = 0; ci < 3; ci++) { SafeRelease(m_calmRT[ci]); SafeRelease(m_calmSys[ci]); }
+    m_calmFrame = 0;
+    m_bCalmMeterFailed = false;
+    m_nCalmCopyFails = 0;
     // just force this:
     m_pState->m_bBlending = false;
 
@@ -3274,11 +3302,17 @@ void CPlugin::MyRenderFn(int redraw)
     //   be zero, and you can draw a new frame.  The flag is
     //   used to force a repaint when nothing else changed.
 
+    // SURI: calm motion: the effective settings of this frame (cross-fade while presets blend)
+    m_calm = (m_pState->m_bBlending && m_pOldState)
+        ? BlendCalm(m_pOldState->m_calm, m_pState->m_calm, m_pState->m_fBlendProgress)
+        : m_pState->m_calm;
+
     //   1. take care of timing/other paperwork/etc. for new frame
     if (!redraw)
     {
         float dt = GetTime() - m_prev_time;
         m_prev_time = GetTime(); // note: m_prev_time is not for general use!
+        m_animClock.Advance(dt, m_calm.speed);   // SURI: the clock presets see
         m_bPresetLockedByCode = (m_UI_mode != UI_REGULAR);
         if (m_bPresetLockedByUser || m_bPresetLockedByCode)
         {
@@ -3345,7 +3379,12 @@ void CPlugin::MyRenderFn(int redraw)
     if (!redraw)
         DoCustomSoundAnalysis();    // emulates old pre-vms milkdrop sound analysis
 
-    RenderFrame(redraw);  // see milkdropfs.cpp
+    m_fCalmStepFps = StepFps(GetFps());   // SURI: at most 60 steps/s; what presets see as fps
+    // SURI: the preset steps at most 60 times per second; other display frames show the last image
+    if (redraw || !m_bCalmPrevValid || StepDue(&m_calmStepAccum, 1.0f / max(GetFps(), 1.0f)))
+        RenderFrame(redraw);  // see milkdropfs.cpp
+    else
+        CalmHoldFrame();
 
     if (!redraw)
     {
@@ -4080,7 +4119,7 @@ void CPlugin::MyRenderUI(
                         wchar_t szFile[MAX_PATH];
                         swprintf(szFile, L"%s%s", m_szPresetDir, m_presets[m_nMashPreset[mash]].szFilename.c_str());
 
-                        m_pState->Import(szFile, GetTime(), m_pState, ApplyFlags);
+                        m_pState->Import(szFile, GetTime(), m_animClock.Now(), m_pState, ApplyFlags);
                         if (ApplyFlags & STATE_COMP)
                             ApplyFxToState(m_pState);   // SURI: the imported comp shader gets the live effects too
 
@@ -4504,9 +4543,12 @@ void CPlugin::DrawInfoCard(RECT* pCard, int* upper_right_corner_y, int xL, int x
     const bool showName   = m_bShowPresetInfo;
     const bool showRating = m_bShowRating || GetTime() < m_fShowRatingUntilThisTime;
     const bool showFps    = m_bShowFPS;
-    const bool showLock   = (showName || showRating || showFps) && (m_bPresetLockedByUser || m_bPresetLockedByCode);   // SURI: with any of F4/F5/F6
+    const bool showCalm   = GetTime() < m_fShowCalmUntilThisTime;   // SURI: 2.5 s after a calm command
+    const bool showMeter  = m_bCalmMeter;   // SURI: calm meter (phase 15) keeps the card up
+    const bool showAny    = showName || showRating || showFps || showCalm || showMeter;
+    const bool showLock   = showAny && (m_bPresetLockedByUser || m_bPresetLockedByCode);   // SURI: whenever the card is up (F4/F5/F6, the 2.5 s calm card, the meter)
     LPD3DXFONT fTitle = GetUiFont(UIF_TITLE), fMeta = GetUiFont(UIF_META), fStars = GetUiFont(UIF_STARS);
-    if (!(showName || showRating || showFps) || !fTitle || !fMeta || !fStars)
+    if (!showAny || !fTitle || !fMeta || !fStars)
         return;
 
     const int padX = UiPx(20), padY = UiPx(14), lineGap = UiPx(4), itemGap = UiPx(16);
@@ -4535,6 +4577,12 @@ void CPlugin::DrawInfoCard(RECT* pCard, int* upper_right_corner_y, int xL, int x
         swprintf(buf, 32, fmt, (int)(GetFps() + 0.5f));
         add(fMeta, buf, CARD_TEXT_2, itemGap);
     }
+    // SURI: the values in use this frame (blended during a preset change)
+    add(fMeta, SensitivityLabel(m_calm.sensitivity), CARD_TEXT_2, itemGap);
+    if (m_calm.speed != 1.0f)
+        add(fMeta, SpeedLabel(m_calm.speed), CARD_TEXT_2, itemGap);
+    if (m_calm.antiFlicker != AntiFlicker::Off)
+        add(fMeta, AntiFlickerLabel(m_calm.antiFlicker), CARD_TEXT_2, itemGap);
     if (showLock)
         add(fMeta, LoadResString(IDS_UI_LOCKED), CARD_TEXT_2, itemGap);
 
@@ -4557,8 +4605,38 @@ void CPlugin::DrawInfoCard(RECT* pCard, int* upper_right_corner_y, int xL, int x
         if (it.h > metaH) metaH = it.h;
     }
 
-    const int innerW = min(max(nameW, metaW), maxInnerW);
-    const int innerH = nameH + (nameH && metaH ? lineGap : 0) + metaH;
+    // SURI: calm meter line: what it measures and what Ctrl+7 would apply (display only)
+    // Two lines (reading, then suggestion) so a narrow card does not cut the suggestion off.
+    std::wstring meter, meter2;
+    DWORD meterColor = CARD_TEXT_2;
+    int meterW = 0, meterH = 0, meter2H = 0;
+    if (showMeter)
+    {
+        if (m_bCalmMeterFailed)
+            meter = L"meter not available";
+        else
+        {
+            const CalmStats stats = CalmCurrentStats();
+            const CalmSettings shown = SuggestCalm(stats, m_pState->m_calm);   // shown only; Ctrl+7 applies it
+            meter  = MeterReadingLine(stats.flashesPerSec, stats.motionPct);
+            meter2 = MeterSuggestionLine(shown);
+            if (stats.flashesPerSec >= 3.0f)
+                meterColor = CARD_STAR;
+        }
+        RECT r = { 0, 0, 4096, 0 };
+        meterH = UiMeasure(fMeta, meter.c_str(), &r, DT_SINGLELINE);
+        meterW = r.right - r.left;
+        if (!meter2.empty())
+        {
+            RECT r2 = { 0, 0, 4096, 0 };
+            meter2H = UiMeasure(fMeta, meter2.c_str(), &r2, DT_SINGLELINE);
+            meterW = max(meterW, (int)(r2.right - r2.left));
+        }
+    }
+
+    const int innerW = min(max(max(nameW, metaW), meterW), maxInnerW);
+    const int innerH = nameH + (nameH && metaH ? lineGap : 0) + metaH + (meterH ? lineGap + meterH : 0) +
+                       (meter2H ? lineGap + meter2H : 0);
     const int right = xR + UiPx(TEXT_MARGIN) - UiPx(28);   // SURI: 28 px in from the window edge (xR is the scaled margin in)
     const int top = *upper_right_corner_y - UiPx(TEXT_MARGIN) + UiPx(28);
     SetRect(pCard, right - innerW - 2*padX, top, right, top + innerH + 2*padY);
@@ -4579,6 +4657,18 @@ void CPlugin::DrawInfoCard(RECT* pCard, int* upper_right_corner_y, int xL, int x
         RECT r = { x, y + (metaH - it.h)/2, min(x + it.w + 2, (int)(pCard->left + padX + innerW)), y + (metaH - it.h)/2 + it.h };
         UiText(it.f, it.s.c_str(), &r, DT_SINGLELINE, it.color);
         x += it.w;
+    }
+    if (meterH)
+    {
+        const int my = y + metaH + lineGap;
+        RECT r = { pCard->left + padX, my, pCard->left + padX + innerW, my + meterH };
+        UiText(fMeta, meter.c_str(), &r, DT_SINGLELINE, meterColor);
+        if (meter2H)
+        {
+            const int my2 = my + meterH + lineGap;
+            RECT r2 = { pCard->left + padX, my2, pCard->left + padX + innerW, my2 + meter2H };
+            UiText(fMeta, meter2.c_str(), &r2, DT_SINGLELINE, CARD_TEXT_2);
+        }
     }
     *upper_right_corner_y = pCard->bottom + UiPx(10);
 }
@@ -5309,6 +5399,18 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
         //         (passing some to the shell's key bindings and the rest to DefWindowProc)
 		//		note: regular hotkeys should be handled in HandleRegularKey.
 		{
+			// SURI: calm motion keys: Ctrl+[+/-/0] and Ctrl+Shift+[+/-]. Typing never gets here.
+			if ((GetKeyState(VK_CONTROL) & 0x8000) && !(GetKeyState(VK_MENU) & 0x8000))
+			{
+				const KeyScope scope = (GetKeyState(VK_SHIFT) & 0x8000) ? KeyScope::VKeyCtrlShift : KeyScope::VKeyCtrl;
+				Cmd ctrlCmd = LookupKey(scope, (unsigned)wParam);
+				// a list, menu or K / Y prompt has the keys: swallow the key so it neither acts nor closes them
+				if (ctrlCmd != Cmd::None && !QueryState(ctrlCmd, GetAppSnapshot()).enabled)
+					return 0;
+				if (ctrlCmd != Cmd::None && DispatchCommand(ctrlCmd, hWnd))
+					return 0; // we processed (or absorbed) the key
+			}
+
 			// SURI: Space, Backspace and F1 go through the command table
 			Cmd cmd = LookupKey(KeyScope::VKeyNormal, (unsigned)wParam);
 			if (cmd != Cmd::None && DispatchCommand(cmd, hWnd))
@@ -5345,6 +5447,14 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
 			{
 				m_UI_mode = UI_REGULAR;
 				return 0; // we processed (or absorbed) the key
+			}
+			else if (m_UI_mode == UI_REGULAR && GetTime() < m_fNumericPromptUntil)
+			{
+				// SURI: Esc cancels a K / Shift+K / Y prompt that waits for its digits
+				m_fNumericPromptUntil = 0;
+				m_nNumericInputNum    = 0;
+				m_nNumericInputDigits = 0;
+				return 0;
 			}
 			else if (m_UI_mode == UI_LOAD_DEL)
 			{
@@ -5925,6 +6035,7 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 		m_nNumericInputMode   = NUMERIC_INPUT_MODE_SPRITE;
 		m_nNumericInputNum    = 0;
 		m_nNumericInputDigits = 0;
+		m_fNumericPromptUntil = GetTime() + 3.0f;	// as long as the prompt text is shown
 		AddError(LoadResString(IDS_TYPE_SPRITE_NUMBER), 3.0f, ERR_NOTIFY, false);
 		return true;
 
@@ -5935,6 +6046,7 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 		m_nNumericInputMode   = NUMERIC_INPUT_MODE_CUST_MSG;
 		m_nNumericInputNum    = 0;
 		m_nNumericInputDigits = 0;
+		m_fNumericPromptUntil = GetTime() + 3.0f;	// as long as the prompt text is shown
 		AddError(LoadResString(IDS_TYPE_MESSAGE_NUMBER), 3.0f, ERR_NOTIFY, false);
 		return true;
 
@@ -5966,6 +6078,65 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 			wchar_t arg[MAX_PATH + 3];	// two quotes and the terminating zero
 			StringCchPrintfW(arg, _countof(arg), L"\"%s\"", path);
 			ShellExecuteW(NULL, L"open", L"notepad.exe", arg, NULL, SW_SHOWNORMAL);
+		}
+		return true;
+
+	// SURI: calm motion: the current preset's own Speed / Sensitivity / Anti-flicker
+	case Cmd::SpeedUp:
+	case Cmd::SpeedDown:
+	case Cmd::SensitivityUp:
+	case Cmd::SensitivityDown:
+	case Cmd::CalmReset:
+	case Cmd::AntiFlickerOff:
+	case Cmd::AntiFlickerSoft:
+	case Cmd::AntiFlickerStrong:
+	case Cmd::CalmApplySuggestion:	// SURI: phase 15 - the only path from the meter to a setting or file
+		{
+			if (!m_szCurrentPresetFile[0])
+				return false;
+			if (c == Cmd::CalmApplySuggestion && !m_bCalmMeter)
+				return false;	// applies only what the meter is showing
+			CalmSettings& cs = m_pState->m_calm;
+			std::wstring msg;
+			switch (c)
+			{
+			case Cmd::SpeedUp:         cs.speed = StepSpeed(cs.speed, +1);              msg = SpeedLabel(cs.speed); break;
+			case Cmd::SpeedDown:       cs.speed = StepSpeed(cs.speed, -1);              msg = SpeedLabel(cs.speed); break;
+			case Cmd::SensitivityUp:   cs.sensitivity = StepSensitivity(cs.sensitivity, +1); msg = SensitivityLabel(cs.sensitivity); break;
+			case Cmd::SensitivityDown: cs.sensitivity = StepSensitivity(cs.sensitivity, -1); msg = SensitivityLabel(cs.sensitivity); break;
+			case Cmd::CalmReset:       cs = CalmSettings();                             msg = SpeedLabel(cs.speed) + L" \x00B7 " + SensitivityLabel(cs.sensitivity) + L" \x00B7 " + AntiFlickerLabel(cs.antiFlicker); break;
+			case Cmd::AntiFlickerOff:    cs.antiFlicker = AntiFlicker::Off;    msg = AntiFlickerLabel(cs.antiFlicker); break;
+			case Cmd::AntiFlickerSoft:   cs.antiFlicker = AntiFlicker::Soft;   msg = AntiFlickerLabel(cs.antiFlicker); break;
+			case Cmd::CalmApplySuggestion:
+				cs = SuggestCalm(CalmCurrentStats(), cs);
+				msg = L"Applied: " + SpeedLabel(cs.speed) + L" \x00B7 " + SensitivityLabel(cs.sensitivity) + L" \x00B7 " + AntiFlickerLabel(cs.antiFlicker);
+				break;
+			default:                    cs.antiFlicker = AntiFlicker::Strong; msg = AntiFlickerLabel(cs.antiFlicker); break;
+			}
+			const bool saved = SaveCalmToPreset();
+			m_fShowCalmUntilThisTime = GetTime() + 2.5f;	// SURI: show the info card with the values
+			m_pState->m_calmSlew.Reset();
+			m_pOldState->m_calmSlew.Reset();
+			for (int i = 0; i < 6; i++)
+				m_audioSmooth[i].Reset();
+			if (saved)
+				AddError(&msg[0], 2.5f, ERR_NOTIFY, false);
+			else
+				{ wchar_t err[] = L"Couldn't save to the preset file"; AddError(err, 6.0f, ERR_MISC, false); }
+		}
+		return true;
+
+	// SURI: calm meter (phase 15) on / off. It only measures and shows: nothing is saved here.
+	case Cmd::CalmMeterToggle:
+		{
+			if (!m_szCurrentPresetFile[0])
+				return false;
+			m_bCalmMeter = !m_bCalmMeter;
+			if (m_bCalmMeter)
+				CalmMeterReset();
+			wchar_t msg[32];
+			StringCchCopyW(msg, _countof(msg), m_bCalmMeter ? L"Calm meter on" : L"Calm meter off");
+			AddError(msg, 2.5f, ERR_NOTIFY, false);
 		}
 		return true;
 
@@ -6007,6 +6178,8 @@ AppSnapshot CPlugin::GetAppSnapshot() const
 	s.textEditActive     = m_waitstring.bActive || m_UI_mode == UI_LOAD_DEL ||
 	                       m_UI_mode == UI_SAVE_OVERWRITE || m_UI_mode == UI_UPGRADE_PIXEL_SHADER ||
 	                       m_UI_mode == UI_IMPORT_NEW;   // SURI: the drop's "new presets" prompt
+	s.inputModeOpen      = m_UI_mode != UI_REGULAR ||
+	                       const_cast<CPlugin*>(this)->GetTime() < m_fNumericPromptUntil;   // GetTime only reads (not const in the shell)
 	s.canDeleteCurrent   = m_nCurrentPreset >= m_nDirs && m_nCurrentPreset < m_nPresets;
 	s.fpsLimit           = m_max_fps_w;
 	s.autoChangeSeconds  = m_fTimeBetweenPresets;
@@ -6017,6 +6190,9 @@ AppSnapshot CPlugin::GetAppSnapshot() const
 	s.nowPlayingAvailable = m_songBox.State() != NowPlayingState::Unavailable;
 	s.nowPlayingOn       = m_bNowPlaying;
 	s.hasSongTitle       = m_szSongTitle[0] != 0;
+	s.antiFlicker        = (int)m_pState->m_calm.antiFlicker;   // SURI: calm motion
+	s.hasPresetFile      = m_szCurrentPresetFile[0] != 0;
+	s.calmMeterOn        = m_bCalmMeter;   // SURI: calm meter (phase 15)
 	// SURI: sprites (phase 9)
 	for (int i=0; i<NUM_TEX; i++)
 		if (m_texmgr.m_tex[i].pSurface)
@@ -6090,6 +6266,7 @@ int CPlugin::HandleRegularKey(WPARAM wParam)
 
 				m_nNumericInputDigits = 0;
 				m_nNumericInputNum = 0;
+				m_fNumericPromptUntil = 0;	// SURI: the prompt is answered
 			}
 		}
 		return 0; // we processed (or absorbed) the key
@@ -6227,6 +6404,7 @@ int CPlugin::HandleRegularKey(WPARAM wParam)
 				m_nNumericInputMode   = NUMERIC_INPUT_MODE_SPRITE;
 			m_nNumericInputNum    = 0;
 			m_nNumericInputDigits = 0;
+			m_fNumericPromptUntil = GetTime() + 3.0f;	// SURI: Ctrl keys wait while it waits for digits
 		}
 		return 0; // we processed (or absorbed) the key
 
@@ -6254,6 +6432,7 @@ int CPlugin::HandleRegularKey(WPARAM wParam)
     case '*':
 		m_nNumericInputDigits = 0;
 		m_nNumericInputNum = 0;
+		m_fNumericPromptUntil = 0;
         return 0;
 
 	}
@@ -6640,6 +6819,7 @@ void CPlugin::OpenPlaylistScreen()
     m_show_help = 0;
     m_nNumericInputNum = 0;      // a k / y waiting for its digits is dropped
     m_nNumericInputDigits = 0;
+    m_fNumericPromptUntil = 0;
     m_UI_mode = UI_PLAYLIST;
 }
 
@@ -7427,7 +7607,8 @@ void CPlugin::LoadRandomPreset(float fBlendTime)
     if (!m_bSequentialPresetOrder)
     {
         int next = (m_presetHistoryPos+1) % PRESET_HIST_LEN;
-        if (next != m_presetHistoryFwdFence && !bHistoryEmpty)
+        // SURI: never walk onto a slot without a file name (left by a load that failed)
+        if (CanStepForward(next, m_presetHistoryFwdFence, m_presetHistoryBackFence, m_presetHistory[next].empty()))
         {
             m_presetHistoryPos = next;
             LoadPreset( m_presetHistory[m_presetHistoryPos].c_str(), fBlendTime); 
@@ -7686,6 +7867,11 @@ void CPlugin::LoadPreset(const wchar_t *szPresetFilename, float fBlendTime)
         wchar_t buf[1024];
 		swprintf(buf, LoadResString(IDS_ERROR_PRESET_NOT_FOUND_X), p);
         AddError(buf, 6.0f, ERR_PRESET, true);
+        // SURI: the caller may have moved the history place forward for this file; undo that,
+        // or every later "next preset" walks onto the empty slot and fails too
+        if (!m_bSequentialPresetOrder)
+            m_presetHistoryPos = PosAfterFailedLoad(m_presetHistoryPos, m_presetHistoryFwdFence,
+                                                    m_presetHistoryBackFence, PRESET_HIST_LEN);
         return;
     }
 
@@ -7727,12 +7913,13 @@ void CPlugin::LoadPreset(const wchar_t *szPresetFilename, float fBlendTime)
         ApplyFlags ^= (m_bWarpShaderLock ? STATE_WARP : 0);
         ApplyFlags ^= (m_bCompShaderLock ? STATE_COMP : 0);
 
-        m_pState->Import(m_szCurrentPresetFile, GetTime(), m_pOldState, ApplyFlags);
+        m_pState->Import(m_szCurrentPresetFile, GetTime(), m_animClock.Now(), m_pOldState, ApplyFlags);
         ApplyFxToState(m_pState);  // SURI
         LaunchPresetSprites(m_pState);  // SURI
 
 
 	    m_fPresetStartTime = GetTime();
+	    CalmMeterReset();   // SURI: the meter measures the new preset from scratch
 	    m_fNextPresetTime = -1.0f;		// flags UpdateTime() to recompute this
 
         // release stuff from m_OldShaders, then move m_shaders to m_OldShaders, then load the new shaders.
@@ -7758,7 +7945,7 @@ void CPlugin::LoadPreset(const wchar_t *szPresetFilename, float fBlendTime)
         ApplyFlags ^= (m_bWarpShaderLock ? STATE_WARP : 0);
         ApplyFlags ^= (m_bCompShaderLock ? STATE_COMP : 0);
 
-        m_pNewState->Import(szPresetFilename, GetTime(), m_pOldState, ApplyFlags);
+        m_pNewState->Import(szPresetFilename, GetTime(), m_animClock.Now(), m_pOldState, ApplyFlags);
         ApplyFxToState(m_pNewState);  // SURI
         LaunchPresetSprites(m_pNewState);  // SURI
 
@@ -7806,6 +7993,7 @@ void CPlugin::LoadPresetTick()
 		    m_pState->StartBlendFrom(m_pOldState, GetTime(), m_fLoadingPresetBlendTime);
 
 	    m_fPresetStartTime = GetTime();
+	    CalmMeterReset();   // SURI: the meter measures the new preset from scratch
 	    m_fNextPresetTime = -1.0f;		// flags UpdateTime() to recompute this
 
         // release stuff from m_OldShaders, then move m_shaders to m_OldShaders, then load the new shaders.
@@ -8900,6 +9088,18 @@ void CPlugin::RenamePresetFile(wchar_t *szOldFile, wchar_t *szNewFile)
 }
 
 
+// SURI: writes the calm settings of the current preset into its file; default values delete the key
+bool CPlugin::SaveCalmToPreset()
+{
+	if (!m_szCurrentPresetFile[0])
+		return false;
+	bool ok = true;
+	for (const CalmKey& k : CalmPresetKeys(m_pState->m_calm))
+		if (!WritePrivateProfileStringW(L"preset00", k.name, k.value.empty() ? NULL : k.value.c_str(), m_szCurrentPresetFile))
+			ok = false;
+	return ok;
+}
+
 void CPlugin::SetCurrentPresetRating(float fNewRating)
 {
 	if (!m_bEnableRating)
@@ -9620,6 +9820,40 @@ void CPlugin::DoCustomSoundAnalysis()
 			mysound.avg_rel[i]  = 1.0f;
 		else
 			mysound.avg_rel[i]  = mysound.avg[i] / mysound.long_avg[i];
+	}
+
+	// SURI: what presets see - smoothed (Anti-flicker), then scaled around 1.0 (Sensitivity).
+	// Hard cuts keep using the raw imm_rel.
+	const float dtAudio = 1.0f / max(GetFps(), 1.0f);
+	for (i=0; i<3; i++)
+	{
+		m_presetImm[i] = ShapeAudio(m_audioSmooth[i  ].Step(mysound.imm_rel[i], dtAudio, m_calm.antiFlicker), m_calm.sensitivity);
+		m_presetAtt[i] = ShapeAudio(m_audioSmooth[i+3].Step(mysound.avg_rel[i], dtAudio, m_calm.antiFlicker), m_calm.sensitivity);
+	}
+
+	// SURI: the waveform and spectrum presets draw. Speed < 100% lets them change only gradually;
+	// Sensitivity < 100% makes them smaller. (The bands above use the raw data.)
+	const float spd    = m_calm.speed < 1.0f ? m_calm.speed : 1.0f;
+	const float follow = WaveFollow(spd, dtAudio);
+	const float amp    = WaveAmplitude(m_calm.sensitivity);
+	const bool  shape  = (follow != 1.0f || amp != 1.0f);
+	for (int ch=0; ch<2; ch++)
+	{
+		for (int s=0; s<576; s++)
+		{
+			m_calmWave[ch][s] += (m_sound.fWaveform[ch][s] - m_calmWave[ch][s]) * follow;
+			if (shape)
+			{
+				m_sound.fWaveform[ch][s] = m_calmWave[ch][s] * amp;
+				mysound.fWave[ch][s] = m_sound.fWaveform[ch][s];
+			}
+		}
+		for (int s=0; s<NUM_FREQUENCIES; s++)
+		{
+			m_calmSpec[ch][s] += (m_sound.fSpectrum[ch][s] - m_calmSpec[ch][s]) * follow;
+			if (shape)
+				m_sound.fSpectrum[ch][s] = m_calmSpec[ch][s] * amp;
+		}
 	}
 }
 

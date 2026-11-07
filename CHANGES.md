@@ -34,6 +34,7 @@ Everything below was added or changed on top of that commit. How each part was p
 - **Hang on exit:** closing the window while the preset scan was running hung the process.
 - **No crash** when a random custom message is requested but none are defined.
 - **Sprites in non-4:3 windows** were stretched. This MilkDrop 2 bug is fixed.
+- **"Preset not found" on every Space:** after one preset failed to load (for example from the list of another folder), the preset history kept an empty place, and every later Space tried to load it and failed until restart. This MilkDrop 2 bug is fixed: a failed load gives the place back, and the history never steps onto an empty place.
 
 ## Removed
 
@@ -62,7 +63,7 @@ Everything below was added or changed on top of that commit. How each part was p
 - **Code:** `code/audio/device-watch.*`.
 
 ### One command table and a right-click menu
-- **Command table:** all the preset and View keys go through one table: h, Backspace, Space, `` ` ``, r, l, s, m, +, -, d, t, F1–F7, F9, Alt+Enter, Alt+Shift and Alt+F4. The keyboard, the menu and the tray icon call the same commands.
+- **Command table:** all the preset and View keys go through one table: h, Backspace, Space, `` ` ``, r, l, s, m, +, -, d, t, F1–F7, F9, Alt+Enter and Alt+F4. The keyboard, the menu and the tray icon call the same commands. Stretch across monitors is only in the right-click View menu: its old key, Alt+Shift, is also the Windows keyboard-language switch.
 - **Right-click menu:** right-click, Shift+F10 or the Apps key opens a Win32 menu built from that table, with check marks and greyed-out items.
 - **Menu behavior:** in fullscreen the cursor is shown while the menu is open, and rendering continues while the menu is open. Help opens the guides from `docs\`.
 - **Code:** `features/commands.*`, `features/context_menu*`.
@@ -114,6 +115,38 @@ Everything below was added or changed on top of that commit. How each part was p
   - `.m3u` save and load in `playlists\`.
 - **Code:** `features/drop_import.*`, `features/playlist*`.
 
+### Calm motion (phase 14)
+Three settings that tame presets which move too fast or flicker. They belong to the preset on screen, like its rating.
+- **Speed** (10%-150%, step 5%): Ctrl+Shift+ + / - (also the numpad keys). Presets see a clock that runs at Speed times real time, each step's motion is scaled, and the waveform and spectrum change more slowly. Changing it never makes a preset jump.
+- **Sensitivity** (0%-200%, step 10%): Ctrl+ + / - (also the numpad keys). Reshapes the audio values the preset reads; below 100% the drawn waveform and spectrum are smaller too. Hard-cut detection keeps the real audio. It is always shown in the info card (F5), for example `60 fps  Sensitivity 100%`.
+- **Anti-flicker** (Off / Soft / Strong): right-click, View, Motion. Audio rises quickly and falls slowly, colours and single shapes may change only so much per second, and each new image is blended with the previous one.
+- **Ctrl+0** sets the current preset back to the defaults (Speed 100%, Sensitivity 100%, Anti-flicker Off). Plain `+` / `-` still rate the preset. The keys need a preset file and do nothing while a text prompt, the preset list (L), the edit menu (M) or a K / Y number prompt is open (Esc cancels a K / Y prompt).
+- **Strong** keeps 65% of the previous image per step (Soft 50%); 80% smeared the picture.
+- **Step cap:** a preset runs at most 60 steps per second, so a 144 Hz display does not speed presets up. A slower display runs one step per frame. Between steps the last image is shown again (hold frames), and presets see the step rate, `fps` = min(display rate, 60).
+- **Per preset:** when MilkDrop blends to the next preset, speed and sensitivity slide from the old values to the new ones.
+- **Preset file:** the values are written at once into `[preset00]`, next to `fRating`, only when they are not the default (a default value deletes its key, so an untuned file is unchanged): `fCalmSpeed`, `fCalmSensitivity` and `nCalmAntiFlicker`. The file that changes is the copy in the program folder (`build\Release\plugins\Milkdrop2\presets`, not in git); `content/presets` is never touched. `.\build.ps1 -Clean`, deleting `build\Release` or a fresh `-Package` start without the values; a rebuild without `-Clean` keeps them.
+- **Limits:**
+  - Presets that count with `frame` or their own `q` variables are not slowed beyond the 60-step cap.
+  - Strong persistence makes strobing presets greyer.
+  - A very low Speed makes waveform-driven presets darker.
+  - Custom waves that build their path point by point from their own variables (for example the fiShbRaiN witchcraft presets) are not slowed by Speed or Sensitivity.
+  - Shapes drawn as many instances (`instances > 1`) are not limited by Anti-flicker (persistence still applies).
+- **Code:** `features/calm.*`.
+
+### Calm meter (phase 15)
+A meter that measures the image and suggests Speed, Sensitivity and Anti-flicker for the current preset. It only suggests: **it never changes anything by itself**. There is no timer and no action on preset load; it measures only while it is on.
+- **Ctrl+9** turns the meter on or off. It adds two lines to the corner card, for example `flash 2.1/s  motion 55%/s` and below it `-> Speed 70% · Sensitivity 100% · Anti-flicker: Soft`. Flashes per second come from the image on screen, motion is in % of screen width per second from the warp mesh, and the arrow shows the suggested values.
+- **Ctrl+7** applies the shown suggestion to the current preset and saves it into the preset file like any calm change. Also in right-click, View, Motion: Calm meter, Apply suggestion. Both keys need a preset file and do nothing while a text prompt, the preset list or a K / Y prompt is open.
+- **Suggestion rules:**
+  - Flashes of 3 per second or more suggest Strong anti-flicker; 1.5 per second or more suggest at least Soft.
+  - Motion above 40 % per second lowers Speed in proportion (for example 80 %/s halves it).
+  - When the motion follows the bass, Sensitivity is trimmed too, but never below 50%, and not at all once it is at 50% or lower: Speed alone already brings the motion to the target, and the meter cannot tell whether a lower Sensitivity helped.
+  - A suggestion never raises a value and never weakens Anti-flicker.
+- **Limits:**
+  - `meter not available` is shown when the GPU read-back of the image cannot be created.
+  - The 40 %/s target was checked on Soup (217 %/s at 100% suggests Speed 20%; at 15% the motion is 21 %/s). Presets that swirl the whole image all the time can read high (300 %/s and more) even when they look smooth.
+- **Code:** `features/calm.*` (flicker meter, mesh motion, suggestion).
+
 ## Content
 
 - **`content/presets/`:** 9,795 presets from the "Cream of the Crop" pack by ISOSCELES, as distributed by projectM. Upstream ships no presets.
@@ -133,12 +166,13 @@ The project was planned on top of the upstream commit above, as a roadmap of pha
 
 | Document | Contents |
 |---|---|
-| [Roadmap](docs/superpowers/plans/2026-10-24-milkdrop-suri-roadmap.md) | The full plan: phases -1 (cleanup), 0 (infrastructure), 2 (audio), 3–10 and 13, with each phase's status |
+| [Roadmap](docs/superpowers/plans/2026-10-24-milkdrop-suri-roadmap.md) | The full plan: phases -1 (cleanup), 0 (infrastructure), 2 (audio), 3–10, 13 and 14–15, with each phase's status |
 | [Phases 3–4](docs/superpowers/plans/2026-10-24-phase-3-4-commands-and-context-menu.md) | Command table and right-click menu |
 | [Phases 5–7](docs/superpowers/plans/2026-10-25-phase-5-7-effects-screens-desktop.md) | Effects, friendlier screens and Desktop mode |
 | [Phases 8–9](docs/superpowers/plans/2026-10-25-phase-8-9-now-playing-sprites.md) | Song info, sprites and messages |
 | [Phase 10 design](docs/superpowers/specs/2026-10-25-phase-10-drag-drop-playlist-design.md) and [plan](docs/superpowers/plans/2026-10-25-phase-10-drag-drop-playlist.md) | Drag & drop and Playlist |
 | [Phase 13](docs/superpowers/plans/2026-10-27-phase-13-packaging.md) | Packaging |
+| [Phases 14-15](docs/superpowers/plans/2026-10-27-phase-14-calm-motion.md) | Calm motion and the calm meter (built, waiting for the manual test) |
 
 Not built, by decision: webcam input, sending the image to other programs (Spout), and an x64 build. The Audio device menu is postponed until the audio code exposes device selection.
 

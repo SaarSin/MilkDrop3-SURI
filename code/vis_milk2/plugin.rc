@@ -884,6 +884,17 @@ BEGIN
     IDS_DROP_PLAYLIST_N             "Playlist: %d presets"
     IDS_DROP_COPY_FAILED            "%d files could not be copied"
     IDS_DROP_NEW_TITLE_1            "1 new preset"
+    IDS_MENU_MOTION                 "Motion"
+    IDS_MENU_SPEED_UP               "Speed faster"
+    IDS_MENU_SPEED_DOWN             "Speed slower"
+    IDS_MENU_SENS_UP                "Sensitivity higher"
+    IDS_MENU_SENS_DOWN              "Sensitivity lower"
+    IDS_MENU_CALM_RESET             "Reset this preset"
+    IDS_MENU_AF_OFF                 "Anti-flicker: Off"
+    IDS_MENU_AF_SOFT                "Anti-flicker: Soft"
+    IDS_MENU_AF_STRONG              "Anti-flicker: Strong"
+    IDS_MENU_CALM_METER             "Calm meter"
+    IDS_MENU_CALM_APPLY             "Apply suggestion"
 END
 
 #endif    // English (United Kingdom) resources

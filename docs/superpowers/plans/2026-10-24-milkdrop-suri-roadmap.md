@@ -183,6 +183,18 @@ Decisions made during the phase:
 
 **Status (2026-10-27):** done according to [2026-10-27-phase-13-packaging.md](2026-10-27-phase-13-packaging.md). Packages are built from the source files in a staging folder. The manual test passed.
 
+## Phase 14: Calm motion
+
+- **What:** three per-preset settings that tame presets which move too fast or flicker: Speed (10%-150%), Sensitivity (0%-200%) and Anti-flicker (Off / Soft / Strong). At most 60 preset steps per second. Stored in the preset file (`fCalmSpeed`, `fCalmSensitivity`, `nCalmAntiFlicker` in `[preset00]`, only non-default values), so they stay on this computer and out of git. Keys: Ctrl+ +/- (sensitivity), Ctrl+Shift+ +/- (speed), Ctrl+0 (reset), and right-click, View, Motion.
+
+**Status (2026-10-28):** implemented, waiting for the user's manual test. Plan: [2026-10-27-phase-14-calm-motion.md](2026-10-27-phase-14-calm-motion.md).
+
+## Phase 15: Calm meter (suggests only; applies on Ctrl+7, never by itself)
+
+- **What:** a meter that measures the image on screen and suggests values for the current preset. Nothing it computes changes a setting or a preset file unless the user presses Ctrl+7.
+
+**Status (2026-10-28):** implemented, waiting for the user's manual test. Ctrl+9 shows the meter, Ctrl+7 applies the suggestion; nothing is ever applied by itself. Plan: [2026-10-27-phase-14-calm-motion.md](2026-10-27-phase-14-calm-motion.md).
+
 ---
 
 ## Suggested order and approvals
@@ -202,4 +214,6 @@ Decisions made during the phase:
 | ~~11 Spout~~ | – | – | **Removed from the plan by the user's decision (2026-10-27):** no need to send the image to OBS or Resolume. OBS Window Capture can be used instead |
 | ~~12 x64~~ | – | – | **Removed from the plan by the user's decision (2026-10-27):** a 32-bit exe runs normally on 64-bit Windows, and no phase requires x64 |
 | 13 Packaging | 0 | Small | Done and manually tested ([plan](2026-10-27-phase-13-packaging.md)) |
+| 14 Calm motion | 0 | Medium | Implemented, waiting for the user's manual test ([plan](2026-10-27-phase-14-calm-motion.md)) |
+| 15 Calm meter | 14 | Medium | Implemented, waiting for the user's manual test; suggests only, applies on Ctrl+7 ([plan](2026-10-27-phase-14-calm-motion.md)) |
 | ~~Webcam~~ | – | – | **Not in the plan, by the user's decision** |

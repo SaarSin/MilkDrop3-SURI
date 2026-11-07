@@ -36,7 +36,7 @@ TEST(TestCommands_LegacyKeysPreserved) {
     CHECK(LookupKey(KeyScope::VKeyNormal, VK_BACK) == Cmd::PresetPrev);
     CHECK(LookupKey(KeyScope::VKeyNormal, VK_F1) == Cmd::HelpOverlay);
     CHECK(LookupKey(KeyScope::VKeyAlt, VK_RETURN) == Cmd::ViewFullscreen);
-    CHECK(LookupKey(KeyScope::VKeyAlt, VK_SHIFT) == Cmd::ViewStretch);
+    CHECK(LookupKey(KeyScope::VKeyAlt, VK_SHIFT) == Cmd::None);   // SURI: Alt+Shift switches the keyboard language
     CHECK(LookupKey(KeyScope::VKeyAlt, VK_F4) == Cmd::AppQuit);
 }
 
@@ -69,7 +69,7 @@ TEST(TestCommands_MenuIdRoundTrip) {
 TEST(TestCommands_KeyLabels) {
     CHECK(PrimaryKeyLabel(Cmd::ViewAlwaysOnTop) == L"F7");
     CHECK(PrimaryKeyLabel(Cmd::ViewFullscreen) == L"Alt+Enter");
-    CHECK(PrimaryKeyLabel(Cmd::ViewStretch) == L"Alt+Shift");
+    CHECK(PrimaryKeyLabel(Cmd::ViewStretch) == L"");   // menu only
     CHECK(PrimaryKeyLabel(Cmd::AppQuit) == L"Alt+F4");
     CHECK(PrimaryKeyLabel(Cmd::PresetPrev) == L"Backspace");
     CHECK(PrimaryKeyLabel(Cmd::PresetRandom) == L"Space");
@@ -237,4 +237,70 @@ TEST(TestCommands_PlaylistGreyedDuringPrompt) {
     CHECK(QueryState(Cmd::PlaylistScreen, s).enabled);
     AppSnapshot r;
     CHECK(QueryState(Cmd::PlaylistScreen, r).enabled);
+}
+TEST(TestCommands_CtrlScopes) {   // SURI: calm motion keys
+    CHECK(LookupKey(KeyScope::VKeyCtrl, VK_OEM_PLUS) == Cmd::SensitivityUp);
+    CHECK(LookupKey(KeyScope::VKeyCtrl, VK_ADD) == Cmd::SensitivityUp);
+    CHECK(LookupKey(KeyScope::VKeyCtrl, VK_OEM_MINUS) == Cmd::SensitivityDown);
+    CHECK(LookupKey(KeyScope::VKeyCtrl, VK_SUBTRACT) == Cmd::SensitivityDown);
+    CHECK(LookupKey(KeyScope::VKeyCtrl, '0') == Cmd::CalmReset);
+    CHECK(LookupKey(KeyScope::VKeyCtrlShift, VK_OEM_PLUS) == Cmd::SpeedUp);
+    CHECK(LookupKey(KeyScope::VKeyCtrlShift, VK_ADD) == Cmd::SpeedUp);
+    CHECK(LookupKey(KeyScope::VKeyCtrlShift, VK_OEM_MINUS) == Cmd::SpeedDown);
+    CHECK(LookupKey(KeyScope::VKeyCtrlShift, VK_SUBTRACT) == Cmd::SpeedDown);
+    CHECK(LookupKey(KeyScope::Char, '+') == Cmd::PresetRateUp);
+    CHECK(LookupKey(KeyScope::Char, '-') == Cmd::PresetRateDown);
+}
+TEST(TestCommands_CtrlLabels) {
+    CHECK(PrimaryKeyLabel(Cmd::SensitivityUp) == L"Ctrl++");
+    CHECK(PrimaryKeyLabel(Cmd::SensitivityDown) == L"Ctrl+-");
+    CHECK(PrimaryKeyLabel(Cmd::SpeedUp) == L"Ctrl+Shift++");
+    CHECK(PrimaryKeyLabel(Cmd::SpeedDown) == L"Ctrl+Shift+-");
+    CHECK(PrimaryKeyLabel(Cmd::CalmReset) == L"Ctrl+0");
+    CHECK(PrimaryKeyLabel(Cmd::AntiFlickerSoft) == L"");
+}
+TEST(TestCommands_AntiFlickerRadio) {
+    AppSnapshot s; s.hasPresetFile = true; s.antiFlicker = 1;
+    CHECK(!QueryState(Cmd::AntiFlickerOff, s).checked);
+    CHECK(QueryState(Cmd::AntiFlickerSoft, s).checked);
+    CHECK(!QueryState(Cmd::AntiFlickerStrong, s).checked);
+    const Cmd calm[] = { Cmd::SpeedUp, Cmd::SpeedDown, Cmd::SensitivityUp, Cmd::SensitivityDown,
+                         Cmd::CalmReset, Cmd::AntiFlickerOff, Cmd::AntiFlickerSoft, Cmd::AntiFlickerStrong };
+    for (Cmd c : calm) CHECK(QueryState(c, s).enabled);
+    s.textEditActive = true;
+    for (Cmd c : calm) CHECK(!QueryState(c, s).enabled);
+    s.textEditActive = false; s.hasPresetFile = false;
+    for (Cmd c : calm) CHECK(!QueryState(c, s).enabled);
+}
+TEST(TestCommands_CalmBlockedWhileInputOpen) {   // SURI: L list, M menu, K / Y number prompts
+    AppSnapshot s; s.hasPresetFile = true; s.calmMeterOn = true;
+    const Cmd calm[] = { Cmd::SpeedUp, Cmd::SpeedDown, Cmd::SensitivityUp, Cmd::SensitivityDown,
+                         Cmd::CalmReset, Cmd::AntiFlickerOff, Cmd::AntiFlickerSoft, Cmd::AntiFlickerStrong,
+                         Cmd::CalmMeterToggle, Cmd::CalmApplySuggestion };
+    for (Cmd c : calm) CHECK(QueryState(c, s).enabled);
+    s.inputModeOpen = true;
+    for (Cmd c : calm) CHECK(!QueryState(c, s).enabled);
+}
+TEST(TestCommands_CalmMeterKeys) {   // SURI: calm meter (phase 15)
+    CHECK(LookupKey(KeyScope::VKeyCtrl, '9') == Cmd::CalmMeterToggle);
+    CHECK(LookupKey(KeyScope::VKeyCtrl, '7') == Cmd::CalmApplySuggestion);
+    CHECK(PrimaryKeyLabel(Cmd::CalmMeterToggle) == L"Ctrl+9");
+    CHECK(PrimaryKeyLabel(Cmd::CalmApplySuggestion) == L"Ctrl+7");
+    AppSnapshot s; s.hasPresetFile = true; s.calmMeterOn = true;
+    CHECK(QueryState(Cmd::CalmMeterToggle, s).enabled);
+    CHECK(QueryState(Cmd::CalmMeterToggle, s).checked);
+    CHECK(QueryState(Cmd::CalmApplySuggestion, s).enabled);
+    CHECK(!QueryState(Cmd::CalmApplySuggestion, s).checked);
+    s.textEditActive = true;
+    CHECK(!QueryState(Cmd::CalmMeterToggle, s).enabled);
+    CHECK(!QueryState(Cmd::CalmApplySuggestion, s).enabled);
+    s.textEditActive = false; s.hasPresetFile = false;
+    CHECK(!QueryState(Cmd::CalmMeterToggle, s).enabled);
+    CHECK(!QueryState(Cmd::CalmApplySuggestion, s).enabled);
+}
+TEST(TestCommands_CalmApplyNeedsMeterOn) {   // SURI: phase 15 rule - nothing applies while the meter is off
+    AppSnapshot s; s.hasPresetFile = true; s.calmMeterOn = false;
+    CHECK(QueryState(Cmd::CalmMeterToggle, s).enabled);
+    CHECK(!QueryState(Cmd::CalmMeterToggle, s).checked);
+    CHECK(!QueryState(Cmd::CalmApplySuggestion, s).enabled);
 }

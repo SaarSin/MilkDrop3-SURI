@@ -32,6 +32,16 @@ UINT CmdLabelId(Cmd c)
     case Cmd::ViewShaderHelp:     return IDS_MENU_VIEW_SHADER_HELP;
     case Cmd::ViewSongTitle:      return IDS_MENU_VIEW_SONG_TITLE;
     case Cmd::ViewNowPlaying:     return IDS_MENU_VIEW_NOW_PLAYING;
+    case Cmd::SpeedUp:            return IDS_MENU_SPEED_UP;         // SURI: calm motion
+    case Cmd::SpeedDown:          return IDS_MENU_SPEED_DOWN;
+    case Cmd::SensitivityUp:      return IDS_MENU_SENS_UP;
+    case Cmd::SensitivityDown:    return IDS_MENU_SENS_DOWN;
+    case Cmd::CalmReset:          return IDS_MENU_CALM_RESET;
+    case Cmd::AntiFlickerOff:     return IDS_MENU_AF_OFF;
+    case Cmd::AntiFlickerSoft:    return IDS_MENU_AF_SOFT;
+    case Cmd::AntiFlickerStrong:  return IDS_MENU_AF_STRONG;
+    case Cmd::CalmMeterToggle:    return IDS_MENU_CALM_METER;       // SURI: calm meter (phase 15)
+    case Cmd::CalmApplySuggestion: return IDS_MENU_CALM_APPLY;
     case Cmd::FpsLimitCycle:      return IDS_MENU_FPS_LIMIT;
     case Cmd::AutoChangeCycle:    return IDS_MENU_AUTO_CHANGE;
     case Cmd::FxMirrorX: return IDS_MENU_FX_MIRROR_X;
@@ -115,6 +125,21 @@ const std::vector<MenuNode>& MenuLayout()
             Separator(),
             Item(Cmd::FpsLimitCycle),
             Item(Cmd::AutoChangeCycle),
+            Separator(),
+            Submenu(IDS_MENU_MOTION, {   // SURI: calm motion
+                Item(Cmd::SpeedUp),
+                Item(Cmd::SpeedDown),
+                Item(Cmd::SensitivityUp),
+                Item(Cmd::SensitivityDown),
+                Item(Cmd::CalmReset),
+                Separator(),
+                Item(Cmd::AntiFlickerOff),
+                Item(Cmd::AntiFlickerSoft),
+                Item(Cmd::AntiFlickerStrong),
+                Separator(),
+                Item(Cmd::CalmMeterToggle),     // SURI: calm meter (phase 15)
+                Item(Cmd::CalmApplySuggestion),
+            }),
         }),
         Submenu(IDS_MENU_EFFECTS, {
             Item(Cmd::FxMirrorX),
