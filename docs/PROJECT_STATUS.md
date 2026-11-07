@@ -186,7 +186,6 @@ Detailed plan: [superpowers/plans/2026-10-25-phase-5-7-effects-screens-desktop.m
 - [ ] Phase 16 (dancing 3D figure): a **feasibility study** on the `suri/phase-16` branch. Kept for reference and **not to be merged** as it is.
 - [ ] Phase 17 (dance engine, a new C++ engine for a dancing figure): in progress on the `suri/phase-17` branch. Milestones M0–M1 are done; M2 (timing) is under way.
 - [x] Preset list search (type-to-filter in L, Ctrl+V paste) and the start-up scan race fix: manually tested and merged into `main` (2026-11-07).
-- [ ] Small: when only folders match the search, the highlight stays on `[ .. ]` instead of the first matching folder.
 - [ ] Known limit: the calm meter reads presets that swirl the whole image as high motion (300 %/s and more) even when they look smooth.
 - [ ] Later: the Audio device menu (needs device selection in the audio code).
 - [ ] Later: improve the on-screen UI and menu (user request). First define which "panel" is meant: the on-screen menu (D3D) or the settings dialogs (Win32).
