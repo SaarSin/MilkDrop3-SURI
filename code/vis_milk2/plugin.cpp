@@ -8513,6 +8513,21 @@ void CPlugin::UpdatePresetList(bool bBackground, bool bForce, bool bTryReselectC
             return;
         if (!bBackground && m_bPresetListReady)
             return;
+        if (!bBackground && g_bThreadAlive)
+        {
+            // SURI: a background scan is still running (e.g. L pressed right after start).
+            // Wait for it instead of starting a second thread: two threads used to run at
+            // once, the second one cleared g_bThreadAlive, and a later forced rescan (a folder
+            // change) then did not stop the first, which kept writing the old folder's
+            // presets into the new folder's list.
+            SetThreadPriority(g_hThread, THREAD_PRIORITY_HIGHEST);
+            while (g_bThreadAlive)
+                Sleep(30);
+            if (g_hThread != INVALID_HANDLE_VALUE)
+                CloseHandle(g_hThread);
+            g_hThread = INVALID_HANDLE_VALUE;
+            return;
+        }
     }
 
     assert(!g_bThreadAlive);
