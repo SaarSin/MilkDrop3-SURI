@@ -172,7 +172,7 @@ The project was planned on top of the upstream commit above, as a roadmap of pha
 | [Phases 8–9](docs/superpowers/plans/2026-10-25-phase-8-9-now-playing-sprites.md) | Song info, sprites and messages |
 | [Phase 10 design](docs/superpowers/specs/2026-10-25-phase-10-drag-drop-playlist-design.md) and [plan](docs/superpowers/plans/2026-10-25-phase-10-drag-drop-playlist.md) | Drag & drop and Playlist |
 | [Phase 13](docs/superpowers/plans/2026-10-27-phase-13-packaging.md) | Packaging |
-| [Phases 14-15](docs/superpowers/plans/2026-10-27-phase-14-calm-motion.md) | Calm motion and the calm meter (built, waiting for the manual test) |
+| [Phases 14-15](docs/superpowers/plans/2026-10-27-phase-14-calm-motion.md) | Calm motion and the calm meter (done; manual test 2026-11-06/07, two fix rounds) |
 
 Not built, by decision: webcam input, sending the image to other programs (Spout), and an x64 build. The Audio device menu is postponed until the audio code exposes device selection.
 
