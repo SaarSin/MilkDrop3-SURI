@@ -34,6 +34,7 @@ Everything below was added or changed on top of that commit. How each part was p
 - **Hang on exit:** closing the window while the preset scan was running hung the process.
 - **No crash** when a random custom message is requested but none are defined.
 - **Sprites in non-4:3 windows** were stretched. This MilkDrop 2 bug is fixed.
+- **"Preset not found" on every Space:** after one preset failed to load (for example from the list of another folder), the preset history kept an empty place, and every later Space tried to load it and failed until restart. This MilkDrop 2 bug is fixed: a failed load gives the place back, and the history never steps onto an empty place.
 
 ## Removed
 
@@ -134,16 +135,16 @@ Three settings that tame presets which move too fast or flicker. They belong to 
 
 ### Calm meter (phase 15)
 A meter that measures the image and suggests Speed, Sensitivity and Anti-flicker for the current preset. It only suggests: **it never changes anything by itself**. There is no timer and no action on preset load; it measures only while it is on.
-- **Ctrl+9** turns the meter on or off. It adds one line to the corner card, for example `flash 2.1/s  motion 55%/s  -> Speed 70% · Sensitivity 100% · Anti-flicker Soft`. Flashes per second come from the image on screen, motion is in % of screen width per second from the warp mesh, and the arrow shows the suggested values.
-- **Ctrl+7** applies the shown suggestion to the current preset and saves it into the preset file like any calm change. Also in right-click, View, Motion: Calm meter, Apply suggestion. Both keys need a preset file and do nothing while a text prompt is open.
+- **Ctrl+9** turns the meter on or off. It adds two lines to the corner card, for example `flash 2.1/s  motion 55%/s` and below it `-> Speed 70% · Sensitivity 100% · Anti-flicker: Soft`. Flashes per second come from the image on screen, motion is in % of screen width per second from the warp mesh, and the arrow shows the suggested values.
+- **Ctrl+7** applies the shown suggestion to the current preset and saves it into the preset file like any calm change. Also in right-click, View, Motion: Calm meter, Apply suggestion. Both keys need a preset file and do nothing while a text prompt, the preset list or a K / Y prompt is open.
 - **Suggestion rules:**
   - Flashes of 3 per second or more suggest Strong anti-flicker; 1.5 per second or more suggest at least Soft.
   - Motion above 40 % per second lowers Speed in proportion (for example 80 %/s halves it).
-  - Sensitivity is lowered the same way, but only when the motion follows the bass.
+  - When the motion follows the bass, Sensitivity is trimmed too, but never below 50%, and not at all once it is at 50% or lower: Speed alone already brings the motion to the target, and the meter cannot tell whether a lower Sensitivity helped.
   - A suggestion never raises a value and never weakens Anti-flicker.
 - **Limits:**
   - `meter not available` is shown when the GPU read-back of the image cannot be created.
-  - The 40 %/s target is a starting value to calibrate.
+  - The 40 %/s target was checked on Soup (217 %/s at 100% suggests Speed 20%; at 15% the motion is 21 %/s). Presets that swirl the whole image all the time can read high (300 %/s and more) even when they look smooth.
 - **Code:** `features/calm.*` (flicker meter, mesh motion, suggestion).
 
 ## Content
