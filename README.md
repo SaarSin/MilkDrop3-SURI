@@ -13,7 +13,7 @@ This build is based on [milkdrop2077/MilkDrop3](https://github.com/milkdrop2077/
 - **Sprites and messages**: PNG, GIF and JPG images over the visualization. Move them with the mouse, resize them with the wheel, and save them with the preset.
 - **Drag & drop and Playlist**: drop presets or folders onto the window, and build playlists with the P key.
 - **Stable audio**: capture recovers when the audio device changes or is unplugged.
-- **9,795 presets** from projectM's "Cream of the Crop" pack, plus the MilkDrop textures.
+- **10,557 presets**: 9,795 from projectM's "Cream of the Crop" pack and 762 MilkDrop2077 presets from Milkwave (in the `Milkdrop2077` folder), plus the MilkDrop textures.
 
 ## Download and run
 
@@ -41,5 +41,5 @@ The build downloads D3DX9 from NuGet automatically. See [docs/PROJECT_STATUS.md]
 ## License and credits
 
 - **Code:** BSD licenses. MilkDrop 2 is © Nullsoft, MilkDrop3 / BeatDrop is © Maxim Volskiy and contributors, and the changes in this build are © SaarSin. See [LICENSE.txt](LICENSE.txt).
-- **Presets and textures:** from the projectM community packs. They are credited to their authors by file name. See [content/PROVENANCE.md](content/PROVENANCE.md). If you are a preset author and want your work removed, please open an issue.
+- **Presets and textures:** from the projectM community packs and Milkwave. They are credited to their authors by file name. See [content/PROVENANCE.md](content/PROVENANCE.md). If you are a preset author and want your work removed, please open an issue.
 - **D3DX9 runtime DLLs:** redistributed under Microsoft's terms, which are included in the package.
