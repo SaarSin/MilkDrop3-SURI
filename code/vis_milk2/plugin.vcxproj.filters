@@ -154,6 +154,9 @@
     <ClCompile Include="features\title_anim.cpp">
       <Filter>features</Filter>
     </ClCompile>
+    <ClCompile Include="features\preset_history.cpp">
+      <Filter>features</Filter>
+    </ClCompile>
     <ClCompile Include="features\now_playing_winrt.cpp">
       <Filter>features</Filter>
     </ClCompile>
@@ -210,6 +213,9 @@
       <Filter>features</Filter>
     </ClInclude>
     <ClInclude Include="features\title_anim.h">
+      <Filter>features</Filter>
+    </ClInclude>
+    <ClInclude Include="features\preset_history.h">
       <Filter>features</Filter>
     </ClInclude>
     <ClInclude Include="features\now_playing_winrt.h">

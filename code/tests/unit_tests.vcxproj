@@ -92,6 +92,8 @@
     <ClCompile Include="..\vis_milk2\features\now_playing.cpp" />
     <ClCompile Include="test_title_anim.cpp" />
     <ClCompile Include="..\vis_milk2\features\title_anim.cpp" />
+    <ClCompile Include="test_preset_history.cpp" />
+    <ClCompile Include="..\vis_milk2\features\preset_history.cpp" />
     <ClCompile Include="test_help_text.cpp" />
     <ClCompile Include="..\vis_milk2\features\help_text.cpp" />
     <ClCompile Include="test_desktop_mode.cpp" />

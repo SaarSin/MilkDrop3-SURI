@@ -69,6 +69,7 @@ Order of Function Calls
 #include "features/image_load_win32.h"
 #include "features/sprite_layout.h"
 #include "features/title_anim.h"
+#include "features/preset_history.h"   // SURI
 #include <assert.h>
 #include <algorithm>
 #include <commdlg.h>
@@ -7593,7 +7594,8 @@ void CPlugin::LoadRandomPreset(float fBlendTime)
     if (!m_bSequentialPresetOrder)
     {
         int next = (m_presetHistoryPos+1) % PRESET_HIST_LEN;
-        if (next != m_presetHistoryFwdFence && !bHistoryEmpty)
+        // SURI: never walk onto a slot without a file name (left by a load that failed)
+        if (CanStepForward(next, m_presetHistoryFwdFence, m_presetHistoryBackFence, m_presetHistory[next].empty()))
         {
             m_presetHistoryPos = next;
             LoadPreset( m_presetHistory[m_presetHistoryPos].c_str(), fBlendTime); 
@@ -7852,6 +7854,11 @@ void CPlugin::LoadPreset(const wchar_t *szPresetFilename, float fBlendTime)
         wchar_t buf[1024];
 		swprintf(buf, LoadResString(IDS_ERROR_PRESET_NOT_FOUND_X), p);
         AddError(buf, 6.0f, ERR_PRESET, true);
+        // SURI: the caller may have moved the history place forward for this file; undo that,
+        // or every later "next preset" walks onto the empty slot and fails too
+        if (!m_bSequentialPresetOrder)
+            m_presetHistoryPos = PosAfterFailedLoad(m_presetHistoryPos, m_presetHistoryFwdFence,
+                                                    m_presetHistoryBackFence, PRESET_HIST_LEN);
         return;
     }
 
