@@ -51,3 +51,22 @@ TEST(TestPresetFilter_PasteCutsToLength) {
     PresetSearchFromPaste(in, out, 64);
     CHECK(wcslen(out) == 63);
 }
+// list layout for the highlight tests: 0 "[ .. ]", 1-2 folders, 3-5 presets (nDirs = 3)
+TEST(TestPresetFilter_HighlightPrefersPreset) {
+    const bool vis[] = { true, true, false, false, true, true };
+    CHECK(PresetSearchHighlight(2, vis, 6, 3, 0) == 4);   // hidden -> first matching preset
+    CHECK(PresetSearchHighlight(0, vis, 6, 3, 0) == 4);   // on "[ .. ]" while searching -> leaves it
+    CHECK(PresetSearchHighlight(5, vis, 6, 3, 0) == 5);   // a shown match stays
+}
+TEST(TestPresetFilter_HighlightFallsBackToFolder) {
+    const bool vis[] = { true, false, true, false, false, false };
+    CHECK(PresetSearchHighlight(4, vis, 6, 3, 0) == 2);   // only a folder matches -> that folder
+    CHECK(PresetSearchHighlight(0, vis, 6, 3, 0) == 2);
+    CHECK(PresetSearchHighlight(2, vis, 6, 3, 0) == 2);
+}
+TEST(TestPresetFilter_HighlightNothingMatches) {
+    const bool vis[] = { true, false, false, false, false, false };
+    CHECK(PresetSearchHighlight(4, vis, 6, 3, 0) == 0);   // only "[ .. ]" is left
+    const bool none[] = { false, false, false };
+    CHECK(PresetSearchHighlight(1, none, 3, 0, -1) == -1); // empty list (no "[ .. ]" at the root)
+}

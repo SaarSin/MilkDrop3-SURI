@@ -120,6 +120,7 @@ Everything below was added or changed on top of that commit. How each part was p
 - **Typing** in the preset list (L) shows only the presets and folders whose name contains the text, ignoring case. `*` stands for any run of characters and `?` for one, so `geiss*dust` finds "Geiss - Cosmic Dust". `[ .. ]` always stays, so the folder can still be left.
 - **Keys:** Backspace erases a letter, Esc clears the search (a second Esc closes the list), and Ctrl+V or Shift+Insert puts the first line of the clipboard into the search (a `.milk` extension is dropped). The arrows, Home / End and PgUp / PgDn move through the shown entries only.
 - **Header:** shows the search and the number of presets found, or "nothing matches". Every visit and every folder change starts with the full list.
+- **Highlight:** while searching it never rests on `[ .. ]` (which always shows): it moves to the first matching preset, or to the first matching folder when only folders match, so Enter does not leave the folder by mistake.
 - Replaces the old jump to the first preset that starts with a letter.
 - **Code:** `features/preset_filter.*`.
 

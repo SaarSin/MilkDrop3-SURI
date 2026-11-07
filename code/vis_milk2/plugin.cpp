@@ -73,6 +73,7 @@ Order of Function Calls
 #include "features/preset_filter.h"
 #include <assert.h>
 #include <algorithm>
+#include <memory>
 #include <commdlg.h>
 #include <locale.h>
 #include <process.h>  // for beginthread, etc.
@@ -8152,18 +8153,21 @@ int CPlugin::PresetListStep(int from, int dir) const
 void CPlugin::PresetFilterSet(const wchar_t* text)
 {
 	lstrcpynW(m_szPresetFilter, text ? text : L"", 64);
-	if (!PresetListVisible(m_nPresetListCurPos))
+	if (!m_szPresetFilter[0])
+		return;	// no search: the highlight stays where it is
+	// "[ .. ]" always shows, so it is not a match: leave it for the first matching preset,
+	// else the first matching folder (Enter on "[ .. ]" would leave the folder)
+	std::unique_ptr<bool[]> vis(new bool[m_nPresets > 0 ? m_nPresets : 1]);
+	int parentIdx = -1;
+	for (int i = 0; i < m_nPresets; i++)
 	{
-		int p = PresetListStep(-1, +1);
-		if (p >= 0 && p < m_nDirs)
-		{
-			// prefer a matching preset over "[ .. ]" (which always shows)
-			int q = PresetListStep(m_nDirs - 1, +1);
-			if (q >= 0) p = q;
-		}
-		if (p >= 0)
-			m_nPresetListCurPos = p;
+		vis[i] = PresetListVisible(i);
+		if (i < m_nDirs && wcscmp(m_presets[i].szFilename.c_str(), L"*..") == 0)
+			parentIdx = i;
 	}
+	int p = PresetSearchHighlight(m_nPresetListCurPos, vis.get(), m_nPresets, m_nDirs, parentIdx);
+	if (p >= 0)
+		m_nPresetListCurPos = p;
 }
 
 void CPlugin::FindValidPresetDir()

@@ -80,3 +80,16 @@ void PresetSearchFromPaste(const wchar_t* text, wchar_t* out, size_t outLen)
     while (n > 0 && out[n - 1] == L' ')
         out[--n] = 0;
 }
+
+int PresetSearchHighlight(int cur, const bool* visible, int n, int nDirs, int parentIdx)
+{
+    if (cur >= 0 && cur < n && visible[cur] && cur != parentIdx)
+        return cur;
+    for (int i = nDirs; i < n; i++)        // first shown preset
+        if (visible[i])
+            return i;
+    for (int i = 0; i < nDirs && i < n; i++) // first shown folder other than "[ .. ]"
+        if (visible[i] && i != parentIdx)
+            return i;
+    return (parentIdx >= 0 && parentIdx < n && visible[parentIdx]) ? parentIdx : -1;
+}
