@@ -5,7 +5,7 @@ reacting to the sound playing through the speakers (WASAPI loopback).
 
 **Base:** https://github.com/milkdrop2077/MilkDrop3 (commit `6b39088`, version 3.0.A). All changes since are listed in [CHANGES.md](../CHANGES.md).
 
-Last updated: 2026-10-28
+Last updated: 2026-11-07
 
 ---
 
@@ -36,7 +36,7 @@ build\Release\
   plugins\Milkdrop2\
     data\      base shaders (.fx)
     docs\
-    presets\   9,795 presets ("Cream of the Crop")
+    presets\   10,557 presets (9,795 "Cream of the Crop" + 762 Milkdrop2077 from Milkwave)
     textures\
 ```
 The program looks for its files in `<exe folder>\plugins\Milkdrop2\` (see `plugin.cpp`, `SUBDIR` in `defines.h`).
@@ -113,6 +113,8 @@ To move it to another computer, copy the whole `build\Release` folder, or use th
 | 12 | **Phase 10 (2026-10-26): Drag & Drop and Playlist.** Playlist screen (P key): two lists, Not playing and Playing, moving with the arrows, multi-select, type-to-search, and saving and loading `.m3u` in the `playlists\` folder. The playlist lasts until exit, and an empty list means "all". Dragging a folder or `.milk` files onto the window: existing presets (same name and same size) play immediately, and new ones are first shown in a confirmation window and copied without overwriting any file. Textures are copied only when the existing presets don't already find a texture with the same name. A single file loads immediately, and a group becomes the session playlist. Manually tested | `code/vis_milk2/features/*` (`playlist*`, `drop_import*`, `playlist_screen*`), `plugin.cpp`, `Milkdrop2PcmVisualizer.cpp`, `plugin.rc`, `code/tests/*`, `user-guide.html` |
 | 13 | **Phase 8 fixes (2026-10-27), from the manual test:**<br>• The song title from Now Playing or the T key stays for 7 seconds, then fades out over 3 seconds. ini settings: `fSongTitleHold`, `fSongTitleFade`.<br>• A long title shrinks the font down to 35% before it is cut with "...".<br>• The T key with no song does nothing.<br>After pause and resume the title is not shown again; this is intended. Retested | `features/title_anim.*`, `milkdropfs.cpp`, `plugin.cpp`, `code/tests/test_title_anim.cpp` |
 | 14 | **Phase 13 (2026-10-27): packaging.**<br>• `.\build.ps1 -Package` packages from the source files in a staging folder. The package has no ini, log or dragged-in presets.<br>• The sources of the presets, textures and base shaders are recorded in `content/PROVENANCE.md`.<br>• `-PresetSet Curated` packages the 500 presets in `content/curated.txt`, generated with `tools/make-curated.ps1`.<br>• Tool tests: `pwsh tools/test-tools.ps1`.<br>Manually tested: both packages unpacked and run | `tools/*`, `build.ps1`, `content/curated.txt` |
+| 15 | **Phases 14–15 (2026-10-28, merged 2026-11-07): calm motion and the calm meter.**<br>• Per-preset Speed (10%–150%), Sensitivity (0%–200%) and Anti-flicker (Off / Soft / Strong), stored in the preset file (`fCalmSpeed`, `fCalmSensitivity`, `nCalmAntiFlicker`, only non-default values). Keys: Ctrl+Shift+ +/- (speed), Ctrl+ +/- (sensitivity), Ctrl+0 (reset), and right-click, View, Motion.<br>• At most 60 preset steps per second, so fast displays do not speed presets up.<br>• Calm meter: Ctrl+9 shows flashes and motion per second and a suggestion; Ctrl+7 applies it. Nothing is applied by itself.<br>• Also fixed: a failed preset load no longer leaves an empty place in the history ("preset not found" on every Space).<br>Manually tested 2026-11-06/07, after two fix rounds. Details: [CHANGES.md](../CHANGES.md) | `features/calm.*`, `milkdropfs.cpp`, `plugin.cpp`, `plugin.rc`, `code/tests/test_calm.cpp` |
+| 16 | **Content (2026-11-07):** 762 MilkDrop2077 presets (folder `Milkdrop2077`) and the 31 textures they use, from IkeC/Milkwave at `002dedc`, without `Webcam.milk`. Sources and licences in `content/PROVENANCE.md` | `content/presets/Milkdrop2077/*`, `content/textures/*`, `content/PROVENANCE.md` |
 
 **Verified:** the build passes. The program starts with the window "MilkDrop 3.0.A" (today "MilkDrop 3.0.S"). Capture runs in real time
 (about 1.38 million frames in about 29 seconds, 48kHz) from a 7.1 headset, without crashing.
@@ -178,5 +180,11 @@ Detailed plan: [superpowers/plans/2026-10-25-phase-5-7-effects-screens-desktop.m
 - [x] git for the project.
 - [x] Manual tests: phase 8 (title display time and a long title), phases 9 and 10, and phase 13 (both packages unpacked into an empty folder and run).
 - [x] Old worktrees and branches cleaned up.
+- [x] Phases 14–15 (calm motion and the calm meter): manually tested after two fix rounds and merged into `main` (2026-11-07).
+- [x] Milkwave content (762 MilkDrop2077 presets and 31 textures) merged into `main` (2026-11-07).
+- [ ] Phase 16 (dancing 3D figure): a **feasibility study** on the `suri/phase-16` branch. Kept for reference and **not to be merged** as it is.
+- [ ] Phase 17 (dance engine, a new C++ engine for a dancing figure): in progress on the `suri/phase-17` branch. Milestones M0–M1 are done; M2 (timing) is under way.
+- [ ] Preset list filter (type-to-filter in L) on the `suri/preset-filter` branch: not committed yet. Its string IDs 842/843 clash with the calm menu IDs 842–852 on `main` and must be renumbered before merging.
+- [ ] Known limit: the calm meter reads presets that swirl the whole image as high motion (300 %/s and more) even when they look smooth.
 - [ ] Later: the Audio device menu (needs device selection in the audio code).
 - [ ] Later: improve the on-screen UI and menu (user request). First define which "panel" is meant: the on-screen menu (D3D) or the settings dialogs (Win32).
