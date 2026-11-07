@@ -184,7 +184,7 @@ Detailed plan: [superpowers/plans/2026-10-25-phase-5-7-effects-screens-desktop.m
 - [x] Milkwave content (762 MilkDrop2077 presets and 31 textures) merged into `main` (2026-11-07).
 - [ ] Phase 16 (dancing 3D figure): a **feasibility study** on the `suri/phase-16` branch. Kept for reference and **not to be merged** as it is.
 - [ ] Phase 17 (dance engine, a new C++ engine for a dancing figure): in progress on the `suri/phase-17` branch. Milestones M0–M1 are done; M2 (timing) is under way.
-- [ ] Preset list filter (type-to-filter in L) on the `suri/preset-filter` branch: not committed yet. Its string IDs 842/843 clash with the calm menu IDs 842–852 on `main` and must be renumbered before merging.
+- [ ] Preset list search (type-to-filter in L, Ctrl+V paste) on the `suri/preset-search` branch: committed, string IDs moved to 853/854; also fixes the start-up scan race that showed another folder's presets. Waiting for the user's manual test, then the merge.
 - [ ] Known limit: the calm meter reads presets that swirl the whole image as high motion (300 %/s and more) even when they look smooth.
 - [ ] Later: the Audio device menu (needs device selection in the audio code).
 - [ ] Later: improve the on-screen UI and menu (user request). First define which "panel" is meant: the on-screen menu (D3D) or the settings dialogs (Win32).
