@@ -35,6 +35,7 @@ Everything below was added or changed on top of that commit. How each part was p
 - **No crash** when a random custom message is requested but none are defined.
 - **Sprites in non-4:3 windows** were stretched. This MilkDrop 2 bug is fixed.
 - **"Preset not found" on every Space:** after one preset failed to load (for example from the list of another folder), the preset history kept an empty place, and every later Space tried to load it and failed until restart. This MilkDrop 2 bug is fixed: a failed load gives the place back, and the history never steps onto an empty place.
+- **The preset list showed another folder's presets:** pressing L while the preset scan was still running at start-up started a second scan thread, and a later folder change (for example `[ .. ]`) no longer stopped the first one. The list then showed the new folder's name but the old folder's presets, and Enter gave "preset not found". This MilkDrop 2 bug is fixed: L waits for the running scan instead.
 
 ## Removed
 
@@ -114,6 +115,13 @@ Everything below was added or changed on top of that commit. How each part was p
   - Multi-select and type-to-search.
   - `.m3u` save and load in `playlists\`.
 - **Code:** `features/drop_import.*`, `features/playlist*`.
+
+### Search in the preset list
+- **Typing** in the preset list (L) shows only the presets and folders whose name contains the text, ignoring case. `*` stands for any run of characters and `?` for one, so `geiss*dust` finds "Geiss - Cosmic Dust". `[ .. ]` always stays, so the folder can still be left.
+- **Keys:** Backspace erases a letter, Esc clears the search (a second Esc closes the list), and Ctrl+V or Shift+Insert puts the first line of the clipboard into the search (a `.milk` extension is dropped). The arrows, Home / End and PgUp / PgDn move through the shown entries only.
+- **Header:** shows the search and the number of presets found, or "nothing matches". Every visit and every folder change starts with the full list.
+- Replaces the old jump to the first preset that starts with a letter.
+- **Code:** `features/preset_filter.*`.
 
 ### Calm motion (phase 14)
 Three settings that tame presets which move too fast or flicker. They belong to the preset on screen, like its rating.

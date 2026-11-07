@@ -407,6 +407,7 @@ public:
 								        //   Be careful - this can be -1 if the user changed dir. & a new preset hasn't been loaded yet.
         wchar_t		m_szCurrentPresetFile[512];	// w/o path.  this is always valid (unless no presets were found)
         PresetList  m_presets;
+        wchar_t     m_szPresetFilter[64];   // SURI: what the user typed in the Load menu ("" = show all)
 	    void		UpdatePresetList(bool bBackground=false, bool bForce=false, bool bTryReselectCurrentPreset=true);
         wchar_t     m_szUpdatePresetMask[MAX_PATH];
         bool        m_bPresetListReady;
@@ -648,7 +649,10 @@ public:
 	    void		RenamePresetFile(wchar_t *szOldFile, wchar_t *szNewFile);
 	    void		SetCurrentPresetRating(float fNewRating);
 	    bool		SaveCalmToPreset();   // SURI: writes m_pState->m_calm into the current preset file
-	    void		SeekToPreset(wchar_t cStartChar);
+	    // SURI: type-to-filter in the Load menu; the list shows only the entries that match.
+	    bool		PresetListVisible(int i) const;
+	    int			PresetListStep(int from, int dir) const;   // next visible index after 'from', or -1
+	    void		PresetFilterSet(const wchar_t* text);
 	    bool		ReversePropagatePoint(float fx, float fy, float *fx2, float *fy2);
 	    int 		HandleRegularKey(WPARAM wParam);
 	    bool		DispatchCommand(Cmd c, HWND hWnd);	// SURI: true if handled; false -> caller continues the old key path
