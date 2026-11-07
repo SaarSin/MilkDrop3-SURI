@@ -39,6 +39,7 @@ const wchar_t* HelpText()
     L"Enter or Space\tload the selected preset, or open the folder\n"
     L"Type text\tshow only presets whose name contains it (* and ? are wildcards)\n"
     L"Backspace\terase the last letter of the search\n"
+    L"Ctrl+V\tsearch for the text on the clipboard\n"
     L"Del\tdelete the selected preset (asks first)\n"
     L"Ins\trename the selected preset\n"
     L"Esc\tclear the search, or close the list\n"

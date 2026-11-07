@@ -5436,6 +5436,28 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
         //         if we don't handle them, return 1, and the shell will
         //         (passing some to the shell's key bindings and the rest to DefWindowProc)
 		//		note: regular hotkeys should be handled in HandleRegularKey.
+		// SURI: the Load menu's search: Ctrl+V or Shift+Insert puts the clipboard text into it
+		if (m_UI_mode == UI_LOAD &&
+		    ((wParam == 'V' && (GetKeyState(VK_CONTROL) & 0x8000) && !(GetKeyState(VK_MENU) & 0x8000)) ||
+		     (wParam == VK_INSERT && (GetKeyState(VK_SHIFT) & 0x8000))))
+		{
+			wchar_t f[64];
+			f[0] = 0;
+			if (OpenClipboard(hWnd))
+			{
+				HANDLE hData = GetClipboardData(CF_UNICODETEXT);
+				const wchar_t* text = hData ? (const wchar_t*)GlobalLock(hData) : nullptr;
+				if (text)
+				{
+					PresetSearchFromPaste(text, f, 64);   // copied while the clipboard is still locked
+					GlobalUnlock(hData);
+				}
+				CloseClipboard();
+			}
+			if (f[0])
+				PresetFilterSet(f);   // replaces what was typed
+			return 0; // we processed (or absorbed) the key
+		}
 		// SURI: the Load menu's search: Backspace erases, Space types a space once something is typed
 		if (m_UI_mode == UI_LOAD && m_szPresetFilter[0] && (wParam == VK_BACK || wParam == VK_SPACE))
 		{
