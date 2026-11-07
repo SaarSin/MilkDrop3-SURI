@@ -70,6 +70,7 @@ Order of Function Calls
 #include "features/sprite_layout.h"
 #include "features/title_anim.h"
 #include "features/preset_history.h"   // SURI
+#include "features/preset_filter.h"
 #include <assert.h>
 #include <algorithm>
 #include <commdlg.h>
@@ -571,6 +572,7 @@ void CPlugin::MyPreInitialize()
 	m_nPresets		= 0;
 	m_nDirs			= 0;
     m_nPresetListCurPos = 0;
+	m_szPresetFilter[0] = 0;
 	m_nCurrentPreset = -1;
 	m_szCurrentPresetFile[0] = 0;
     m_szLoadingPreset[0] = 0;
@@ -4336,6 +4338,35 @@ void CPlugin::MyRenderUI(
                 folderName = folderName ? folderName + 1 : folder;
                 wchar_t hint[256];   // SURI: own buffers (LoadResString's one-argument form shares a static buffer)
                 LoadResString(IDS_UI_BROWSER_HINT, hint, 256);
+
+                // SURI: the list shows only the entries that match the search (all when there is none);
+                // vis holds their indices into m_presets, in order, and curPos is the highlight's place in it.
+                std::vector<int> vis;
+                vis.reserve(m_nPresets);
+                int nFound = 0;
+                for (int k=0; k<m_nPresets; k++)
+                    if (PresetListVisible(k))
+                    {
+                        vis.push_back(k);
+                        if (k >= m_nDirs) nFound++;
+                    }
+                const int nVis = (int)vis.size();
+                int curPos = 0;
+                {
+                    std::vector<int>::iterator it = std::lower_bound(vis.begin(), vis.end(), m_nPresetListCurPos);
+                    curPos = (int)(it - vis.begin());
+                    if (curPos >= nVis) curPos = max(nVis - 1, 0);
+                    if (nVis > 0) m_nPresetListCurPos = vis[curPos];   // the highlight is always a shown entry
+                }
+                if (m_szPresetFilter[0])
+                {
+                    wchar_t searchFmt[64];
+                    LoadResString(IDS_UI_BROWSER_SEARCH, searchFmt, 64);
+                    swprintf(hint, 256, searchFmt, m_szPresetFilter, nFound);
+                }
+                wchar_t noMatch[64];
+                LoadResString(IDS_UI_BROWSER_NO_MATCH, noMatch, 64);
+
                 wchar_t pageFmt[64];
                 LoadResString(IDS_UI_PAGE_X_OF_Y, pageFmt, 64);
 
@@ -4364,40 +4395,32 @@ void CPlugin::MyRenderUI(
                 if (lines_available > MAX_PRESETS_PER_PAGE)
                     lines_available = MAX_PRESETS_PER_PAGE;
 
+				// SURI: paging moves through the shown entries (vis), not through m_presets
 				if (m_bUserPagedDown)
 				{
-					m_nPresetListCurPos += lines_available;
-					if (m_nPresetListCurPos >= m_nPresets)
-						m_nPresetListCurPos = m_nPresets - 1;
-
-					// remember this preset's name so the next time they hit 'L' it jumps straight to it
-					//lstrcpy(m_szLastPresetSelected, m_presets[m_nPresetListCurPos].szFilename.c_str());
-
+					curPos = min(curPos + lines_available, max(nVis - 1, 0));
+					if (nVis > 0) m_nPresetListCurPos = vis[curPos];
 					m_bUserPagedDown = false;
 				}
 
 				if (m_bUserPagedUp)
 				{
-					m_nPresetListCurPos -= lines_available;
-					if (m_nPresetListCurPos < 0)
-						m_nPresetListCurPos = 0;
-
-					// remember this preset's name so the next time they hit 'L' it jumps straight to it
-					//lstrcpy(m_szLastPresetSelected, m_presets[m_nPresetListCurPos].szFilename.c_str());
-
+					curPos = max(curPos - lines_available, 0);
+					if (nVis > 0) m_nPresetListCurPos = vis[curPos];
 					m_bUserPagedUp = false;
 				}
 
-				int i;
-				int first_line = m_nPresetListCurPos - (m_nPresetListCurPos % lines_available);
+				int k;
+				int first_line = curPos - (curPos % lines_available);
 				int last_line  = first_line + lines_available;
 				wchar_t str[512], str2[512];
 
-				if (last_line > m_nPresets)
-					last_line = m_nPresets;
+				if (last_line > nVis)
+					last_line = nVis;
+				const int rowsShown = (nVis > 0) ? (last_line - first_line) : 1;   // 1: the "nothing matches" row
 
                 wchar_t pageStr[64];
-                swprintf(pageStr, 64, pageFmt, m_nPresetListCurPos/lines_available+1, (m_nPresets+lines_available-1)/lines_available);
+                swprintf(pageStr, 64, pageFmt, curPos/lines_available+1, max(1, (nVis+lines_available-1)/lines_available));
                 SetRect(&mr, 0, 0, maxInnerW, 0);
                 UiMeasure(fSmall, pageStr, &mr, DT_SINGLELINE);
                 int innerW = max(max(titleW, hintW), (int)(mr.right - mr.left));
@@ -4409,7 +4432,7 @@ void CPlugin::MyRenderUI(
                     {
                         innerW = min(innerW, maxInnerW);
                         card.right  = x0 + innerW + 2*pad;
-                        card.bottom = y0 + pad + headH + (last_line - first_line)*rowH + secGap + footH + pad;
+                        card.bottom = y0 + pad + headH + rowsShown*rowH + secGap + footH + pad;
                         DrawRoundedPanel(&card, UiPx(14), CARD_FILL_PANEL, CARD_BORDER);
 
                         RECT tr = { x0 + pad, y0 + pad, x0 + pad + innerW, y0 + pad + titleH };
@@ -4421,8 +4444,23 @@ void CPlugin::MyRenderUI(
                         *upper_left_corner_y = card.bottom + UiPx(10);
                     }
 
-				    for (i=first_line; i<last_line; i++)
+                    if (nVis == 0)
+                    {
+                        RECT r2;
+                        SetRect(&r2, x0 + pad, rect.top, x0 + pad + innerW, rect.top + rowH);
+                        if (pass == 0)
+                        {
+                            r2.right = x0 + pad + maxInnerW;
+                            m_text.DrawTextW(GetFont(SIMPLE_FONT), noMatch, -1, &r2, DT_SINGLELINE | DT_NOPREFIX | DT_CALCRECT, 0xFFFFFFFF, false);
+                            innerW = max(innerW, (int)(r2.right - r2.left));
+                        }
+                        else
+                            m_text.DrawTextW(GetFont(SIMPLE_FONT), noMatch, -1, &r2, DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX, CARD_TEXT_2, false);
+                    }
+
+				    for (k=first_line; k<last_line; k++)
 				    {
+					    const int i = vis[k];
 					    // remove the extension before displaying the filename.  also pad w/spaces.
 					    bool bIsDir = (m_presets[i].szFilename.c_str()[0] == '*');
 					    bool bIsRunning = (i == m_nCurrentPreset);
@@ -4448,7 +4486,7 @@ void CPlugin::MyRenderUI(
 							lstrcatW(str2, LoadResString(IDS_LOCKED));
 
                         RECT r2;
-                        SetRect(&r2, x0 + pad, rect.top + (i - first_line)*rowH, x0 + pad + innerW, rect.top + (i - first_line + 1)*rowH);
+                        SetRect(&r2, x0 + pad, rect.top + (k - first_line)*rowH, x0 + pad + innerW, rect.top + (k - first_line + 1)*rowH);
                         if (pass == 0)
                         {
                             r2.right = x0 + pad + maxInnerW;
@@ -5398,6 +5436,20 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
         //         if we don't handle them, return 1, and the shell will
         //         (passing some to the shell's key bindings and the rest to DefWindowProc)
 		//		note: regular hotkeys should be handled in HandleRegularKey.
+		// SURI: the Load menu's search: Backspace erases, Space types a space once something is typed
+		if (m_UI_mode == UI_LOAD && m_szPresetFilter[0] && (wParam == VK_BACK || wParam == VK_SPACE))
+		{
+			wchar_t f[64];
+			lstrcpynW(f, m_szPresetFilter, 64);
+			size_t n = wcslen(f);
+			for (rep=0; rep<nRepeat; rep++)
+			{
+				if (wParam == VK_BACK && n > 0) f[--n] = 0;
+				else if (wParam == VK_SPACE && n < 63) { f[n++] = L' '; f[n] = 0; }
+			}
+			PresetFilterSet(f);
+			return 0; // we processed (or absorbed) the key
+		}
 		{
 			// SURI: calm motion keys: Ctrl+[+/-/0] and Ctrl+Shift+[+/-]. Typing never gets here.
 			if ((GetKeyState(VK_CONTROL) & 0x8000) && !(GetKeyState(VK_MENU) & 0x8000))
@@ -5443,6 +5495,11 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
             break;
 
 		case VK_ESCAPE:
+			if (m_UI_mode == UI_LOAD && m_szPresetFilter[0])
+			{
+				PresetFilterSet(L"");	// SURI: Esc clears the search first
+				return 0; // we processed (or absorbed) the key
+			}
 			if (m_UI_mode == UI_LOAD || m_UI_mode == UI_MENU || m_UI_mode == UI_MASHUP)
 			{
 				m_UI_mode = UI_REGULAR;
@@ -5486,8 +5543,11 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
             else if (m_UI_mode == UI_LOAD)
 			{
                 for (rep=0; rep<nRepeat; rep++)
-				    if (m_nPresetListCurPos > 0)
-					    m_nPresetListCurPos--;
+				{
+					int p = PresetListStep(m_nPresetListCurPos, -1);	// SURI: skip what the search hides
+					if (p >= 0)
+						m_nPresetListCurPos = p;
+				}
 				return 0; // we processed (or absorbed) the key
 
 				// remember this preset's name so the next time they hit 'L' it jumps straight to it
@@ -5506,8 +5566,11 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
 			else if (m_UI_mode == UI_LOAD)
 			{
                 for (rep=0; rep<nRepeat; rep++)
-    				if (m_nPresetListCurPos < m_nPresets - 1)
-	    				m_nPresetListCurPos++;
+				{
+					int p = PresetListStep(m_nPresetListCurPos, +1);	// SURI: skip what the search hides
+					if (p >= 0)
+						m_nPresetListCurPos = p;
+				}
 				return 0; // we processed (or absorbed) the key
 
 				// remember this preset's name so the next time they hit 'L' it jumps straight to it
@@ -5543,7 +5606,9 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
 		case VK_HOME:
 			if (m_UI_mode == UI_LOAD)
             {
-				m_nPresetListCurPos = 0;
+				int p = PresetListStep(-1, +1);	// SURI: first shown entry
+				if (p >= 0)
+					m_nPresetListCurPos = p;
 				return 0; // we processed (or absorbed) the key
             }
             else if (m_UI_mode == UI_MASHUP)
@@ -5556,7 +5621,9 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
 		case VK_END:
 			if (m_UI_mode == UI_LOAD)
             {
-				m_nPresetListCurPos = m_nPresets - 1;
+				int p = PresetListStep(m_nPresets, -1);	// SURI: last shown entry
+				if (p >= 0)
+					m_nPresetListCurPos = p;
 				return 0; // we processed (or absorbed) the key
             }
             else if (m_UI_mode == UI_MASHUP)
@@ -5570,7 +5637,8 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
 		case VK_DELETE:
 			if (m_UI_mode == UI_LOAD)
 			{
-				if (m_presets[m_nPresetListCurPos].szFilename.c_str()[0] != '*')	// can't delete directories
+				if (PresetListVisible(m_nPresetListCurPos) &&	// SURI: nothing to delete when the search hides all
+				    m_presets[m_nPresetListCurPos].szFilename.c_str()[0] != '*')	// can't delete directories
 					m_UI_mode = UI_LOAD_DEL;
 				return 0; // we processed (or absorbed) the key
 			}
@@ -5632,7 +5700,8 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
 		case VK_INSERT:		// RENAME
 			if (m_UI_mode == UI_LOAD)
 			{
-				if (m_presets[m_nPresetListCurPos].szFilename.c_str()[0] != '*')	// can't rename directories
+				if (PresetListVisible(m_nPresetListCurPos) &&	// SURI: nothing to rename when the search hides all
+				    m_presets[m_nPresetListCurPos].szFilename.c_str()[0] != '*')	// can't rename directories
 				{
 					// go into RENAME mode
 					m_UI_mode = UI_LOAD_RENAME;
@@ -5668,6 +5737,9 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
 			{
                 HitEnterFromLoadMenu:
 
+				if (!PresetListVisible(m_nPresetListCurPos))
+					return 0;	// SURI: the search hides everything; nothing to load
+
 				if (m_presets[m_nPresetListCurPos].szFilename.c_str()[0] == '*')
 				{
 					// CHANGE DIRECTORY
@@ -5693,6 +5765,7 @@ LRESULT CPlugin::MyWindowProc(HWND hWnd, unsigned uMsg, WPARAM wParam, LPARAM lP
 
 					WritePrivateProfileStringW(L"settings",L"szPresetDir",GetPresetDir(),GetConfigIniFile());
 					m_playlist.SetAll();	// SURI: the playlist named files of the old library
+					m_szPresetFilter[0] = 0;	// SURI: a new folder starts with its full list
 
 					UpdatePresetList(false, true, false);
 
@@ -5823,6 +5896,7 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 		if (m_UI_mode == UI_REGULAR || m_UI_mode == UI_MENU)
 		{
             UpdatePresetList(); // make sure list is completely ready
+			m_szPresetFilter[0] = 0;   // SURI: every visit starts with the full list
 			m_UI_mode = UI_LOAD;
 			m_show_help = 0;   // SURI: so PgUp / PgDn page the list, not the help
 			m_bUserPagedUp = false;
@@ -5856,6 +5930,7 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 		}
 		// reuse the Load menu's on-screen "delete? y/n" prompt, pointed at the running preset
 		UpdatePresetList();
+		m_szPresetFilter[0] = 0;   // SURI: so the list behind the prompt shows the running preset
 		m_nPresetListCurPos = m_nCurrentPreset;
 		m_UI_mode = UI_LOAD_DEL;
 		return true;
@@ -6221,9 +6296,18 @@ int CPlugin::HandleRegularKey(WPARAM wParam)
 
     // return 0 if you process/absorb the key; otherwise return 1.
 
-	if (m_UI_mode == UI_LOAD && ((wParam >= 'A' && wParam <= 'Z') || (wParam >= 'a' && wParam <= 'z')))
+	if (m_UI_mode == UI_LOAD && wParam >= 0x20 && wParam != 0x7F)
 	{
-		SeekToPreset((char)wParam);
+		// SURI: every printable character goes to the search. Space arrives here too, but
+		// WM_KEYDOWN already handled it (it loads the preset, or types a space while searching).
+		if (wParam != ' ')
+		{
+			wchar_t f[64];
+			lstrcpynW(f, m_szPresetFilter, 64);
+			size_t n = wcslen(f);
+			if (n < 63) { f[n] = (wchar_t)wParam; f[n+1] = 0; }
+			PresetFilterSet(f);
+		}
 		return 0; // we processed (or absorbed) the key
 	}
     else if (m_UI_mode == UI_MASHUP && wParam >= '1' && wParam <= ('0' + MASH_SLOTS))
@@ -7595,6 +7679,7 @@ void CPlugin::LoadRandomPreset(float fBlendTime)
 			if (m_UI_mode == UI_REGULAR || m_UI_mode == UI_MENU)
 		    {
 			    m_UI_mode = UI_LOAD;
+			    m_szPresetFilter[0] = 0;   // SURI
 			    m_bUserPagedUp = false;
 			    m_bUserPagedDown = false;
             }
@@ -8013,21 +8098,49 @@ void CPlugin::LoadPresetTick()
         m_nLoadingPreset++;
 }
 
-void CPlugin::SeekToPreset(wchar_t cStartChar)
+// SURI: type-to-filter in the Load menu. An entry is shown when its name (without the
+// extension, without the '*' that marks a folder) contains the search; "[ .. ]" always shows,
+// so the user can still leave the folder.
+bool CPlugin::PresetListVisible(int i) const
 {
-	if (cStartChar >= L'a' && cStartChar <= L'z')
-		cStartChar -= L'a' - L'A';
+	if (i < 0 || i >= m_nPresets)
+		return false;
+	if (!m_szPresetFilter[0])
+		return true;
+	const wchar_t* fn = m_presets[i].szFilename.c_str();
+	if (fn[0] == L'*')
+		return wcscmp(fn, L"*..") == 0 || PresetNameMatches(fn + 1, m_szPresetFilter);
+	wchar_t name[MAX_PATH];
+	lstrcpynW(name, fn, MAX_PATH);
+	RemoveExtension(name);
+	return PresetNameMatches(name, m_szPresetFilter);
+}
 
-	for (int i = m_nDirs; i < m_nPresets; i++)
+int CPlugin::PresetListStep(int from, int dir) const
+{
+	for (int i = from + dir; i >= 0 && i < m_nPresets; i += dir)
+		if (PresetListVisible(i))
+			return i;
+	return -1;
+}
+
+// SURI: sets the search and keeps the highlight on a shown entry: it stays when it still
+// matches, otherwise it moves to the first match (the list then shows "nothing matches"
+// when there is none).
+void CPlugin::PresetFilterSet(const wchar_t* text)
+{
+	lstrcpynW(m_szPresetFilter, text ? text : L"", 64);
+	if (!PresetListVisible(m_nPresetListCurPos))
 	{
-		wchar_t ch = m_presets[i].szFilename.c_str()[0];
-		if (ch >= L'a' && ch <= L'z')
-			ch -= L'a' - L'A';
-		if (ch == cStartChar)
+		int p = PresetListStep(-1, +1);
+		if (p >= 0 && p < m_nDirs)
 		{
-			m_nPresetListCurPos = i;
-			return;
+			// prefer a matching preset over "[ .. ]" (which always shows)
+			int q = PresetListStep(m_nDirs - 1, +1);
+			if (q >= 0) p = q;
 		}
+		if (p >= 0)
+			m_nPresetListCurPos = p;
 	}
 }
 

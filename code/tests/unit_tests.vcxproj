@@ -98,6 +98,8 @@
     <ClCompile Include="..\vis_milk2\features\help_text.cpp" />
     <ClCompile Include="test_desktop_mode.cpp" />
     <ClCompile Include="..\vis_milk2\features\desktop_mode.cpp" />
+    <ClCompile Include="test_preset_filter.cpp" />
+    <ClCompile Include="..\vis_milk2\features\preset_filter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mini_test.h" />

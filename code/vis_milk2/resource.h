@@ -511,6 +511,8 @@
 #define IDS_MENU_AF_STRONG              850
 #define IDS_MENU_CALM_METER             851   // SURI: calm meter (phase 15)
 #define IDS_MENU_CALM_APPLY             852
+#define IDS_UI_BROWSER_SEARCH           853   // SURI: preset list search
+#define IDS_UI_BROWSER_NO_MATCH         854
 
 // Next default values for new objects
 // 

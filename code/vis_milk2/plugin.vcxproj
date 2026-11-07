@@ -169,6 +169,7 @@ if exist "$(RepoRoot)content\textures" xcopy /Y /Q /E /I /D "$(RepoRoot)content\
       <ForceConformanceInForLoopScope>true</ForceConformanceInForLoopScope>
     </ClCompile>
     <ClCompile Include="features\help_text.cpp" />
+    <ClCompile Include="features\preset_filter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="plugin_icon.ico" />
@@ -188,6 +189,7 @@ if exist "$(RepoRoot)content\textures" xcopy /Y /Q /E /I /D "$(RepoRoot)content\
     <ClInclude Include="features\sprite_preset.h" />
     <ClInclude Include="features\drop_import.h" />
     <ClInclude Include="features\playlist.h" />
+    <ClInclude Include="features\preset_filter.h" />
     <ClInclude Include="features\playlist_screen.h" />
     <ClInclude Include="features\image_load_win32.h" />
     <ClInclude Include="features\now_playing_winrt.h" />
