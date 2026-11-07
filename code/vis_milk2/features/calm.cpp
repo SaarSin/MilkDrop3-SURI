@@ -404,8 +404,8 @@ CalmSettings SuggestCalm(const CalmStats& s, const CalmSettings& current)
         float sp = Snap(current.speed * ratio, kSpeedStep, kSpeedMin, current.speed);
         if (sp > current.speed) sp = current.speed;
         r.speed = sp;
-        if (s.bassCorrelation > 0.5f) {
-            float se = Snap(current.sensitivity * ratio, kSensStep, kSensMin, current.sensitivity);
+        if (s.bassCorrelation > 0.5f && current.sensitivity > kSensSuggestFloor) {
+            float se = Snap(current.sensitivity * ratio, kSensStep, kSensSuggestFloor, current.sensitivity);
             if (se > current.sensitivity) se = current.sensitivity;
             r.sensitivity = se;
         }

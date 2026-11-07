@@ -312,3 +312,14 @@ TEST(TestCalm_MeterLines) {   // SURI: two lines, so a narrow card no longer cut
     CalmSettings s; s.speed = 0.15f; s.sensitivity = 0.2f; s.antiFlicker = AntiFlicker::Strong;
     CHECK(MeterSuggestionLine(s) == L"\x2192 Speed 15% \x00B7 Sensitivity 20% \x00B7 Anti-flicker: Strong");
 }
+TEST(TestCalm_SuggestSensitivityFloor) {   // SURI: Speed already brings motion to the target;
+    // Sensitivity is lowered at most to 50% and never chased further (manual test: Soup 20% -> 0%)
+    CalmSettings cur;   // 100% / 100%
+    CalmSettings r = SuggestCalm(Stats(0, 217, 0.9f), cur);
+    CHECK(Near(r.speed, 0.2f));
+    CHECK(Near(r.sensitivity, kSensSuggestFloor));
+    cur.sensitivity = 0.2f;
+    CHECK(SuggestCalm(Stats(0, 230, 0.9f), cur).sensitivity == 0.2f);
+    cur.sensitivity = 0.5f;
+    CHECK(SuggestCalm(Stats(0, 230, 0.9f), cur).sensitivity == 0.5f);
+}

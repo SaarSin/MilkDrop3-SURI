@@ -134,6 +134,9 @@ private:
 // What the meter would suggest. Pure: only lowers speed / sensitivity, never weakens
 // Anti-flicker, never applied here (the user presses Ctrl+7).
 const float kTargetMotionPct = 40.0f;
+// Speed alone brings the motion to the target; Sensitivity is only trimmed, never below this,
+// and not at all once it is at or below it (the meter cannot tell whether it helped).
+const float kSensSuggestFloor = 0.5f;
 CalmSettings SuggestCalm(const CalmStats& s, const CalmSettings& current);
 
 // The calm meter's two lines in the info card: what it measures, and what Ctrl+7 would apply.
