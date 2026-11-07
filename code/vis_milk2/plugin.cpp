@@ -579,6 +579,7 @@ void CPlugin::MyPreInitialize()
     m_szLoadingPreset[0] = 0;
 	//m_szPresetDir[0] = 0; // will be set @ end of this function
     m_bPresetListReady = false;
+    m_cmdWhenPresetListReady = Cmd::None;
     m_szUpdatePresetMask[0] = 0;
 
     myfft.Init(576, MY_FFT_SAMPLES, -1);
@@ -3284,9 +3285,30 @@ void CPlugin::CleanUpMyDX9Stuff(int final_cleanup)
 //----------------------------------------------------------------------
 //----------------------------------------------------------------------
 
+// SURI: a command that needs the whole preset list, given while the background scan is still
+// running: remember it, show "scanning presets...", and let MyRenderFn run it when the scan
+// ends. Returns true if the command was deferred.
+bool CPlugin::DeferUntilPresetListReady(Cmd c)
+{
+	if (m_bPresetListReady)
+		return false;
+	m_cmdWhenPresetListReady = c;
+	AddError(LoadResString(IDS_SCANNING_PRESETS), 60.0f, ERR_SCANNING_PRESETS, false);   // cleared when the scan ends
+	return true;
+}
+
 void CPlugin::MyRenderFn(int redraw)
 {
 	EnterCriticalSection(&g_cs);
+
+	// SURI: run a command deferred by DeferUntilPresetListReady once the scan has ended
+	if (m_cmdWhenPresetListReady != Cmd::None && m_bPresetListReady)
+	{
+		const Cmd c = m_cmdWhenPresetListReady;
+		m_cmdWhenPresetListReady = Cmd::None;
+		if (m_UI_mode == UI_REGULAR || m_UI_mode == UI_MENU)
+			DispatchCommand(c, GetPluginWindow());
+	}
 
     // Render a frame of animation here.
     // This function is called each frame just AFTER BeginScene().
@@ -5919,6 +5941,8 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 		if (m_UI_mode == UI_REGULAR || m_UI_mode == UI_MENU)
 		{
             UpdatePresetList(); // make sure list is completely ready
+			if (DeferUntilPresetListReady(c))
+				return true;   // SURI: still scanning; the list opens when the scan ends
 			m_szPresetFilter[0] = 0;   // SURI: every visit starts with the full list
 			m_UI_mode = UI_LOAD;
 			m_show_help = 0;   // SURI: so PgUp / PgDn page the list, not the help
@@ -5953,6 +5977,8 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 		}
 		// reuse the Load menu's on-screen "delete? y/n" prompt, pointed at the running preset
 		UpdatePresetList();
+		if (DeferUntilPresetListReady(c))
+			return true;   // SURI: still scanning; the prompt opens when the scan ends
 		m_szPresetFilter[0] = 0;   // SURI: so the list behind the prompt shows the running preset
 		m_nPresetListCurPos = m_nCurrentPreset;
 		m_UI_mode = UI_LOAD_DEL;
@@ -5977,6 +6003,9 @@ bool CPlugin::DispatchCommand(Cmd c, HWND hWnd)
 		}
 		if (m_UI_mode == UI_REGULAR || m_UI_mode == UI_MENU || m_UI_mode == UI_LOAD)
 		{
+			UpdatePresetList();
+			if (DeferUntilPresetListReady(c))
+				return true;   // SURI: still scanning; the screen opens when the scan ends
 			OpenPlaylistScreen();
 			return true;
 		}
@@ -8542,16 +8571,12 @@ void CPlugin::UpdatePresetList(bool bBackground, bool bForce, bool bTryReselectC
         if (!bBackground && g_bThreadAlive)
         {
             // SURI: a background scan is still running (e.g. L pressed right after start).
-            // Wait for it instead of starting a second thread: two threads used to run at
-            // once, the second one cleared g_bThreadAlive, and a later forced rescan (a folder
-            // change) then did not stop the first, which kept writing the old folder's
-            // presets into the new folder's list.
-            SetThreadPriority(g_hThread, THREAD_PRIORITY_HIGHEST);
-            while (g_bThreadAlive)
-                Sleep(30);
-            if (g_hThread != INVALID_HANDLE_VALUE)
-                CloseHandle(g_hThread);
-            g_hThread = INVALID_HANDLE_VALUE;
+            // Never start a second thread: two threads used to run at once, the second one
+            // cleared g_bThreadAlive, and a later forced rescan (a folder change) then did not
+            // stop the first, which kept writing the old folder's presets into the new
+            // folder's list. Waiting here froze the window for the whole scan (tens of seconds
+            // on a cold disk), so return at once: the caller sees !m_bPresetListReady and
+            // defers (DeferUntilPresetListReady).
             return;
         }
     }

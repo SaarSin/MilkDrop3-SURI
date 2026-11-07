@@ -411,6 +411,8 @@ public:
 	    void		UpdatePresetList(bool bBackground=false, bool bForce=false, bool bTryReselectCurrentPreset=true);
         wchar_t     m_szUpdatePresetMask[MAX_PATH];
         bool        m_bPresetListReady;
+        Cmd         m_cmdWhenPresetListReady;   // SURI: L / P / delete given during the scan, run when it ends
+        bool        DeferUntilPresetListReady(Cmd c);
 	    //void		UpdatePresetRatings();
         //int         m_nRatingReadProgress;  // equals 'm_nPresets' if all ratings are read in & ready to go; -1 if uninitialized; otherwise, it's still reading them in, and range is: [0 .. m_nPresets-1]
         bool        m_bInitialPresetSelected;
