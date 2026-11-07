@@ -135,3 +135,7 @@ private:
 // Anti-flicker, never applied here (the user presses Ctrl+7).
 const float kTargetMotionPct = 40.0f;
 CalmSettings SuggestCalm(const CalmStats& s, const CalmSettings& current);
+
+// The calm meter's two lines in the info card: what it measures, and what Ctrl+7 would apply.
+std::wstring MeterReadingLine(float flashesPerSec, float motionPct);   // L"flash 14.0/s  motion 254%/s"
+std::wstring MeterSuggestionLine(const CalmSettings& shown);          // L"-> Speed 15% . Sensitivity 20% . Anti-flicker: Strong"

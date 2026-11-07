@@ -68,6 +68,19 @@ std::wstring AntiFlickerLabel(AntiFlicker a)
     }
 }
 
+std::wstring MeterReadingLine(float flashesPerSec, float motionPct)
+{
+    wchar_t buf[64];
+    swprintf(buf, 64, L"flash %.1f/s  motion %.0f%%/s", flashesPerSec, motionPct);
+    return buf;
+}
+
+std::wstring MeterSuggestionLine(const CalmSettings& shown)
+{
+    return L"\x2192 " + SpeedLabel(shown.speed) + L" \x00B7 " + SensitivityLabel(shown.sensitivity) +
+           L" \x00B7 " + AntiFlickerLabel(shown.antiFlicker);
+}
+
 static std::wstring FloatKey(float v)
 {
     if (IsOne(v))

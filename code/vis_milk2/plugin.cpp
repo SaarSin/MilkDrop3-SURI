@@ -4606,9 +4606,10 @@ void CPlugin::DrawInfoCard(RECT* pCard, int* upper_right_corner_y, int xL, int x
     }
 
     // SURI: calm meter line: what it measures and what Ctrl+7 would apply (display only)
-    std::wstring meter;
+    // Two lines (reading, then suggestion) so a narrow card does not cut the suggestion off.
+    std::wstring meter, meter2;
     DWORD meterColor = CARD_TEXT_2;
-    int meterW = 0, meterH = 0;
+    int meterW = 0, meterH = 0, meter2H = 0;
     if (showMeter)
     {
         if (m_bCalmMeterFailed)
@@ -4617,19 +4618,25 @@ void CPlugin::DrawInfoCard(RECT* pCard, int* upper_right_corner_y, int xL, int x
         {
             const CalmStats stats = CalmCurrentStats();
             const CalmSettings shown = SuggestCalm(stats, m_pState->m_calm);   // shown only; Ctrl+7 applies it
-            wchar_t buf[64];
-            swprintf(buf, 64, L"flash %.1f/s  motion %.0f%%/s  \x2192 ", stats.flashesPerSec, stats.motionPct);
-            meter = buf + SpeedLabel(shown.speed) + L" \x00B7 " + SensitivityLabel(shown.sensitivity) + L" \x00B7 " + AntiFlickerLabel(shown.antiFlicker);
+            meter  = MeterReadingLine(stats.flashesPerSec, stats.motionPct);
+            meter2 = MeterSuggestionLine(shown);
             if (stats.flashesPerSec >= 3.0f)
                 meterColor = CARD_STAR;
         }
         RECT r = { 0, 0, 4096, 0 };
         meterH = UiMeasure(fMeta, meter.c_str(), &r, DT_SINGLELINE);
         meterW = r.right - r.left;
+        if (!meter2.empty())
+        {
+            RECT r2 = { 0, 0, 4096, 0 };
+            meter2H = UiMeasure(fMeta, meter2.c_str(), &r2, DT_SINGLELINE);
+            meterW = max(meterW, (int)(r2.right - r2.left));
+        }
     }
 
     const int innerW = min(max(max(nameW, metaW), meterW), maxInnerW);
-    const int innerH = nameH + (nameH && metaH ? lineGap : 0) + metaH + (meterH ? lineGap + meterH : 0);
+    const int innerH = nameH + (nameH && metaH ? lineGap : 0) + metaH + (meterH ? lineGap + meterH : 0) +
+                       (meter2H ? lineGap + meter2H : 0);
     const int right = xR + UiPx(TEXT_MARGIN) - UiPx(28);   // SURI: 28 px in from the window edge (xR is the scaled margin in)
     const int top = *upper_right_corner_y - UiPx(TEXT_MARGIN) + UiPx(28);
     SetRect(pCard, right - innerW - 2*padX, top, right, top + innerH + 2*padY);
@@ -4656,6 +4663,12 @@ void CPlugin::DrawInfoCard(RECT* pCard, int* upper_right_corner_y, int xL, int x
         const int my = y + metaH + lineGap;
         RECT r = { pCard->left + padX, my, pCard->left + padX + innerW, my + meterH };
         UiText(fMeta, meter.c_str(), &r, DT_SINGLELINE, meterColor);
+        if (meter2H)
+        {
+            const int my2 = my + meterH + lineGap;
+            RECT r2 = { pCard->left + padX, my2, pCard->left + padX + innerW, my2 + meter2H };
+            UiText(fMeta, meter2.c_str(), &r2, DT_SINGLELINE, CARD_TEXT_2);
+        }
     }
     *upper_right_corner_y = pCard->bottom + UiPx(10);
 }

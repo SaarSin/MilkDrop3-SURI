@@ -307,3 +307,8 @@ TEST(TestCalm_MotionTrackerCorrelationBeat) {
     }
     CHECK(a.BassCorrelation() > 0.8f);
 }
+TEST(TestCalm_MeterLines) {   // SURI: two lines, so a narrow card no longer cuts the suggestion
+    CHECK(MeterReadingLine(14.04f, 254.4f) == L"flash 14.0/s  motion 254%/s");
+    CalmSettings s; s.speed = 0.15f; s.sensitivity = 0.2f; s.antiFlicker = AntiFlicker::Strong;
+    CHECK(MeterSuggestionLine(s) == L"\x2192 Speed 15% \x00B7 Sensitivity 20% \x00B7 Anti-flicker: Strong");
+}
